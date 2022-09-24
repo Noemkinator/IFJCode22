@@ -9,7 +9,7 @@
 TEST_CASE("Verify that required files exists") {
 	using namespace std::filesystem;
 	CHECK(exists("./Makefile"));
-	CHECK(exists("./src/symtable.c"));
+	CHECK(exists("./symtable.c"));
 	CHECK(exists("./dokumentace.pdf"));
 	CHECK(exists("./rozdeleni"));
 }

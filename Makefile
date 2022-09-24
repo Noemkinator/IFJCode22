@@ -7,10 +7,10 @@ CFLAGS := -Wall -g
 all: ifj22
 test: all run_test
 
-ifj22: src/*
-	$(CC) src/main.c -o ifj22
+ifj22: ./*
+	$(CC) main.c -o ifj22
 
-tester: ifj22 src/* tests/*
+tester: ifj22 ./* tests/*
 	g++ -std=c++17 tests/test.cpp -o tester
 
 
@@ -23,4 +23,4 @@ clean:
 	rm -f ./*.zip
 
 pack: clean
-	zip -r xlogin99.zip . -x ifj2022.pdf
+	zip -r xlogin99.zip . -x "ifj2022.pdf" -x "tests/*" -x ".git/*"
