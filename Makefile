@@ -8,7 +8,7 @@ all: ifj22
 test: all run_test
 
 ifj22: ./*
-	$(CC) main.c -o ifj22
+	$(CC) main.c emitter.c -o ifj22
 
 tester: ifj22 ./* tests/*
 	g++ -std=c++17 tests/test.cpp -o tester
