@@ -1,3 +1,6 @@
+// Implementace překladače imperativního jazyka IFJ22
+// Authors: Jiří Gallo (xgallo04)
+
 #include <stddef.h>
 #include <stdio.h>
 #include "emitter.h"
