@@ -3,6 +3,8 @@
 
 #include "lexer.h"
 #include <stdio.h>
+#include <string.h>
+#include <ctype.h>
 
 FILE * sourceFile;
 char * sourceText = NULL;
@@ -44,17 +46,14 @@ void lexerError(Token token) {
     return token; \
 } \
 
-Token getNextToken() {
+Token getNextUnprocessedToken() {
     Token token = {};
     token.line = currentLine;
     token.column = currentColumn;
     token.sourcePosition = currentPosition;
     int c = getNextChar();
     if(c == EOF) TOKEN(EOF)
-    else if(c == ' ') TOKEN(WHITESPACE)
-    else if(c == '\t') TOKEN(WHITESPACE)
-    else if(c == '\n') TOKEN(WHITESPACE)
-    else if(c == '\r') TOKEN(WHITESPACE)
+    else if(isspace(c)) TOKEN(WHITESPACE)
     else if(c == ';') TOKEN(SEMICOLON)
     else if(c == '$') TOKEN(DOLAR)
     else if(c == '?') TOKEN(QUESTIONMARK)
@@ -167,6 +166,25 @@ Token getNextToken() {
     __builtin_unreachable();
 }
 
+// requires call to free after
+char * getTokenTextPermanent(Token token) {
+	char * text = malloc(token.length + 1);
+	memcpy(text, sourceText + token.sourcePosition, token.length);
+	text[token.length] = '\0';
+	return text;
+}
+
+char * temporaryTokenText = NULL;
+
+// requires that there are not existing two results from the function at same time
+char * getTokenText(Token token) {
+    if(temporaryTokenText) {
+        free(temporaryTokenText);
+    }
+    temporaryTokenText = getTokenTextPermanent(token);
+    return temporaryTokenText;
+}
+
 void initLexer() {
     sourceFile = open_memstream(&sourceText, &sourceTextLength);
 	char c;
@@ -180,4 +198,7 @@ void initLexer() {
 void freeLexer() {
     fclose(sourceFile);
     free(sourceText);
+    if(temporaryTokenText) {
+        free(temporaryTokenText);
+    }
 }
