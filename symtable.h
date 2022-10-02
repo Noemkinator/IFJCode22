@@ -41,12 +41,12 @@ typedef struct Block_t {
 Block_t* block_init(Block_t* next);
 int hash(char* str);
 int tb_insert(Item_t* tb_item, Block_t* b);
-Item_t* tb_lookup(char* str, Block_t* top_b);
+Item_t* tb_lookup(char* str, Block_t* b);
 Item_t* tb_remove(char* str, Block_t* b);
 
 // DEBUG
 void debug_insert(Block_t* b, char* str);
-void debug_lookup(Block_t* top_b, char* str);
+void debug_lookup(Block_t* b, char* str);
 void debug_remove(Block_t* b, char* str);
 void debug_print(Block_t* b);
 
