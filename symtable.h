@@ -6,7 +6,7 @@
 #ifndef __SYMTABLE_H__
 #define __SYMTABLE_H__
 
-#define TB_SIZE 1024
+#define TB_SIZE 24  // just for debug purposes
 #define NM_SIZE 256
 
 #include <stdio.h>
@@ -20,32 +20,35 @@ typedef enum {
 	Type_float,
 	Type_string,
 	Type_variable
-} Type;
+} Type_t;
 
 typedef struct {
     int id;
-    Type data_type;
+    Type_t data_type;
     char* name;
-} Item_data;
+} Data_t;
 
-typedef struct Tb_item {
-    Item_data* data;
-    struct Tb_item* next;
-} Tb_item;
+typedef struct Item_t {
+    Data_t* data;
+    struct Item_t* next;
+} Item_t;
 
-extern Tb_item* tb[TB_SIZE];
+typedef struct Block_t {
+   Item_t* tb[TB_SIZE];
+   struct Block_t* next; 
+} Block_t;
 
-void tb_init();
+Block_t* block_init(Block_t* next);
 int hash(char* str);
-int tb_insert(Tb_item* tb_item);
-Tb_item* tb_lookup(char* str);
-Tb_item* tb_remove(char* str);
+int tb_insert(Item_t* tb_item, Block_t* b);
+Item_t* tb_lookup(char* str, Block_t* top_b);
+Item_t* tb_remove(char* str, Block_t* b);
 
 // DEBUG
-void debug_insert();
-void debug_lookup();
-void debug_remove();
-void debug_print();
+void debug_insert(Block_t* b, char* str);
+void debug_lookup(Block_t* top_b, char* str);
+void debug_remove(Block_t* b, char* str);
+void debug_print(Block_t* b);
 
 #endif // __SYMTABLE_H__
 
