@@ -39,7 +39,8 @@ int tb_insert(Item_t* tb_item, Block_t* b) {
 Item_t* tb_lookup(char* str, Block_t* b) {
     int h_id = hash(str);
     Item_t* temp = b->tb[h_id];
-    while(temp != NULL && strncmp(b->tb[h_id]->data->name, str, NM_SIZE) != 0) {
+
+    while(temp != NULL && strncmp(b->tb[h_id]->data->name, str, sizeof(str)) != 0) {
         temp = temp->next;
     }
     return temp;
@@ -49,8 +50,8 @@ Item_t* tb_remove(char* str, Block_t* b) {
     int h_id = hash(str);
     Item_t* temp = b->tb[h_id];
     Item_t* prev = NULL;
-
-    while(temp != NULL && strncmp(b->tb[h_id]->data->name, str, NM_SIZE) != 0) {
+    
+    while(temp != NULL && strncmp(b->tb[h_id]->data->name, str, sizeof(str)) != 0) {
         prev = temp;
         temp = temp->next;
     }
@@ -63,6 +64,21 @@ Item_t* tb_remove(char* str, Block_t* b) {
         prev->next = temp->next;
     }
     return temp;
+}
+
+void block_free(Block_t* b) {
+    while(b->next != NULL) {
+        free(b->next);
+    }
+    free(b);
+}
+
+void item_free(Item_t* i) {
+    while(i->next != NULL) {
+        free(i->next);
+    }
+    free(i->data);
+    free(i);
 }
 
 void debug_print(Block_t* b) {
@@ -82,7 +98,7 @@ void debug_print(Block_t* b) {
     puts("----------------------------------------");
 }
 
-void debug_insert(Block_t* b, char* str) {
+Item_t* debug_insert(Block_t* b, char* str) {
     Item_t* hello = malloc(sizeof(Item_t));
     hello->data = malloc(sizeof(Data_t));
     hello->next = NULL;
@@ -93,6 +109,7 @@ void debug_insert(Block_t* b, char* str) {
     if(tb_insert(hello, b) == 1) {
         puts("error insert1");
     } 
+    return hello;
 }
 
 void debug_lookup(Block_t* b, char* str) {
@@ -117,10 +134,11 @@ void debug_remove(Block_t* b, char* str) {
 
 int main(void) {
     Block_t* b0 = block_init(NULL);
+    Item_t* inserted_item = NULL;
 
     puts("[b0]"); debug_print(b0);
 
-    debug_insert(b0, "abc");
+    inserted_item = debug_insert(b0, "abc");
 
     puts("[b0]"); debug_print(b0);
 
@@ -131,6 +149,9 @@ int main(void) {
     debug_remove(b0, "def");
 
     puts("[b0]"); debug_print(b0);
+
+    item_free(inserted_item); 
+    block_free(b0);
 
     return 0;
 }

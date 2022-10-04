@@ -7,7 +7,6 @@
 #define __SYMTABLE_H__
 
 #define TB_SIZE 24  // just for debug purposes
-#define NM_SIZE 256
 
 #include <stdio.h>
 #include <string.h>
@@ -43,12 +42,14 @@ int hash(char* str);
 int tb_insert(Item_t* tb_item, Block_t* b);
 Item_t* tb_lookup(char* str, Block_t* b);
 Item_t* tb_remove(char* str, Block_t* b);
+void block_free(Block_t* b);
+void item_free(Item_t* i);
 
 // DEBUG
-void debug_insert(Block_t* b, char* str);
+void debug_print(Block_t* b);
+Item_t* debug_insert(Block_t* b, char* str);
 void debug_lookup(Block_t* b, char* str);
 void debug_remove(Block_t* b, char* str);
-void debug_print(Block_t* b);
 
 #endif // __SYMTABLE_H__
 
