@@ -87,7 +87,13 @@ Token getNextToken() {
                 Token secondToken = getNextUnprocessedToken();
                 if(secondToken.type == TOKEN_GREATER) {
                     lexerProcessorState = LEXER_PROCESSOR_SOURCE_DONE;
-                    return getNextToken();
+                    Token newlineToken = getNextUnprocessedToken();
+                    if((newlineToken.type == TOKEN_WHITESPACE && strcmp(getTokenText(newlineToken), "\n") == 0) || newlineToken.type == TOKEN_EOF) {
+                    	return getNextToken();
+                    } else {
+                        fprintf(stderr, "Expected newline or EOF after closing tag\n");
+                        lexerError(newlineToken);
+                    }
                 } else if(secondToken.type == TOKEN_IDENTIFIER && 
                         (strcmp(getTokenText(secondToken), "float") == 0 || 
                             strcmp(getTokenText(secondToken), "int") == 0 || 
@@ -136,6 +142,8 @@ Token getNextToken() {
             if(token.type != TOKEN_EOF) {
                 fprintf(stderr, "Characters found after end of the source code\n");
                 lexerError(token);
+            } else {
+                return token;
             }
         }
     }
