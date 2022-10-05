@@ -36,8 +36,8 @@ Token getNextToken() {
                 fprintf(stderr, "Open tag <? should be followed by php\n");
                 lexerError(token);
             }
-            if((token=getNextUnprocessedToken()).type != TOKEN_WHITESPACE) {
-                fprintf(stderr, "Open tag <?php should be followed by white character\n");
+            if((token=getNextUnprocessedToken()).type != TOKEN_WHITESPACE && token.type != TOKEN_COMMENT) {
+                fprintf(stderr, "Open tag <?php should be followed by white character or comment\n");
                 lexerError(token);
             }
             if((token=getNextNonEmptyToken()).type != TOKEN_IDENTIFIER && strcmp(getTokenText(token), "declare") != 0) {
