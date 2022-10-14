@@ -1,3 +1,4 @@
+# compile using: dot -Tpng fsm.gv -o fsm.png
 digraph {
     node [shape=doublecircle]
     edge [fontsize=12.0,ranksep=1.0]
@@ -53,5 +54,18 @@ digraph {
     LESS -> LESS_OR_EQUALS [label="="]
     START -> GREATER [label=">"]
     GREATER -> GREATER_OR_EQUALS [label="="]
+    INTEGER -> FLOAT_PREDECIMAL [label="\\."]
+    FLOAT_PREDECIMAL [shape=circle]
+    FLOAT_PREDECIMAL -> FLOAT_DECIMAL [label="[0-9]"]
+    FLOAT_DECIMAL -> FLOAT_DECIMAL [label="[0-9]"]
+    FLOAT_DECIMAL -> FLOAT_PREEXPONENT [label="[eE]"]
+    INTEGER -> FLOAT_PREEXPONENT [label="[eE]"]
+    FLOAT_PREEXPONENT [shape=circle]
+    FLOAT_PREEXPONENT -> FLOAT_EXPONENT [label="[0-9]"]
+    FLOAT_PREEXPONENT -> FLOAT_EXPONENT_SIGN [label="[+-]"]
+    FLOAT_EXPONENT_SIGN [shape=circle]
+    FLOAT_EXPONENT_SIGN -> FLOAT_EXPONENT [label="[0-9]"]
+    FLOAT_EXPONENT -> FLOAT_EXPONENT [label="[0-9]"]
+
     label="Finite state machine"
 }

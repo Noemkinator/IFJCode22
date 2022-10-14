@@ -80,8 +80,35 @@ Token getNextUnprocessedToken() {
         do {
             c = getNextChar();
         } while(c >= '0' && c <= '9');
-        undoChar();
-        TOKEN(INTEGER)
+        if(c == '.') {
+            do {
+                c = getNextChar();
+            } while(c >= '0' && c <= '9');
+            if(c == 'e' || c == 'E') {
+                goto FLOAT_PREEXPONENT;
+            } else {
+                undoChar();
+                TOKEN(FLOAT)
+            }
+        } else if(c == 'e' || c == 'E') {
+            FLOAT_PREEXPONENT:
+            c = getNextChar();
+            if(c == '+' || c == '-') {
+                c = getNextChar();
+            }
+            if(c >= '0' && c <= '9') {
+                do {
+                    c = getNextChar();
+                } while(c >= '0' && c <= '9');
+                TOKEN(FLOAT)
+            } else {
+                fprintf(stderr, "Expected digit after exponent\n");
+                lexerError(token);
+            }
+        } else {
+            undoChar();
+            TOKEN(INTEGER)
+        }
     }
     else if(c == '"') {
         do {
