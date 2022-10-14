@@ -104,42 +104,53 @@ Token getNextUnprocessedToken() {
         } else if(nextChar == '*') {
             do {
                 nextChar = getNextChar();
-                if(nextChar == '*') {
+                while(nextChar == '*') {
                     nextChar = getNextChar();
                     if(nextChar == '/') {
-                        break;
+                        TOKEN(COMMENT)
                     }
-                    undoChar();
-                } else if(nextChar == EOF) {
+                }
+                if(nextChar == EOF) {
                     fprintf(stderr, "End of file reached while parsing multiline comment\n");
                     lexerError(token);
                 }
             } while(1);
-            TOKEN(COMMENT)
         } else {
             undoChar();
             TOKEN(DIVIDE)
         }
     }
     else if(c == '=') {
-        char nextChar1 = getNextChar();
-        char nextChar2 = getNextChar();
-        if(nextChar1 == '=' && nextChar2 == '=') {
-            TOKEN(EQUALS)
+        char nextChar = getNextChar();
+        if(nextChar == '=') {
+            nextChar = getNextChar();
+            if(nextChar == '=') {
+                TOKEN(EQUALS)
+            } else {
+                undoChar();
+                fprintf(stderr, "Found invalid token ==, did you mean ===?\n");
+                lexerError(token);
+            }
         } else {
-            undoChar();
             undoChar();
             TOKEN(ASSIGN)
         }
     }
     else if(c == '!') {
-        char nextChar1 = getNextChar();
-        char nextChar2 = getNextChar();
-        if(nextChar1 == '=' && nextChar2 == '=') {
-            TOKEN(EQUALS)
+        char nextChar = getNextChar();
+        if(nextChar == '=') {
+            nextChar = getNextChar();
+            if(nextChar == '=') {
+                TOKEN(NOT_EQUALS)
+            } else {
+                undoChar();
+                fprintf(stderr, "Found invalid token !=, did you mean !==?\n");
+                lexerError(token);
+            }
         } else {
             undoChar();
-            undoChar();
+            fprintf(stderr, "Found invalid token !, negation isn't supported\n");
+            lexerError(token);
         }
     }
     else if(c == '<') {
