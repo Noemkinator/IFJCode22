@@ -11,6 +11,7 @@ char * sourceText = NULL;
 size_t sourceTextLength = 0;
 int currentLine = 1;
 int currentColumn = 1;
+int prevLineLastColumn = 1;
 int currentPosition = 0;
 
 int getNextChar() {
@@ -22,6 +23,7 @@ int getNextChar() {
     }
     if(nextChar == '\n') {
         currentLine++;
+        prevLineLastColumn = currentColumn;
         currentColumn = 1;
     } else {
         currentColumn++;
@@ -31,8 +33,14 @@ int getNextChar() {
 }
 
 void undoChar() {
-    currentColumn--;
     currentPosition--;
+    if(currentPosition < sourceTextLength && sourceText[currentPosition] == '\n') {
+        currentColumn = prevLineLastColumn;
+        prevLineLastColumn = 1;
+        currentLine--;
+    } else {
+        currentColumn--;
+    }
 }
 
 void printTokenPreview(Token token) {
