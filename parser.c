@@ -14,6 +14,7 @@ void printParserError(Token token, char * message) {
 
 bool parse_expression() {
     // TODO
+    puts(getTokenText(nextToken));
     nextToken = getNextToken();
     return true;
 }
@@ -38,8 +39,10 @@ bool parse_assignment() {
 extern bool parse_statement();
 
 bool parse_statement_list() {
-    // TODO
-    if(!parse_statement()) return false;
+    if(nextToken.type == TOKEN_VARIABLE || nextToken.type == TOKEN_IF || nextToken.type == TOKEN_WHILE || nextToken.type == TOKEN_IDENTIFIER || nextToken.type == TOKEN_RETURN) {
+        if(!parse_statement()) return false;
+        if(!parse_statement_list()) return false;
+    }
     return true;
 }
 
@@ -115,6 +118,12 @@ bool parse_while() {
     return true;
 }
 
+bool parse_function_arguments() {
+    // TODO
+    nextToken = getNextToken();
+    return true;
+}
+
 bool parse_function_call() {
     nextToken = getNextToken();
     if(nextToken.type != TOKEN_OPEN_BRACKET) {
@@ -122,9 +131,14 @@ bool parse_function_call() {
         return false;
     }
     nextToken = getNextToken();
-    // TODO: parse arguments
+    parse_function_arguments();
     if(nextToken.type != TOKEN_CLOSE_BRACKET) {
         printParserError(nextToken, "Missing ) after function call");
+        return false;
+    }
+    nextToken = getNextToken();
+    if(nextToken.type != TOKEN_SEMICOLON) {
+        printParserError(nextToken, "Missing ; after function call");
         return false;
     }
     nextToken = getNextToken();
@@ -160,6 +174,32 @@ bool parse_statement() {
     return true;
 }
 
+bool parse_function_parameters() {
+    if(nextToken.type != TOKEN_TYPE) {
+        return true;
+    }
+    nextToken = getNextToken();
+    if(nextToken.type != TOKEN_VARIABLE) {
+        printParserError(nextToken, "Expected variable after type");
+        return false;
+    }
+    nextToken = getNextToken();
+    while(nextToken.type == TOKEN_COMMA) {
+        nextToken = getNextToken();
+        if(nextToken.type != TOKEN_TYPE) {
+            printParserError(nextToken, "Expected type after comma");
+            return false;
+        }
+        nextToken = getNextToken();
+        if(nextToken.type != TOKEN_VARIABLE) {
+            printParserError(nextToken, "Expected variable after type");
+            return false;
+        }
+        nextToken = getNextToken();
+    }
+    return true;
+}
+
 bool parse_function() {
     Token functionIdentifier = getNextToken();
     if(functionIdentifier.type != TOKEN_IDENTIFIER) {
@@ -171,8 +211,8 @@ bool parse_function() {
         printParserError(nextToken, "Missing ( after function name");
         return false;
     }
-    // TODO: parse function parameters
     nextToken = getNextToken();
+    parse_function_parameters();
     if(nextToken.type != TOKEN_CLOSE_BRACKET) {
         printParserError(nextToken, "Missing ) after function");
         return false;
@@ -208,8 +248,11 @@ bool parse() {
     while(nextToken.type != TOKEN_EOF) {
         if(nextToken.type == TOKEN_FUNCTION) {
             if(!parse_function()) return false;
-        } else {
+        } else if(nextToken.type == TOKEN_VARIABLE || nextToken.type == TOKEN_IF || nextToken.type == TOKEN_WHILE || nextToken.type == TOKEN_IDENTIFIER || nextToken.type == TOKEN_RETURN) {
             if(!parse_statement_list()) return false;
+        } else {
+            printParserError(nextToken, "Unexpected token at start of statement");
+            return false;
         }
     }
     return true;
