@@ -35,7 +35,42 @@ void undoChar() {
     currentPosition--;
 }
 
+void printTokenPreview(Token token) {
+    token.length = currentPosition - token.sourcePosition;
+    int printStart = token.sourcePosition - 60;
+    int printEnd = token.sourcePosition + token.length + 60;
+    for(int i = token.sourcePosition - 1; i >= printStart && i >= 0; i--) {
+        if(sourceText[i] == '\n') {
+            printStart = i + 1;
+            break;
+        }
+    }
+    for(int i = token.sourcePosition + token.length; i <= printEnd && i < sourceTextLength; i++) {
+        if(sourceText[i] == '\n') {
+            printEnd = i;
+            break;
+        }
+    }
+    putc('>', stderr);
+    putc(' ', stderr);
+    for(int i = printStart; i < printEnd; i++) {
+        putc(sourceText[i], stderr);
+    }
+    putc('\n', stderr);
+    putc(' ', stderr);
+    putc(' ', stderr);
+    for(int i = printStart; i < token.sourcePosition; i++) {
+        putc(' ', stderr);
+    }
+    putc('^', stderr);
+    for(int i = 0; i < token.length - 1; i++) {
+        putc('~', stderr);
+    }
+    putc('\n', stderr);
+}
+
 void lexerError(Token token) {
+    printTokenPreview(token);
     fprintf(stderr, "Lexer error on line %d, column %d\n", token.line, token.column);
     exit(1);
 }

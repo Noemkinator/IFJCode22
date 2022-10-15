@@ -57,6 +57,7 @@ typedef struct {
     TokenType type;
 } Token;
 
+void printTokenPreview(Token token);
 void lexerError(Token token);
 Token getNextUnprocessedToken();
 char * getTokenText(Token token);
