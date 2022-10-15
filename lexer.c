@@ -143,6 +143,7 @@ Token getNextUnprocessedToken() {
                 do {
                     c = getNextChar();
                 } while(c >= '0' && c <= '9');
+                undoChar();
                 TOKEN(FLOAT)
             } else {
                 fprintf(stderr, "Expected digit after exponent\n");
