@@ -124,6 +124,11 @@ Token getNextUnprocessedToken() {
             c = getNextChar();
         } while(c >= '0' && c <= '9');
         if(c == '.') {
+            c = getNextChar();
+            if(!(c >= '0' && c <= '9')) {
+                fprintf(stderr, "Expected digit after decimal point\n");
+                lexerError(token);
+            }
             do {
                 c = getNextChar();
             } while(c >= '0' && c <= '9');
