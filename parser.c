@@ -12,10 +12,28 @@ void printParserError(Token token, char * message) {
     fprintf(stderr, "PARSER ERROR: %s on line %d, column %d\n", message, token.line, token.column);
 }
 
+bool is_operator(Token token) {
+    return token.type == TOKEN_PLUS || token.type == TOKEN_MINUS || token.type == TOKEN_MULTIPLY || token.type == TOKEN_DIVIDE || token.type == TOKEN_CONCATENATE || token.type == TOKEN_LESS || token.type == TOKEN_LESS_OR_EQUALS || token.type == TOKEN_GREATER || token.type == TOKEN_GREATER_OR_EQUALS || token.type == TOKEN_EQUALS || token.type == TOKEN_NOT_EQUALS;
+}
+
 bool parse_expression() {
-    // TODO
-    puts(getTokenText(nextToken));
+    if(nextToken.type == TOKEN_OPEN_BRACKET) {
+        if(parse_expression()) return false;
+        if(nextToken.type != TOKEN_CLOSE_BRACKET) {
+            printParserError(nextToken, "Expected closing bracket");
+            return false;
+        }
+        return true;
+    }
+    if(nextToken.type != TOKEN_VARIABLE && nextToken.type != TOKEN_INTEGER && nextToken.type != TOKEN_FLOAT && nextToken.type != TOKEN_STRING) {
+        printParserError(nextToken, "Expected expression");
+        return false;
+    }
     nextToken = getNextToken();
+    while(is_operator(nextToken)) {
+        nextToken = getNextToken();
+        parse_expression();
+    }
     return true;
 }
 
@@ -98,7 +116,6 @@ bool parse_while() {
     }
     nextToken = getNextToken();
     if(!parse_expression()) return false;
-    nextToken = getNextToken();
     if(nextToken.type != TOKEN_CLOSE_BRACKET) {
         printParserError(nextToken, "Missing ) after while");
         return false;
@@ -119,8 +136,31 @@ bool parse_while() {
 }
 
 bool parse_function_arguments() {
-    // TODO
+    if(nextToken.type == TOKEN_CLOSE_BRACKET) return true;
+    if(nextToken.type != TOKEN_TYPE) {
+        printParserError(nextToken, "Expected type as first token in function parameter list");
+        return false;
+    }
     nextToken = getNextToken();
+    if(nextToken.type != TOKEN_VARIABLE) {
+        printParserError(nextToken, "Expected type as second token in function parameter list");
+        return false;
+    }
+    nextToken = getNextToken();
+    if(nextToken.type == TOKEN_CLOSE_BRACKET) return true;
+    while(nextToken.type == TOKEN_COMMA) {
+        nextToken = getNextToken();
+        if(nextToken.type != TOKEN_TYPE) {
+            printParserError(nextToken, "Expected type as first token in function parameter list");
+            return false;
+        }
+        nextToken = getNextToken();
+        if(nextToken.type != TOKEN_VARIABLE) {
+            printParserError(nextToken, "Expected type as second token in function parameter list");
+            return false;
+        }
+        nextToken = getNextToken();
+    }
     return true;
 }
 
@@ -227,7 +267,6 @@ bool parse_function() {
         printParserError(returnType, "Missing return type of function");
         return false;
     }
-    // TODO: it can also be forward declaration
     nextToken = getNextToken();
     if(nextToken.type != TOKEN_OPEN_CURLY_BRACKET) {
         printParserError(nextToken, "Missing { after function");
