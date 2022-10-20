@@ -72,7 +72,6 @@ bool parse_if() {
     }
     nextToken = getNextToken();
     if(!parse_expression()) return false;
-    nextToken = getNextToken();
     if(nextToken.type != TOKEN_CLOSE_BRACKET) {
         printParserError(nextToken, "Missing ) if");
         return false;
@@ -187,11 +186,15 @@ bool parse_function_call() {
 
 bool parse_return() {
     nextToken = getNextToken();
-    if(!parse_expression()) return false;
+    // expression after return is optional
+    if(nextToken.type == TOKEN_OPEN_BRACKET || nextToken.type == TOKEN_VARIABLE || nextToken.type == TOKEN_INTEGER || nextToken.type == TOKEN_FLOAT || nextToken.type == TOKEN_STRING) {
+        if(!parse_expression()) return false;
+    }
     if(nextToken.type != TOKEN_SEMICOLON) {
         printParserError(nextToken, "Missing ; after return");
         return false;
     }
+    nextToken = getNextToken();
     return true;
 }
 
@@ -289,6 +292,8 @@ bool parse() {
             if(!parse_function()) return false;
         } else if(nextToken.type == TOKEN_VARIABLE || nextToken.type == TOKEN_IF || nextToken.type == TOKEN_WHILE || nextToken.type == TOKEN_IDENTIFIER || nextToken.type == TOKEN_RETURN) {
             if(!parse_statement_list()) return false;
+        } else if(nextToken.type == TOKEN_RETURN) {
+            if(!parse_return()) return false;
         } else {
             printParserError(nextToken, "Unexpected token at start of statement");
             return false;
