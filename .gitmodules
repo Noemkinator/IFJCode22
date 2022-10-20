@@ -1,0 +1,3 @@
+[submodule "tests/IFJ22_Tester"]
+	path = tests/IFJ22_Tester
+	url = https://github.com/galloj/IFJ22_Tester/

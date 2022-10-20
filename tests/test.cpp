@@ -12,4 +12,5 @@ TEST_CASE("Verify that required files exists") {
 	CHECK(exists("./symtable.c"));
 	CHECK(exists("./dokumentace.pdf"));
 	CHECK(exists("./rozdeleni"));
+	CHECK(system("cd tests/IFJ22_Tester && ./test.py ../../ifj22") == 0);
 }
