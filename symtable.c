@@ -10,47 +10,48 @@ int hash(char* str) {
     unsigned long hash = 5381;
     int c;
 
-    while (c = *str++) {
+    while ((c = *str++) != 0) {
         hash = ((hash << 5) + hash) + c;
     }
     return hash % TB_SIZE;
 }
 
-Block_t* block_init() {
-    Block_t* b = malloc(sizeof(Block_t));
+Table* table_init() {
+    Table* b = malloc(sizeof(Table));
     for(int i=0; i < TB_SIZE; ++i) {
         b->tb[i] = NULL;
     }
     return b;
 }
 
-int tb_insert(Block_t* b, Item_t* tb_item) {
-    if(tb_item == NULL) {
-        return 1;
-    } 
+TableItem* table_insert(Table* b, char * name, void * value) {
+    TableItem* tb_item = malloc(sizeof(TableItem));
+    if(tb_item == NULL) return tb_item;
+    tb_item->name = name;
+    tb_item->data = value;
     int h_id = hash(tb_item->name);
     tb_item->next = b->tb[h_id];
     b->tb[h_id] = tb_item;
-    return 0;
+    return tb_item;
 }
 
-Item_t* tb_lookup(Block_t* b, char* str) {
+TableItem* table_find(Table* b, char* str) {
     int h_id = hash(str);
-    Item_t* temp = b->tb[h_id];
+    TableItem* temp = b->tb[h_id];
 
-    while(temp != NULL && strncmp(temp->name, str, sizeof(str)) != 0) {
+    while(temp != NULL && strcmp(temp->name, str) != 0) {
         temp = temp->next;
     }
     return temp;
 }
 
-Item_t* tb_remove(Block_t* b, char* str) {
+TableItem* table_remove(Table* b, char* str) {
     int h_id = hash(str);
-    Item_t* temp = b->tb[h_id];
-    Item_t* prev = NULL;
+    TableItem* temp = b->tb[h_id];
+    TableItem* prev = NULL;
     
     
-    while(temp != NULL && strncmp(temp->name, str, sizeof(str)) != 0) {
+    while(temp != NULL && strcmp(temp->name, str) != 0) {
         prev = temp;
         temp = temp->next;
     }

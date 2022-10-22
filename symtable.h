@@ -14,29 +14,29 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
-typedef struct Item_t {
+typedef struct TableItem {
     char* name;
     void* data;
-    struct Item_t* next;
-} Item_t;
+    struct TableItem* next;
+} TableItem;
 
-typedef struct Block_t {
-   Item_t* tb[TB_SIZE];
-} Block_t;
+typedef struct Table {
+   TableItem* tb[TB_SIZE];
+} Table;
 
-Block_t* block_init();
+Table* table_init();
 int hash(char* str);
-int tb_insert(Block_t* b, Item_t* tb_item);
-Item_t* tb_lookup(Block_t* b, char* str);
-Item_t* tb_remove(Block_t* b, char* str);
-void block_free(Block_t* b);
-void item_free(Item_t* i);
+TableItem* table_insert(Table* b, char * name, void * value);
+TableItem* table_find(Table* b, char* str);
+TableItem* table_remove(Table* b, char* str);
+void table_free(Table* b);
+void item_free(TableItem* i);
 
 // DEBUG
-void debug_print(Block_t* b);
-Item_t* debug_insert(Block_t* b, char* str);
-void debug_lookup(Block_t* b, char* str);
-void debug_remove(Block_t* b, char* str);
+void debug_print(Table* b);
+TableItem* debug_insert(Table* b, char* str);
+void debug_lookup(Table* b, char* str);
+void debug_remove(Table* b, char* str);
 
 #endif // __SYMTABLE_H__
 
