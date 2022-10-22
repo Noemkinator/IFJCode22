@@ -60,6 +60,7 @@ typedef struct {
 void printTokenPreview(Token token);
 void lexerError(Token token);
 Token getNextUnprocessedToken();
+char * getTokenTextPermanent(Token token);
 char * getTokenText(Token token);
 void initLexer();
 void freeLexer();
