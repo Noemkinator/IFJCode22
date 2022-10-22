@@ -89,11 +89,12 @@ typedef struct {
 
     char * name;
     int arity;
-    Expression * arguments;
+    Expression ** arguments;
 } Expression__FunctionCall;
 
 Expression__FunctionCall* Expression__FunctionCall__init();
 
+Expression__FunctionCall* Expression__FunctionCall__addArgument(Expression__FunctionCall *this, Expression *argument);
 
 typedef struct {
     Expression super;
@@ -135,11 +136,13 @@ typedef struct {
     char * name;
     Type returnType;
     int arity;
-    Type * arguments;
-    char ** argumentNames;
+    Type * parameterTypes;
+    char ** parameterNames;
     Statement * body;
 } Function;
 
 Function* Function__init();
+
+Function* Function__addParameter(Function *this, Type type, char *name);
 
 #endif

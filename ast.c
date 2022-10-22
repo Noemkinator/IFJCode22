@@ -90,6 +90,13 @@ Expression__FunctionCall* Expression__FunctionCall__init() {
     return this;
 }
 
+Expression__FunctionCall* Expression__FunctionCall__addArgument(Expression__FunctionCall *this, Expression *argument) {
+    this->arity++;
+    this->arguments = realloc(this->arguments, this->arity * sizeof(Expression*));
+    this->arguments[this->arity - 1] = argument;
+    return this;
+}
+
 Expression__BinaryOperator* Expression__BinaryOperator__init() {
     Expression__BinaryOperator *this = malloc(sizeof(Expression__BinaryOperator));
     this->super.expressionType = EXPRESSION_BINARY_OPERATOR;
@@ -128,7 +135,16 @@ Function* Function__init() {
     this->returnType.isRequired = false;
     this->returnType.type = TYPE_UNKNOWN;
     this->arity = 0;
-    this->arguments = NULL;
-    this->argumentNames = NULL;
+    this->parameterTypes = NULL;
+    this->parameterNames = NULL;
+    return this;
+}
+
+Function* Function__addParameter(Function *this, Type type, char *name) {
+    this->arity++;
+    this->parameterTypes = realloc(this->parameterTypes, this->arity * sizeof(Type));
+    this->parameterTypes[this->arity - 1] = type;
+    this->parameterNames = realloc(this->parameterNames, this->arity * sizeof(char*));
+    this->parameterNames[this->arity - 1] = name;
     return this;
 }

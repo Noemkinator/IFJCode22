@@ -83,15 +83,16 @@ bool parse_statement_list(StatementList ** statementListRet) {
     return true;
 }
 
-bool parse_if() {
+bool parse_if(StatementIf ** statementIfRet) {
     StatementIf * statementIf = StatementIf__init();
+    *statementIfRet = statementIf;
     nextToken = getNextToken();
     if(nextToken.type != TOKEN_OPEN_BRACKET) {
         printParserError(nextToken, "Missing ( after if");
         return false;
     }
-    nextToken = getNextToken();
-    if(!parse_expression()) return false;
+    nextToken = getNextToken(&statementIf->condition);
+    if(!parse_expression(&statementIf->condition)) return false;
     if(nextToken.type != TOKEN_CLOSE_BRACKET) {
         printParserError(nextToken, "Missing ) if");
         return false;
@@ -137,7 +138,7 @@ bool parse_while(StatementWhile ** statementWhileRet) {
         return false;
     }
     nextToken = getNextToken();
-    if(!parse_expression()) return false;
+    if(!parse_expression(&statementWhile->condition)) return false;
     if(nextToken.type != TOKEN_CLOSE_BRACKET) {
         printParserError(nextToken, "Missing ) after while");
         return false;
@@ -157,28 +158,37 @@ bool parse_while(StatementWhile ** statementWhileRet) {
     return true;
 }
 
-bool parse_function_arguments() {
+bool parse_function_arguments(Expression__FunctionCall * functionCall) {
     if(nextToken.type == TOKEN_CLOSE_BRACKET) return true;
-    if(!parse_expression()) return false;
+    Expression * expression;
+    bool success = parse_expression(&expression);
+    Expression__FunctionCall__addArgument(functionCall, expression);
+    if(!success) return false;
     while(nextToken.type == TOKEN_COMMA) {
         nextToken = getNextToken();
-        if(!parse_expression()) return false;
+        success = parse_expression(&expression);
+        Expression__FunctionCall__addArgument(functionCall, expression);
+        if(!success) return false;
     }
     return true;
 }
 
-bool parse_function_call() {
+bool parse_function_call(Expression__FunctionCall ** functionCallRet) {
+    Expression__FunctionCall * functionCall = Expression__FunctionCall__init();
+    *functionCallRet = functionCall;
+    functionCall->name = getTokenTextPermanent(nextToken);
     nextToken = getNextToken();
     if(nextToken.type != TOKEN_OPEN_BRACKET) {
         printParserError(nextToken, "Missing ( after function call");
         return false;
     }
     nextToken = getNextToken();
-    parse_function_arguments();
+    parse_function_arguments(functionCall);
     if(nextToken.type != TOKEN_CLOSE_BRACKET) {
         printParserError(nextToken, "Missing ) after function call");
         return false;
     }
+    // TODO: remove this after fixing expression parsing
     nextToken = getNextToken();
     if(nextToken.type != TOKEN_SEMICOLON) {
         printParserError(nextToken, "Missing ; after function call");
@@ -188,11 +198,13 @@ bool parse_function_call() {
     return true;
 }
 
-bool parse_return() {
+bool parse_return(StatementReturn ** statementReturnRet) {
+    StatementReturn * statementReturn = StatementReturn__init();
+    *statementReturnRet = statementReturn;
     nextToken = getNextToken();
     // expression after return is optional
     if(nextToken.type != TOKEN_SEMICOLON) {
-        if(!parse_expression()) return false;
+        if(!parse_expression(&statementReturn->expression)) return false;
     }
     if(nextToken.type != TOKEN_SEMICOLON) {
         printParserError(nextToken, "Missing ; after return");
@@ -221,15 +233,17 @@ bool parse_statement(Statement ** retStatement) {
     return true;
 }
 
-bool parse_function_parameters() {
+bool parse_function_parameters(Function * function) {
     if(nextToken.type != TOKEN_TYPE) {
         return true;
     }
+    Type firstType = tokenToType(nextToken);
     nextToken = getNextToken();
     if(nextToken.type != TOKEN_VARIABLE) {
         printParserError(nextToken, "Expected variable after type");
         return false;
     }
+    Function__addParameter(function, firstType, getTokenTextPermanent(nextToken));
     nextToken = getNextToken();
     while(nextToken.type == TOKEN_COMMA) {
         nextToken = getNextToken();
@@ -237,11 +251,13 @@ bool parse_function_parameters() {
             printParserError(nextToken, "Expected type after comma");
             return false;
         }
+        Type type = tokenToType(nextToken);
         nextToken = getNextToken();
         if(nextToken.type != TOKEN_VARIABLE) {
             printParserError(nextToken, "Expected variable after type");
             return false;
         }
+        Function__addParameter(function, type, getTokenTextPermanent(nextToken));
         nextToken = getNextToken();
     }
     return true;
@@ -255,15 +271,14 @@ bool parse_function(Function ** retFunction) {
         printParserError(functionIdentifier, "Missing function name");
         return false;
     }
-    char * functionName = getTokenTextPermanent(functionIdentifier);
-    function->name = functionName;
+    function->name = getTokenTextPermanent(functionIdentifier);
     nextToken = getNextToken();
     if(nextToken.type != TOKEN_OPEN_BRACKET) {
         printParserError(nextToken, "Missing ( after function name");
         return false;
     }
     nextToken = getNextToken();
-    parse_function_parameters();
+    parse_function_parameters(function);
     if(nextToken.type != TOKEN_CLOSE_BRACKET) {
         printParserError(nextToken, "Missing ) after function");
         return false;
