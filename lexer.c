@@ -1,5 +1,9 @@
-// Implementace překladače imperativního jazyka IFJ22
-// Authors: Jiří Gallo (xgallo04)
+/**
+ * @file lexer.c
+ * @author Jiří Gallo (xgallo04)
+ * @brief Lexical analyzer
+ * @date 2022-10-22
+ */
 
 #include "lexer.h"
 #include <stdio.h>
@@ -14,6 +18,10 @@ int currentColumn = 1;
 int prevLineLastColumn = 1;
 int currentPosition = 0;
 
+/**
+ * @brief Shifts reading head one character forward
+ * @return position of next char in input
+ */
 int getNextChar() {
     int nextChar;
     if(currentPosition < sourceTextLength) {
@@ -32,6 +40,9 @@ int getNextChar() {
     return nextChar;
 }
 
+/**
+ * @brief Shifts reading head one character backwards
+ */
 void undoChar() {
     currentPosition--;
     if(currentPosition < sourceTextLength && sourceText[currentPosition] == '\n') {
@@ -43,6 +54,10 @@ void undoChar() {
     }
 }
 
+/**
+ * @brief Shows token preview from input token values 
+ * @param token shows position of token
+ */
 void printTokenPreview(Token token) {
     token.length = currentPosition - token.sourcePosition;
     int printStart = token.sourcePosition - 60;
@@ -76,19 +91,30 @@ void printTokenPreview(Token token) {
     }
     putc('\n', stderr);
 }
-
+/**
+ * @brief Prints out token code and position of the error that happened
+ * @param token shows position of error
+ */
 void lexerError(Token token) {
     printTokenPreview(token);
     fprintf(stderr, "Lexer error on line %d, column %d\n", token.line, token.column);
     exit(1);
 }
 
+/**
+ * @brief Sets values for token.type and token.length
+ * @param x accepts string value
+ * @return token
+ */
 #define TOKEN(x) { \
     token.type = TOKEN_ ## x; \
     token.length = currentPosition - token.sourcePosition; \
     return token; \
 } \
 
+/**
+ * @brief Gets the next unprocessed token object and identifies it
+ */
 Token getNextUnprocessedToken() {
     Token token = {};
     token.line = currentLine;
@@ -253,7 +279,12 @@ Token getNextUnprocessedToken() {
     __builtin_unreachable();
 }
 
-// requires call to free after
+/**
+ * @brief Get the permanent text token object
+ * @param token 
+ * @return char* 
+ * @warning requires call to free after
+ */
 char * getTokenTextPermanent(Token token) {
 	char * text = malloc(token.length + 1);
 	memcpy(text, sourceText + token.sourcePosition, token.length);
@@ -263,7 +294,12 @@ char * getTokenTextPermanent(Token token) {
 
 char * temporaryTokenText = NULL;
 
-// requires that there are not existing two results from the function at same time
+/**
+ * @brief Get the token text object
+ * @param token 
+ * @return char* 
+ * @warning requires that there are not existing two results from the function at same time
+ */
 char * getTokenText(Token token) {
     if(temporaryTokenText) {
         free(temporaryTokenText);
@@ -272,6 +308,9 @@ char * getTokenText(Token token) {
     return temporaryTokenText;
 }
 
+/**
+ * @brief takes file stream from stdin and puts it into temporary memory
+ */
 void initLexer() {
     sourceFile = open_memstream(&sourceText, &sourceTextLength);
 	char c;
@@ -282,6 +321,9 @@ void initLexer() {
     rewind(sourceFile);
 }
 
+/**
+ * @brief Frees the temporary memory of lexer
+ */
 void freeLexer() {
     fclose(sourceFile);
     free(sourceText);
