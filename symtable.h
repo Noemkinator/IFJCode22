@@ -1,6 +1,7 @@
 /**
  * @brief Hlavičkový soubor pro implementaci tabulky symbolů (symtable.c) 
  * @author Jakub Kratochvíl (xkrato67)
+ * @author Jiří Gallo (xgallo04)
  */
 
 #ifndef __SYMTABLE_H__
@@ -13,22 +14,9 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
-typedef enum {
-	Type_int,
-	Type_bool,
-	Type_float,
-	Type_string,
-	Type_variable
-} Type_t;
-
-typedef struct {
-    int id;
-    Type_t data_type;
-    char* name;
-} Data_t;
-
 typedef struct Item_t {
-    Data_t* data;
+    char* name;
+    void* data;
     struct Item_t* next;
 } Item_t;
 
@@ -39,9 +27,9 @@ typedef struct Block_t {
 
 Block_t* block_init(Block_t* next);
 int hash(char* str);
-int tb_insert(Item_t* tb_item, Block_t* b);
-Item_t* tb_lookup(char* str, Block_t* b);
-Item_t* tb_remove(char* str, Block_t* b);
+int tb_insert(Block_t* b, Item_t* tb_item);
+Item_t* tb_lookup(Block_t* b, char* str);
+Item_t* tb_remove(Block_t* b, char* str);
 void block_free(Block_t* b);
 void item_free(Item_t* i);
 
