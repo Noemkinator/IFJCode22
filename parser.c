@@ -16,12 +16,25 @@ bool is_operator(Token token) {
     return token.type == TOKEN_PLUS || token.type == TOKEN_MINUS || token.type == TOKEN_MULTIPLY || token.type == TOKEN_DIVIDE || token.type == TOKEN_CONCATENATE || token.type == TOKEN_LESS || token.type == TOKEN_LESS_OR_EQUALS || token.type == TOKEN_GREATER || token.type == TOKEN_GREATER_OR_EQUALS || token.type == TOKEN_EQUALS || token.type == TOKEN_NOT_EQUALS;
 }
 
+extern bool parse_function_call();
+
 bool parse_expression() {
     if(nextToken.type == TOKEN_OPEN_BRACKET) {
         if(parse_expression()) return false;
         if(nextToken.type != TOKEN_CLOSE_BRACKET) {
             printParserError(nextToken, "Expected closing bracket");
             return false;
+        }
+        nextToken = getNextToken();
+        if(is_operator(nextToken)) {
+            if(parse_expression()) return false;
+        }
+        return true;
+    }
+    if(nextToken.type == TOKEN_IDENTIFIER) {
+        if(!parse_function_call()) return false;
+        if(is_operator(nextToken)) {
+            if(parse_expression()) return false;
         }
         return true;
     }
@@ -57,9 +70,8 @@ bool parse_assignment() {
 extern bool parse_statement();
 
 bool parse_statement_list() {
-    if(nextToken.type == TOKEN_VARIABLE || nextToken.type == TOKEN_IF || nextToken.type == TOKEN_WHILE || nextToken.type == TOKEN_IDENTIFIER || nextToken.type == TOKEN_RETURN) {
+    while(nextToken.type == TOKEN_VARIABLE || nextToken.type == TOKEN_IF || nextToken.type == TOKEN_WHILE || nextToken.type == TOKEN_IDENTIFIER || nextToken.type == TOKEN_RETURN) {
         if(!parse_statement()) return false;
-        if(!parse_statement_list()) return false;
     }
     return true;
 }
@@ -136,29 +148,10 @@ bool parse_while() {
 
 bool parse_function_arguments() {
     if(nextToken.type == TOKEN_CLOSE_BRACKET) return true;
-    if(nextToken.type != TOKEN_TYPE) {
-        printParserError(nextToken, "Expected type as first token in function parameter list");
-        return false;
-    }
-    nextToken = getNextToken();
-    if(nextToken.type != TOKEN_VARIABLE) {
-        printParserError(nextToken, "Expected type as second token in function parameter list");
-        return false;
-    }
-    nextToken = getNextToken();
-    if(nextToken.type == TOKEN_CLOSE_BRACKET) return true;
+    if(!parse_expression()) return false;
     while(nextToken.type == TOKEN_COMMA) {
         nextToken = getNextToken();
-        if(nextToken.type != TOKEN_TYPE) {
-            printParserError(nextToken, "Expected type as first token in function parameter list");
-            return false;
-        }
-        nextToken = getNextToken();
-        if(nextToken.type != TOKEN_VARIABLE) {
-            printParserError(nextToken, "Expected type as second token in function parameter list");
-            return false;
-        }
-        nextToken = getNextToken();
+        if(!parse_expression()) return false;
     }
     return true;
 }
@@ -187,7 +180,7 @@ bool parse_function_call() {
 bool parse_return() {
     nextToken = getNextToken();
     // expression after return is optional
-    if(nextToken.type == TOKEN_OPEN_BRACKET || nextToken.type == TOKEN_VARIABLE || nextToken.type == TOKEN_INTEGER || nextToken.type == TOKEN_FLOAT || nextToken.type == TOKEN_STRING) {
+    if(nextToken.type != TOKEN_SEMICOLON) {
         if(!parse_expression()) return false;
     }
     if(nextToken.type != TOKEN_SEMICOLON) {
