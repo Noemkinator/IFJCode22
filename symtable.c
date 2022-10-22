@@ -16,11 +16,8 @@ int hash(char* str) {
     return hash % TB_SIZE;
 }
 
-Block_t* block_init(Block_t* next) {
+Block_t* block_init() {
     Block_t* b = malloc(sizeof(Block_t));
-    if(next != NULL) {
-        b->next = next;
-    }
     for(int i=0; i < TB_SIZE; ++i) {
         b->tb[i] = NULL;
     }

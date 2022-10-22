@@ -22,10 +22,9 @@ typedef struct Item_t {
 
 typedef struct Block_t {
    Item_t* tb[TB_SIZE];
-   struct Block_t* next; 
 } Block_t;
 
-Block_t* block_init(Block_t* next);
+Block_t* block_init();
 int hash(char* str);
 int tb_insert(Block_t* b, Item_t* tb_item);
 Item_t* tb_lookup(Block_t* b, char* str);
