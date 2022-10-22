@@ -62,7 +62,7 @@ bool parse_assignment() {
     }
     nextToken = getNextToken();
     Expression * expression;
-    if(!parse_expression(expression)) return false;
+    if(!parse_expression(&expression)) return false;
     if(nextToken.type != TOKEN_SEMICOLON) {
         printParserError(nextToken, "Expected semicolon after assignment");
         return false;
