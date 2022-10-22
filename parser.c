@@ -20,23 +20,24 @@ bool is_operator(Token token) {
 
 extern bool parse_function_call();
 
-bool parse_expression() {
+bool parse_expression(Expression ** expression) {
+    *expression = NULL;
     if(nextToken.type == TOKEN_OPEN_BRACKET) {
-        if(parse_expression()) return false;
+        if(parse_expression(expression)) return false;
         if(nextToken.type != TOKEN_CLOSE_BRACKET) {
             printParserError(nextToken, "Expected closing bracket");
             return false;
         }
         nextToken = getNextToken();
         if(is_operator(nextToken)) {
-            if(parse_expression()) return false;
+            if(parse_expression(expression)) return false;
         }
         return true;
     }
     if(nextToken.type == TOKEN_IDENTIFIER) {
         if(!parse_function_call()) return false;
         if(is_operator(nextToken)) {
-            if(parse_expression()) return false;
+            if(parse_expression(expression)) return false;
         }
         return true;
     }
@@ -47,7 +48,7 @@ bool parse_expression() {
     nextToken = getNextToken();
     while(is_operator(nextToken)) {
         nextToken = getNextToken();
-        parse_expression();
+        parse_expression(expression);
     }
     return true;
 }
@@ -60,7 +61,8 @@ bool parse_assignment() {
         return false;
     }
     nextToken = getNextToken();
-    if(!parse_expression()) return false;
+    Expression * expression;
+    if(!parse_expression(expression)) return false;
     if(nextToken.type != TOKEN_SEMICOLON) {
         printParserError(nextToken, "Expected semicolon after assignment");
         return false;
@@ -332,6 +334,11 @@ bool parse() {
             return false;
         }
     }
+    // https://jsoncrack.com/editor
+    /*StringBuilder stringBuilder;
+    StringBuilder__init(&stringBuilder);
+    program->super.serialize(&program->super, &stringBuilder);
+    puts(stringBuilder.text);*/
     return true;
 }
 

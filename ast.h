@@ -2,6 +2,7 @@
 // Authors: Jiří Gallo (xgallo04)
 
 #include "lexer.h"
+#include "string_builder.h"
 #include <stdbool.h>
 #include <string.h>
 
@@ -16,8 +17,9 @@ typedef enum {
     STATEMENT_RETURN
 } StatementType;
 
-typedef struct {
+typedef struct Statement {
     StatementType statementType;
+    void (*serialize)(struct Statement *this, StringBuilder * stringBuilder);
 } Statement;
 
 typedef struct {
@@ -133,6 +135,7 @@ typedef struct {
 StatementReturn* StatementReturn__init();
 
 typedef struct {
+    void (*serialize)(struct Function *this, StringBuilder * stringBuilder);
     char * name;
     Type returnType;
     int arity;
