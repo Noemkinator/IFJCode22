@@ -93,7 +93,7 @@ char * decodeString(char * text) {
     return retAddr;
 }
 
-bool parse_unary_expression(Expression ** expression) {
+bool parse_terminal_expression(Expression ** expression) {
     *expression = NULL;
     if(nextToken.type == TOKEN_OPEN_BRACKET) {
         if(parse_expression(expression, 0)) return false;
@@ -149,7 +149,7 @@ int getOperatorPrecedence(Token token) {
 }
 
 bool parse_expression(Expression ** expression, int previousPrecedence) {
-    if(!parse_unary_expression(expression)) return false;
+    if(!parse_terminal_expression(expression)) return false;
     while(is_operator(nextToken)) {
         Token operatorToken = nextToken;
         int currentPrecedence = getOperatorPrecedence(operatorToken);
