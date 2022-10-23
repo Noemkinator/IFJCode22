@@ -16,7 +16,7 @@ void printParserError(Token token, char * message) {
 }
 
 bool is_operator(Token token) {
-    return token.type == TOKEN_PLUS || token.type == TOKEN_MINUS || token.type == TOKEN_MULTIPLY || token.type == TOKEN_DIVIDE || token.type == TOKEN_CONCATENATE || token.type == TOKEN_LESS || token.type == TOKEN_LESS_OR_EQUALS || token.type == TOKEN_GREATER || token.type == TOKEN_GREATER_OR_EQUALS || token.type == TOKEN_EQUALS || token.type == TOKEN_NOT_EQUALS;
+    return token.type == TOKEN_PLUS || token.type == TOKEN_MINUS || token.type == TOKEN_MULTIPLY || token.type == TOKEN_DIVIDE || token.type == TOKEN_CONCATENATE || token.type == TOKEN_LESS || token.type == TOKEN_LESS_OR_EQUALS || token.type == TOKEN_GREATER || token.type == TOKEN_GREATER_OR_EQUALS || token.type == TOKEN_EQUALS || token.type == TOKEN_NOT_EQUALS || token.type == TOKEN_ASSIGN;
 }
 
 extern bool parse_function_call();
@@ -89,6 +89,7 @@ char * decodeString(char * text) {
         result++;
         text++;
     }
+    result[0] = 0;
     return retAddr;
 }
 
@@ -139,10 +140,11 @@ bool parse_unary_expression(Expression ** expression) {
 }
 
 int getOperatorPrecedence(Token token) {
-    if(token.type == TOKEN_EQUALS || token.type == TOKEN_NOT_EQUALS) return 1;
-    if(token.type == TOKEN_LESS || token.type == TOKEN_LESS_OR_EQUALS || token.type == TOKEN_GREATER || token.type == TOKEN_GREATER_OR_EQUALS) return 2;
-    if(token.type == TOKEN_PLUS || token.type == TOKEN_MINUS || token.type == TOKEN_CONCATENATE) return 3;
-    if(token.type == TOKEN_MULTIPLY || token.type == TOKEN_DIVIDE) return 4;
+    if(token.type == TOKEN_ASSIGN) return 1;
+    if(token.type == TOKEN_EQUALS || token.type == TOKEN_NOT_EQUALS) return 2;
+    if(token.type == TOKEN_LESS || token.type == TOKEN_LESS_OR_EQUALS || token.type == TOKEN_GREATER || token.type == TOKEN_GREATER_OR_EQUALS) return 3;
+    if(token.type == TOKEN_PLUS || token.type == TOKEN_MINUS || token.type == TOKEN_CONCATENATE) return 4;
+    if(token.type == TOKEN_MULTIPLY || token.type == TOKEN_DIVIDE) return 5;
     return 0;
 }
 
@@ -151,7 +153,7 @@ bool parse_expression(Expression ** expression, int previousPrecedence) {
     while(is_operator(nextToken)) {
         Token operatorToken = nextToken;
         int currentPrecedence = getOperatorPrecedence(operatorToken);
-        if(previousPrecedence < currentPrecedence) {
+        if(previousPrecedence < currentPrecedence || (previousPrecedence == 1 && currentPrecedence == 1)) { // hack because = is right associative unlike rest of operators
             Expression__BinaryOperator * operator = Expression__BinaryOperator__init();
             operator->lSide = *expression;
             *expression = operator;
@@ -164,30 +166,12 @@ bool parse_expression(Expression ** expression, int previousPrecedence) {
     return true;
 }
 
-bool parse_assignment() {
-    Token variable = nextToken;
-    nextToken = getNextToken();
-    if(nextToken.type != TOKEN_ASSIGN) {
-        printParserError(nextToken, "Expected assignment");
-        return false;
-    }
-    nextToken = getNextToken();
-    Expression * expression;
-    if(!parse_expression(&expression, 0)) return false;
-    if(nextToken.type != TOKEN_SEMICOLON) {
-        printParserError(nextToken, "Expected semicolon after assignment");
-        return false;
-    }
-    nextToken = getNextToken();
-    return true;
-}
-
 extern bool parse_statement();
 
 bool parse_statement_list(StatementList ** statementListRet) {
     StatementList * statementList = StatementList__init();
     *statementListRet = statementList;
-    while(nextToken.type == TOKEN_VARIABLE || nextToken.type == TOKEN_IF || nextToken.type == TOKEN_WHILE || nextToken.type == TOKEN_IDENTIFIER || nextToken.type == TOKEN_RETURN) {
+    while(nextToken.type == TOKEN_OPEN_BRACKET || nextToken.type == TOKEN_IDENTIFIER || nextToken.type == TOKEN_VARIABLE || nextToken.type == TOKEN_INTEGER || nextToken.type == TOKEN_FLOAT || nextToken.type == TOKEN_STRING || nextToken.type == TOKEN_VARIABLE || nextToken.type == TOKEN_IF || nextToken.type == TOKEN_WHILE || nextToken.type == TOKEN_IDENTIFIER || nextToken.type == TOKEN_RETURN) {
         Statement * statement;
         bool success = parse_statement(&statement);
         StatementList__addStatement(statementList, statement);
@@ -301,12 +285,6 @@ bool parse_function_call(Expression__FunctionCall ** functionCallRet) {
         printParserError(nextToken, "Missing ) after function call");
         return false;
     }
-    // TODO: remove this after fixing expression parsing
-    nextToken = getNextToken();
-    if(nextToken.type != TOKEN_SEMICOLON) {
-        printParserError(nextToken, "Missing ; after function call");
-        return false;
-    }
     nextToken = getNextToken();
     return true;
 }
@@ -329,18 +307,22 @@ bool parse_return(StatementReturn ** statementReturnRet) {
 
 bool parse_statement(Statement ** retStatement) {
     switch (nextToken.type) {
-        case TOKEN_VARIABLE:
-            return parse_assignment(retStatement);
         case TOKEN_IF:
             return parse_if(retStatement);
         case TOKEN_WHILE:
             return parse_while(retStatement);
-        case TOKEN_IDENTIFIER:
-            return parse_function_call(retStatement);
         case TOKEN_RETURN:
             return parse_return(retStatement);
         default:
-            printParserError(nextToken, "Unexpected token at start of statement");
+            if(nextToken.type == TOKEN_OPEN_BRACKET || nextToken.type == TOKEN_IDENTIFIER || nextToken.type == TOKEN_VARIABLE || nextToken.type == TOKEN_INTEGER || nextToken.type == TOKEN_FLOAT || nextToken.type == TOKEN_STRING) {
+                if(!parse_expression(retStatement, 0)) return false;
+                if(nextToken.type != TOKEN_SEMICOLON) {
+                    printParserError(nextToken, "Missing ; after expression");
+                    return false;
+                }
+                nextToken = getNextToken();
+                return true;
+            }
             return false;
     }
     return true;
@@ -435,14 +417,11 @@ bool parse() {
                 exit(3);
             }
             table_insert(function_table, function->name, function);
-        } else if(nextToken.type == TOKEN_VARIABLE || nextToken.type == TOKEN_IF || nextToken.type == TOKEN_WHILE || nextToken.type == TOKEN_IDENTIFIER || nextToken.type == TOKEN_RETURN) {
+        } else {
             StatementList * statementList;
             if(!parse_statement_list(&statementList)) return false;
             StatementList__append(program, statementList);
             free(statementList);
-        } else {
-            printParserError(nextToken, "Unexpected token at start of statement");
-            return false;
         }
     }
     // https://jsoncrack.com/editor
