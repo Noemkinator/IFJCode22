@@ -19,36 +19,58 @@ bool is_operator(Token token) {
 }
 
 extern bool parse_function_call();
+extern bool parse_expression(Expression ** expression, int previousPrecedence);
 
-bool parse_expression(Expression ** expression) {
+bool parse_unary_expression(Expression ** expression) {
     *expression = NULL;
     if(nextToken.type == TOKEN_OPEN_BRACKET) {
-        if(parse_expression(expression)) return false;
+        if(parse_expression(expression, 0)) return false;
         if(nextToken.type != TOKEN_CLOSE_BRACKET) {
             printParserError(nextToken, "Expected closing bracket");
             return false;
         }
         nextToken = getNextToken();
-        if(is_operator(nextToken)) {
-            if(parse_expression(expression)) return false;
-        }
         return true;
     }
     if(nextToken.type == TOKEN_IDENTIFIER) {
-        if(!parse_function_call()) return false;
-        if(is_operator(nextToken)) {
-            if(parse_expression(expression)) return false;
-        }
+        if(!parse_function_call(expression)) return false;
         return true;
     }
     if(nextToken.type != TOKEN_VARIABLE && nextToken.type != TOKEN_INTEGER && nextToken.type != TOKEN_FLOAT && nextToken.type != TOKEN_STRING) {
         printParserError(nextToken, "Expected expression");
         return false;
     }
+    if(nextToken.type == TOKEN_VARIABLE) {
+        Expression__Variable * variable = Expression__Variable__init();
+        *expression = variable;
+        variable->name = getTokenTextPermanent(nextToken);
+    }
     nextToken = getNextToken();
+    return true;
+}
+
+int getOperatorPrecedence(Token token) {
+    if(token.type == TOKEN_EQUALS || token.type == TOKEN_NOT_EQUALS) return 1;
+    if(token.type == TOKEN_LESS || token.type == TOKEN_LESS_OR_EQUALS || token.type == TOKEN_GREATER || token.type == TOKEN_GREATER_OR_EQUALS) return 2;
+    if(token.type == TOKEN_PLUS || token.type == TOKEN_MINUS || token.type == TOKEN_CONCATENATE) return 3;
+    if(token.type == TOKEN_MULTIPLY || token.type == TOKEN_DIVIDE) return 4;
+    return 0;
+}
+
+bool parse_expression(Expression ** expression, int previousPrecedence) {
+    if(!parse_unary_expression(expression)) return false;
     while(is_operator(nextToken)) {
-        nextToken = getNextToken();
-        parse_expression(expression);
+        Token operatorToken = nextToken;
+        int currentPrecedence = getOperatorPrecedence(operatorToken);
+        if(previousPrecedence < currentPrecedence) {
+            Expression__BinaryOperator * operator = Expression__BinaryOperator__init();
+            operator->lSide = *expression;
+            *expression = operator;
+            nextToken = getNextToken();
+            parse_expression(&operator->rSide, currentPrecedence);
+        } else {
+            break;
+        }
     }
     return true;
 }
@@ -62,7 +84,7 @@ bool parse_assignment() {
     }
     nextToken = getNextToken();
     Expression * expression;
-    if(!parse_expression(&expression)) return false;
+    if(!parse_expression(&expression, 0)) return false;
     if(nextToken.type != TOKEN_SEMICOLON) {
         printParserError(nextToken, "Expected semicolon after assignment");
         return false;
@@ -94,7 +116,7 @@ bool parse_if(StatementIf ** statementIfRet) {
         return false;
     }
     nextToken = getNextToken(&statementIf->condition);
-    if(!parse_expression(&statementIf->condition)) return false;
+    if(!parse_expression(&statementIf->condition, 0)) return false;
     if(nextToken.type != TOKEN_CLOSE_BRACKET) {
         printParserError(nextToken, "Missing ) if");
         return false;
@@ -140,7 +162,7 @@ bool parse_while(StatementWhile ** statementWhileRet) {
         return false;
     }
     nextToken = getNextToken();
-    if(!parse_expression(&statementWhile->condition)) return false;
+    if(!parse_expression(&statementWhile->condition, 0)) return false;
     if(nextToken.type != TOKEN_CLOSE_BRACKET) {
         printParserError(nextToken, "Missing ) after while");
         return false;
@@ -163,12 +185,12 @@ bool parse_while(StatementWhile ** statementWhileRet) {
 bool parse_function_arguments(Expression__FunctionCall * functionCall) {
     if(nextToken.type == TOKEN_CLOSE_BRACKET) return true;
     Expression * expression;
-    bool success = parse_expression(&expression);
+    bool success = parse_expression(&expression, 0);
     Expression__FunctionCall__addArgument(functionCall, expression);
     if(!success) return false;
     while(nextToken.type == TOKEN_COMMA) {
         nextToken = getNextToken();
-        success = parse_expression(&expression);
+        success = parse_expression(&expression,0);
         Expression__FunctionCall__addArgument(functionCall, expression);
         if(!success) return false;
     }
@@ -206,7 +228,7 @@ bool parse_return(StatementReturn ** statementReturnRet) {
     nextToken = getNextToken();
     // expression after return is optional
     if(nextToken.type != TOKEN_SEMICOLON) {
-        if(!parse_expression(&statementReturn->expression)) return false;
+        if(!parse_expression(&statementReturn->expression, 0)) return false;
     }
     if(nextToken.type != TOKEN_SEMICOLON) {
         printParserError(nextToken, "Missing ; after return");
