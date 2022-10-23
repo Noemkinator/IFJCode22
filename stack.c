@@ -8,29 +8,28 @@
 #include <stdio.h>
 
 void init_stack(Stack* stack) {
-    stack->top = NULL;      // mozna upravit tak aby se rovnou do zasobniku dal $
+    stack->top = NULL;
 }
 
 // returns true if push was successful, otherwise returns false
 bool push(Stack* stack, Symbol symbol) {
     StackItem* new_item = malloc(sizeof(StackItem));
-    if(new_item == NULL) {
-        //fprintf(stderr, "Not enough space for aloccating new memory.\n");
-        return false;
-    }
+    if(new_item == NULL) return false;
     new_item->symbol = symbol;
     new_item->next = stack->top;
     stack->top = new_item;
     return true;
 }
 
-void pop(Stack* stack) {
+bool pop(Stack* stack) {
     StackItem* temp;
     if(!is_empty(stack)) {
         temp = stack->top;
         stack->top = stack->top->next;
         free(temp);
+        return true;
     }
+    return false;
 }
 
 void pop_all(Stack* stack) {
@@ -51,18 +50,19 @@ StackItem* top(Stack* stack) {
 
 // returns most top terminal, returns NULL if stack doesn't contain any terminal
 StackItem* top_term(Stack* stack) {
-    while(stack->top != NULL) {
-        if(is_terminal(stack->top)) {
-            return stack->top;
+    StackItem* temp = stack->top;
+    while(temp != NULL) {
+        if(is_terminal(temp->symbol)) {
+            return temp;
         } else {
-            stack->top = stack->top->next;
+            temp = temp->next;
         }
     }
-    return NULL;
+    return temp;
 }
 
 bool is_terminal(Symbol symbol) {
-    if(symbol == SYM_NON_TERMINAL) {
+    if(symbol == SYM_NON_TERMINAL || symbol == SYM_START_DOLLAR) {
         return false;
     }
     return true;
@@ -70,4 +70,49 @@ bool is_terminal(Symbol symbol) {
 
 bool is_empty(Stack* stack) {
     return stack->top == NULL;
+}
+
+char* symbol_to_string(Symbol symbol) {
+    switch(symbol) {
+        case SYM_START_DOLLAR:
+            return "$";
+        case SYM_NON_TERMINAL:
+            return "E";
+        case SYM_OPEN_CURLY_BRACKET:
+            return "(";
+        case SYM_CLOSE_CURLY_BRACKET:
+            return ")";
+        case SYM_PLUS:
+            return "+";
+        case SYM_MINUS:
+            return "-";
+        case SYM_CONCATENATE:
+            return ".";
+        case SYM_MULTIPLY:
+            return "*";
+        case SYM_IDENTIFIER:
+            return "i";
+        case SYM_INTEGER:
+            return "(int)i";
+        case SYM_FLOAT:
+            return "(float)i";
+        case SYM_STRING:
+            return "(str)i";
+        case SYM_DIVIDE:
+            return "/";
+        case SYM_EQUALS:
+            return "===";
+        case SYM_NOT_EQUALS:
+            return "!==";
+        case SYM_LESS:
+            return "<";
+        case SYM_GREATER:
+            return ">";
+        case SYM_LESS_OR_EQUALS:
+            return "<=";
+        case SYM_GREATER_OR_EQUALS:
+            return ">=";
+        default:
+            return "ERROR";
+    }
 }
