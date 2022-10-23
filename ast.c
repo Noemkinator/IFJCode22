@@ -98,7 +98,7 @@ void Expression__Constant__serialize(Expression__Constant *this, StringBuilder *
             StringBuilder__appendFloat(stringBuilder, this->value.real);
             break;
         case TYPE_STRING:
-            StringBuilder__appendString(stringBuilder, this->value.string);
+            StringBuilder__appendEscapedStr(stringBuilder, this->value.string);
             break;
         case TYPE_VOID:
             StringBuilder__appendString(stringBuilder, "");
@@ -126,7 +126,7 @@ Expression__Constant* Expression__Constant__init() {
 
 void Expression__Variable__serialize(Expression__Variable *this, StringBuilder * stringBuilder) {
     StringBuilder__appendString(stringBuilder, "{\"expressionType\": \"EXPRESSION_VARIABLE\", \"name\": \"");
-    StringBuilder__appendString(stringBuilder, this->name);
+    StringBuilder__appendEscapedStr(stringBuilder, this->name);
     StringBuilder__appendString(stringBuilder, "\"}");
 }
 
@@ -148,7 +148,7 @@ Expression__Variable* Expression__Variable__init() {
 
 void Expression__FunctionCall__serialize(Expression__FunctionCall *this, StringBuilder * stringBuilder) {
     StringBuilder__appendString(stringBuilder, "{\"expressionType\": \"EXPRESSION_FUNCTION_CALL\", \"name\": \"");
-    StringBuilder__appendString(stringBuilder, this->name);
+    StringBuilder__appendEscapedStr(stringBuilder, this->name);
     StringBuilder__appendString(stringBuilder, "\", \"arguments\": [");
     for (int i = 0; i < this->arity; i++) {
         if(this->arguments[i] != NULL) {
@@ -307,7 +307,7 @@ void Function__serialize(Function *this, StringBuilder * stringBuilder) {
     StringBuilder__appendString(stringBuilder, ", \"arguments\": [");
     for(int i = 0; i < this->arity; i++) {
         StringBuilder__appendString(stringBuilder, "{\"name\": \"");
-        StringBuilder__appendString(stringBuilder, this->parameterNames[i]);
+        StringBuilder__appendEscapedStr(stringBuilder, this->parameterNames[i]);
         StringBuilder__appendString(stringBuilder, "\", \"type\": \"");
         if(!this->parameterTypes[i].isRequired) {
             StringBuilder__appendString(stringBuilder, "?");

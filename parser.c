@@ -6,6 +6,7 @@
 #include "ast.h"
 #include "symtable.h"
 #include <stdio.h>
+#include <stdint.h>
 
 Token nextToken;
 
@@ -20,6 +21,76 @@ bool is_operator(Token token) {
 
 extern bool parse_function_call();
 extern bool parse_expression(Expression ** expression, int previousPrecedence);
+
+char * decodeString(char * text) {
+    int len = strlen(text);
+    char * result = malloc(len + 1);
+    char * retAddr = result;
+    text++;
+    while(*text != '"' && *text != '\0') {
+        if(*text == '\\') {
+            text++;
+            switch(*text) {
+                case '"':
+                    *result = '"';
+                    break;
+                case 'n':
+                    *result = '\n';
+                    break;
+                case 't':
+                    *result = '\t';
+                    break;
+                case '\\':
+                    *result = '\\';
+                    break;
+                case 'x':
+                    if(isxdigit(text[1]) && isxdigit(text[2])) {
+                        char hex[3];
+                        hex[0] = text[1];
+                        hex[1] = text[2];
+                        hex[2] = '\0';
+                        *result = (char)strtol(hex, NULL, 16);
+                        if(*result == 0) {
+                            goto undoHexParse;
+                        }
+                        text += 2;
+                    } else {
+                        undoHexParse:
+                        text--;
+                        *result = *text;
+                    }
+                    break;
+                case '0' ... '3':
+                    if('0' <= text[1] && text[1] <= 7 && '0' <= text[2] && text[2] <= 7) {
+                        char oct[4];
+                        oct[0] = text[0];
+                        oct[1] = text[1];
+                        oct[2] = text[2];
+                        oct[3] = '\0';
+                        *result = (char)strtol(oct, NULL, 8);
+                        if(*result == 0) {
+                            goto undoOctParse;
+                        }
+                        text += 2;
+                    } else {
+                        undoOctParse:
+                        text--;
+                        *result = *text;
+                    }
+                    break;
+                default:
+                    text--;
+                    *result = *text;
+                    break;
+            }
+        } else {
+            *result = *text;
+        }
+        result++;
+        text++;
+    }
+    return retAddr;
+}
 
 bool parse_unary_expression(Expression ** expression) {
     *expression = NULL;
@@ -44,6 +115,24 @@ bool parse_unary_expression(Expression ** expression) {
         Expression__Variable * variable = Expression__Variable__init();
         *expression = variable;
         variable->name = getTokenTextPermanent(nextToken);
+    } else if(nextToken.type == TOKEN_INTEGER || nextToken.type == TOKEN_FLOAT || nextToken.type == TOKEN_STRING) {
+        Expression__Constant * constant = Expression__Constant__init();
+        *expression = constant;
+        Type type;
+        type.isRequired = true;
+        if(nextToken.type == TOKEN_INTEGER) {
+            type.type = TYPE_INT;
+            constant->type = type;
+            constant->value.integer = atoll(getTokenText(nextToken));
+        } else if(nextToken.type == TOKEN_FLOAT) {
+            type.type = TYPE_FLOAT;
+            constant->type = type;
+            constant->value.real = atof(getTokenText(nextToken));
+        } else if(nextToken.type == TOKEN_STRING) {
+            type.type = TYPE_STRING;
+            constant->type = type;
+            constant->value.string = decodeString(getTokenText(nextToken));
+        }
     }
     nextToken = getNextToken();
     return true;
