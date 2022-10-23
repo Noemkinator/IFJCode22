@@ -191,14 +191,14 @@ Expression__FunctionCall* Expression__FunctionCall__addArgument(Expression__Func
 
 void Expression__BinaryOperator__serialize(Expression__BinaryOperator *this, StringBuilder * stringBuilder) {
     StringBuilder__appendString(stringBuilder, "{\"expressionType\": \"EXPRESSION_BINARY_OPERATION\", \"operator\": \"");
-    StringBuilder__appendChar(stringBuilder, "TODO");
-    StringBuilder__appendString(stringBuilder, "\", \"left\": ");
+    StringBuilder__appendString(stringBuilder, "TODO");
+    StringBuilder__appendString(stringBuilder, "\", \"lSide\": ");
     if(this->lSide != NULL) {
         this->lSide->super.serialize(this->lSide, stringBuilder);
     } else {
         StringBuilder__appendString(stringBuilder, "null");
     }
-    StringBuilder__appendString(stringBuilder, ", \"right\": ");
+    StringBuilder__appendString(stringBuilder, ", \"rSide\": ");
     if(this->rSide != NULL) {
         this->rSide->super.serialize(this->rSide, stringBuilder);
     } else {
@@ -217,6 +217,8 @@ Type Expression__BinaryOperation__getType(Expression__BinaryOperator *this) {
 Expression__BinaryOperator* Expression__BinaryOperator__init() {
     Expression__BinaryOperator *this = malloc(sizeof(Expression__BinaryOperator));
     this->super.expressionType = EXPRESSION_BINARY_OPERATOR;
+    this->super.super.serialize = Expression__BinaryOperator__serialize;
+    this->super.getType = Expression__BinaryOperation__getType;
     this->lSide = NULL;
     this->rSide = NULL;
     return this;
