@@ -1,11 +1,19 @@
 /**
- * @brief Implementace tabulky symbolů
+ * @file symtable.c
  * @author Jakub Kratochvíl (xkrato67)
  * @author Jiří Gallo (xgallo04)
+ * @brief Hash table implementation
  */
  
 #include "symtable.h"
 
+/**
+ * @brief Generates hash from given string
+ * @param str
+ * @return hash
+ * 
+ * http://www.cse.yorku.ca/~oz/hash.html
+ */
 int hash(char* str) {
     unsigned long hash = 5381;
     int c;
@@ -16,6 +24,10 @@ int hash(char* str) {
     return hash % TB_SIZE;
 }
 
+/**
+ * @brief Initializes new hash table
+ * @return pointer to hash table
+ */
 Table* table_init() {
     Table* b = malloc(sizeof(Table));
     for(int i=0; i < TB_SIZE; ++i) {
@@ -24,6 +36,14 @@ Table* table_init() {
     return b;
 }
 
+/**
+ * @brief Allocates new item and inserts data into it in specified hash table
+ * @param b hash table
+ * @param name 
+ * @param value pointer to data
+ * @return pointer to inserted item
+ * @warning returns NULL if memory couldn't be allocated
+ */
 TableItem* table_insert(Table* b, char * name, void * value) {
     TableItem* tb_item = malloc(sizeof(TableItem));
     if(tb_item == NULL) return tb_item;
@@ -35,6 +55,13 @@ TableItem* table_insert(Table* b, char * name, void * value) {
     return tb_item;
 }
 
+/**
+ * @brief Looks for item in hash table
+ * @param b hash table
+ * @param str 
+ * @return pointer to item
+ * @warning if item wasn't found returns NULL
+ */
 TableItem* table_find(Table* b, char* str) {
     int h_id = hash(str);
     TableItem* temp = b->tb[h_id];
@@ -45,6 +72,13 @@ TableItem* table_find(Table* b, char* str) {
     return temp;
 }
 
+/**
+ * @brief Removes item from hash table
+ * @param b hash table
+ * @param str 
+ * @return pointer to item
+ * @warning if item wasn't found returns NULL
+ */
 TableItem* table_remove(Table* b, char* str) {
     int h_id = hash(str);
     TableItem* temp = b->tb[h_id];
