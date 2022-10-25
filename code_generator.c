@@ -49,7 +49,7 @@ Symb generateVariable(Expression__Variable * statement, Table * varTable, Table 
     return (Symb){.type = Type_variable, .value.v.frameType = ((VariableInfo*)table_find(varTable, statement->name)->data)->isGlobal ? GF : LF, .value.v.name = varId};
 }
 
-Symb generateExpression(Expression * expression, Table * varTable, Table * functionTable);
+Symb generateExpression(Expression * expression, Table * varTable, Table * functionTable, bool throwaway);
 
 Symb generateFunctionCall(Expression__FunctionCall * expression, Table * varTable, Table * functionTable) {
     TableItem * tableItem = table_find(functionTable, expression->name);
@@ -62,7 +62,7 @@ Symb generateFunctionCall(Expression__FunctionCall * expression, Table * varTabl
         // this is built in function
         if(strcmp(function->name, "write") == 0) {
             for(int i=0; i<expression->arity; i++) {
-                Symb symb = generateExpression(expression->arguments[i], varTable, functionTable);
+                Symb symb = generateExpression(expression->arguments[i], varTable, functionTable, false);
                 emit_WRITE(symb);
             }
             // TODO add return void
@@ -81,7 +81,7 @@ Symb generateFunctionCall(Expression__FunctionCall * expression, Table * varTabl
     }
     for(int i=0; i<expression->arity; i++) {
         emit_DEFVAR((Var){.frameType = TF, .name = join_strings("var&", function->parameterNames[i])});
-        emit_MOVE((Var){.frameType = TF, .name = join_strings("var&", function->parameterNames[i])}, generateExpression(expression->arguments[i], varTable, functionTable));
+        emit_MOVE((Var){.frameType = TF, .name = join_strings("var&", function->parameterNames[i])}, generateExpression(expression->arguments[i], varTable, functionTable, false));
     }
     char * functionLabel = join_strings("function&", expression->name);
     emit_CALL(functionLabel);
@@ -105,16 +105,18 @@ Symb saveTempSymb(Symb symb, FrameType frameType) {
     return (Symb){.type = Type_variable, .value.v = var};
 }
 
-Symb generateBinaryOperator(Expression__BinaryOperator * expression, Table * varTable, Table * functionTable) {
-    Symb left = generateExpression(expression->lSide, varTable, functionTable);
-    Symb right = generateExpression(expression->rSide, varTable, functionTable);
+Symb generateBinaryOperator(Expression__BinaryOperator * expression, Table * varTable, Table * functionTable, bool throwaway) {
+    Symb left = generateExpression(expression->lSide, varTable, functionTable, false);
+    Symb right = generateExpression(expression->rSide, varTable, functionTable, false);
     if(expression->operator == TOKEN_ASSIGN) {
         if(left.type != Type_variable) {
             fprintf(stderr, "Left side of assigment needs to be variable\n");
             // NOTE: not sure if right exit code
             exit(2);
         }
-        right = saveTempSymb(right, LF);
+        if(!throwaway) {
+            right = saveTempSymb(right, LF);
+        }
         emit_MOVE(left.value.v, right);
         return right;
     }
@@ -171,7 +173,7 @@ Symb generateBinaryOperator(Expression__BinaryOperator * expression, Table * var
     return outSymb;
 }
 
-Symb generateExpression(Expression * expression, Table * varTable, Table * functionTable) {
+Symb generateExpression(Expression * expression, Table * varTable, Table * functionTable, bool throwaway) {
     switch(expression->expressionType) {
         case EXPRESSION_CONSTANT:
             return generateConstant((Expression__Constant*)expression);
@@ -183,7 +185,7 @@ Symb generateExpression(Expression * expression, Table * varTable, Table * funct
             return generateFunctionCall((Expression__FunctionCall*)expression, varTable, functionTable);
             break;
         case EXPRESSION_BINARY_OPERATOR:
-            return generateBinaryOperator((Expression__BinaryOperator*)expression, varTable, functionTable);
+            return generateBinaryOperator((Expression__BinaryOperator*)expression, varTable, functionTable, throwaway);
             break;
         default:
             fprintf(stderr, "Unknown expression type found while generating output code\n");
@@ -208,7 +210,7 @@ void generateIf(StatementIf * statement, Table * varTable, Table * functionTable
     StringBuilder__appendString(&ifEndSb, "ifEnd&");
     StringBuilder__appendInt(&ifEndSb, ifUID);
 
-    emit_JUMPIFNEQ(ifElseSb.text, generateExpression(statement->condition, varTable, functionTable), (Symb){.type=Type_bool, .value.b = true});
+    emit_JUMPIFNEQ(ifElseSb.text, generateExpression(statement->condition, varTable, functionTable, false), (Symb){.type=Type_bool, .value.b = true});
     generateStatement(statement->ifBody, varTable, functionTable);
     emit_JUMP(ifEndSb.text);
     emit_LABEL(ifElseSb.text);
@@ -231,7 +233,7 @@ void generateWhile(StatementWhile * statement, Table * varTable, Table * functio
     StringBuilder__appendInt(&whileEndSb, whileUID);
 
     emit_LABEL(whileStartSb.text);
-    emit_JUMPIFNEQ(whileEndSb.text, generateExpression(statement->condition, varTable, functionTable), (Symb){.type=Type_bool, .value.b = true});
+    emit_JUMPIFNEQ(whileEndSb.text, generateExpression(statement->condition, varTable, functionTable, false), (Symb){.type=Type_bool, .value.b = true});
     generateStatement(statement->body, varTable, functionTable);
     emit_JUMP(whileStartSb.text);
     emit_LABEL(whileEndSb.text);
@@ -241,9 +243,9 @@ void generateWhile(StatementWhile * statement, Table * varTable, Table * functio
 }
 
 void generateReturn(StatementReturn * statement, Table * varTable, Table * functionTable) {
-    // TODO global return
+    // TODO global return, when is global return then throwaway is true
     if(statement->expression != NULL) {
-        emit_MOVE((Var){.frameType = LF, .name = "returnValue"}, generateExpression(statement->expression,  varTable, functionTable));
+        emit_MOVE((Var){.frameType = LF, .name = "returnValue"}, generateExpression(statement->expression,  varTable, functionTable, false));
     }
     emit_RETURN();
 }
@@ -252,7 +254,7 @@ void generateStatement(Statement * statement, Table * varTable, Table * function
     if(statement == NULL) return;
     switch(statement->statementType) {
         case STATEMENT_EXPRESSION:
-            generateExpression((Expression*) statement,  varTable, functionTable);
+            generateExpression((Expression*) statement,  varTable, functionTable, true);
             break;
         case STATEMENT_LIST:
             generateStatementList((StatementList*)statement, varTable, functionTable);
