@@ -20,6 +20,19 @@ size_t getNextCodeGenUID() {
 
 void generateStatement(Statement * statement, Table * varTable, Table * functionTable);
 
+void generateExpression(Expression * expression, Table * varTable, Table * functionTable) {
+    switch(expression->expressionType) {
+        case EXPRESSION_CONSTANT:
+            break;
+        case EXPRESSION_VARIABLE:
+            break;
+        case EXPRESSION_FUNCTION_CALL:
+            break;
+        case EXPRESSION_BINARY_OPERATOR:
+            break;
+    }
+}
+
 void generateStatementList(StatementList* statementList, Table * varTable, Table * functionTable) {
     for(int i = 0; i < statementList->listSize; i++) {
         generateStatement(statementList->statements[i], varTable, functionTable);
@@ -37,6 +50,8 @@ void generateIf(StatementIf * statement, Table * varTable, Table * functionTable
     StringBuilder__appendString(&ifEndSb, "ifEnd$");
     StringBuilder__appendInt(&ifEndSb, ifUID);
 
+    generateExpression(statement->condition, varTable, functionTable);
+    emit_PUSHS((Symb){.type=Type_bool, .value.b = true});
     emit_JUMPIFNEQS(ifElseSb.text);
     generateStatement(statement->ifBody, varTable, functionTable);
     emit_JUMP(ifEndSb.text);
@@ -48,10 +63,16 @@ void generateIf(StatementIf * statement, Table * varTable, Table * functionTable
     StringBuilder__free(&ifEndSb);
 }
 
+void generateReturn(StatementReturn * statement, Table * varTable, Table * functionTable) {
+    generateExpression(statement->expression,  varTable, functionTable);
+    emit_RETURN();
+}
+
 void generateStatement(Statement * statement, Table * varTable, Table * functionTable) {
     if(statement == NULL) return;
     switch(statement->statementType) {
         case STATEMENT_EXPRESSION:
+            generateExpression((Expression*) statement,  varTable, functionTable);
             break;
         case STATEMENT_LIST:
             generateStatementList((StatementList*)statement, varTable, functionTable);
@@ -61,8 +82,10 @@ void generateStatement(Statement * statement, Table * varTable, Table * function
         case STATEMENT_WHILE:
             break;
         case STATEMENT_RETURN:
+            generateReturn(statement, varTable, functionTable);
             break;
         case STATEMENT_FUNCTION:
+            fprintf(stderr, "OFF, ignoring function...\n");
             break;
     }
 }

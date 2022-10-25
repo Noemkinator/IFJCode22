@@ -34,7 +34,7 @@ void emit_var(Var var) {
 void emit_symb(Symb symb) {
 	switch(symb.type) {
 		case Type_int:		printf("int@%d", symb.value.i);	break;
-		case Type_bool:		printf("bool@%s", symb.value.i ? "true" : "false");	break;
+		case Type_bool:		printf("bool@%s", symb.value.b ? "true" : "false");	break;
 		case Type_float:	printf("float@%a", symb.value.f);	break;
 		case Type_string:	printf("string@%s", symb.value.s);	break;
 		case Type_variable:	emit_var(symb.value.v);	break;

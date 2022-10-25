@@ -4,6 +4,8 @@
 #ifndef __EMITTER_H__
 #define __EMITTER_H__
 
+#include <stdbool.h>
+
 typedef enum {
 	Type_int,
 	Type_bool,
@@ -29,6 +31,7 @@ typedef struct {
 		int i;
 		float f;
 		char * s;
+		bool b;
 		Var v;
 	} value;
 } Symb;
