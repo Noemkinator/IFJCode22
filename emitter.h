@@ -38,11 +38,15 @@ typedef struct {
 } Symb;
 
 void emit_header();
+void emit_instruction_start();
+void emit_instruction_end();
 void emit_MOVE(Var var, Symb symb);
 void emit_CREATEFRAME();
 void emit_PUSHFRAME();
 void emit_POPFRAME();
+void emit_DEFVAR_start();
 void emit_DEFVAR(Var var);
+void emit_DEFVAR_end();
 void emit_CALL(char * label);
 void emit_RETURN();
 void emit_PUSHS(Symb symb);

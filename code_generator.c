@@ -304,8 +304,12 @@ void generateFunction(Function* function, Table * functionTable) {
     if(function->body == NULL) return;
     Table* localTable = table_init();
     char * functionLabel = join_strings("function&", function->name);
+    emit_instruction_start();
     emit_LABEL(functionLabel);
+    emit_instruction_end();
     free(functionLabel);
+    emit_DEFVAR_start();
+    emit_instruction_start();
     emit_DEFVAR((Var){frameType: TF, name: "returnValue"});
     size_t statementCount;
     Statement *** allStatements = getAllStatements(function->body, &statementCount);
@@ -334,7 +338,11 @@ void generateFunction(Function* function, Table * functionTable) {
         }
     }
     free(allStatements);
+    emit_DEFVAR_end();
+    emit_DEFVAR_start();
     emit_PUSHFRAME();
+    emit_instruction_end();
+    emit_instruction_start();
     generateStatement(function->body, localTable, functionTable);
     // TODO, handle differently
     // for now emit return if function does not end with return
@@ -342,10 +350,13 @@ void generateFunction(Function* function, Table * functionTable) {
         emit_POPFRAME();
         emit_RETURN();
     }
+    emit_DEFVAR_end();
+    emit_instruction_end();
 }
 
 void generateCode(StatementList * program, Table * functionTable) {
     emit_header();
+    emit_DEFVAR_start();
     Table * globalTable = table_init();
     size_t statementCount;
     Statement *** allStatements = getAllStatements((Statement*)program, &statementCount);
@@ -365,10 +376,15 @@ void generateCode(StatementList * program, Table * functionTable) {
         }
     }
     free(allStatements);
+    emit_instruction_start();
     emit_CREATEFRAME();
     emit_PUSHFRAME();
+    emit_instruction_end();
+    emit_instruction_start();
     generateStatementList(program, globalTable, functionTable);
     emit_EXIT((Symb){.type=Type_int, .value.i=0});
+    emit_DEFVAR_end();
+    emit_instruction_end();
     for(int i = 0; i < TB_SIZE; i++) {
         TableItem* item = functionTable->tb[i];
         while(item != NULL) {
