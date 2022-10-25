@@ -9,7 +9,7 @@ void emit_header() {
 	printf(".IFJcode22\n");
 }
 
-void emit_type(Type type) {
+void emit_type(StorageType type) {
 	char * typeName = NULL;
 	switch(type) {
 		case Type_int:		typeName = "int";	break;
@@ -272,7 +272,7 @@ void emit_STRI2INTS() {
 	printf("STRI2INTS\n");
 }
 
-void emit_READ(Var var, Type type) {
+void emit_READ(Var var, StorageType type) {
 	printf("READ ");
 	emit_var(var);
 	emit_type(type);

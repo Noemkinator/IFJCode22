@@ -158,7 +158,7 @@ bool parse_expression(Expression ** expression, int previousPrecedence) {
             operator->lSide = *expression;
             *expression = operator;
             nextToken = getNextToken();
-            parse_expression(&operator->rSide, currentPrecedence);
+            if(!parse_expression(&operator->rSide, currentPrecedence)) return false;
         } else {
             break;
         }
@@ -404,18 +404,22 @@ bool parse_function(Function ** retFunction) {
     return true;
 }
 
+#include "code_generator.c"
+
 bool parse() {
     Table * function_table = table_init();
     StatementList * program = StatementList__init();
+    Function * f = NULL;
     nextToken = getNextToken();
     while(nextToken.type != TOKEN_EOF) {
         if(nextToken.type == TOKEN_FUNCTION) {
-            Function * function;
+            Function * function = NULL;
             if(!parse_function(&function)) return false;
             if(table_find(function_table, function->name) != NULL) {
                 fprintf(stderr, "Function %s already defined\n", function->name);
                 exit(3);
             }
+            f=function;
             table_insert(function_table, function->name, function);
         } else {
             StatementList * statementList;
@@ -425,10 +429,11 @@ bool parse() {
         }
     }
     // https://jsoncrack.com/editor
-    /*StringBuilder stringBuilder;
+    StringBuilder stringBuilder;
     StringBuilder__init(&stringBuilder);
-    program->super.serialize(&program->super, &stringBuilder);
-    puts(stringBuilder.text);*/
+    f->super.serialize(f, &stringBuilder);
+    puts(stringBuilder.text);
+    generateCode(program, function_table);
     return true;
 }
 

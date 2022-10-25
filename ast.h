@@ -14,12 +14,14 @@ typedef enum {
     STATEMENT_LIST,
     STATEMENT_IF,
     STATEMENT_WHILE,
-    STATEMENT_RETURN
+    STATEMENT_RETURN,
+    STATEMENT_FUNCTION
 } StatementType;
 
 typedef struct Statement {
     StatementType statementType;
     void (*serialize)(struct Statement *this, StringBuilder * stringBuilder);
+    struct Statement *** (*getChildren)(struct Statement *this, int * childrenCount);
 } Statement;
 
 typedef struct {
@@ -135,7 +137,7 @@ typedef struct {
 StatementReturn* StatementReturn__init();
 
 typedef struct {
-    void (*serialize)(struct Function *this, StringBuilder * stringBuilder);
+    Statement super;
     char * name;
     Type returnType;
     int arity;

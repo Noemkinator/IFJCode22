@@ -10,7 +10,7 @@ typedef enum {
 	Type_float,
 	Type_string,
 	Type_variable
-} Type;
+} StorageType;
 
 typedef enum {
 	LF,
@@ -24,7 +24,7 @@ typedef struct {
 } Var;
 
 typedef struct {
-	Type type;
+	StorageType type;
 	union {
 		int i;
 		float f;
@@ -74,7 +74,7 @@ void emit_INT2FLOATS();
 void emit_FLOAT2INTS();
 void emit_INT2CHARS();
 void emit_STRI2INTS();
-void emit_READ(Var var, Type type);
+void emit_READ(Var var, StorageType type);
 void emit_WRITE(Symb symb);
 void emit_CONCAT(Var var, Symb symb1, Symb symb2);
 void emit_STRLEN(Var var, Symb symb);
