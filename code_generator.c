@@ -210,12 +210,14 @@ void generateIf(StatementIf * statement, Table * varTable, Table * functionTable
     StringBuilder__appendString(&ifEndSb, "ifEnd&");
     StringBuilder__appendInt(&ifEndSb, ifUID);
 
+    bool isElseEmpty = statement->elseBody == NULL || (statement->elseBody->statementType == STATEMENT_LIST && ((StatementList*)statement->elseBody)->listSize == 0);
     emit_JUMPIFNEQ(ifElseSb.text, generateExpression(statement->condition, varTable, functionTable, false), (Symb){.type=Type_bool, .value.b = true});
     generateStatement(statement->ifBody, varTable, functionTable);
-    emit_JUMP(ifEndSb.text);
+    if(!isElseEmpty) emit_JUMP(ifEndSb.text);
     emit_LABEL(ifElseSb.text);
-    generateStatement(statement->elseBody, varTable, functionTable);
-    emit_LABEL(ifEndSb.text);
+    if(!isElseEmpty) generateStatement(statement->elseBody, varTable, functionTable);
+    if(!isElseEmpty) emit_LABEL(ifEndSb.text);
+    if(isElseEmpty) emit_COMMENT("Else body is empty");
 
     StringBuilder__free(&ifElseSb);
     StringBuilder__free(&ifEndSb);
