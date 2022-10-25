@@ -52,16 +52,32 @@ Symb generateVariable(Expression__Variable * statement, Table * varTable, Table 
 Symb generateExpression(Expression * expression, Table * varTable, Table * functionTable);
 
 Symb generateFunctionCall(Expression__FunctionCall * expression, Table * varTable, Table * functionTable) {
-    emit_CREATEFRAME();
     TableItem * tableItem = table_find(functionTable, expression->name);
     if(tableItem == NULL) {
         fprintf(stderr, "Trying to call undefined function\n");
         exit(3);
     }
     Function * function = (Function*)tableItem->data;
+    if(function->body == NULL) {
+        // this is built in function
+        if(strcmp(function->name, "write") == 0) {
+            for(int i=0; i<expression->arity; i++) {
+                Symb symb = generateExpression(expression->arguments[i], varTable, functionTable);
+                emit_WRITE(symb);
+            }
+            // TODO add return void
+            return (Symb){.type=Type_int, .value.i=0};
+        }
+    }
+    emit_CREATEFRAME();
     if(function->arity != expression->arity) {
         fprintf(stderr, "ERR: Function %s called with wrong number of arguments\n", expression->name);
         exit(4);
+    }
+    if(strcmp(function->name, "readi") == 0) {
+        emit_DEFVAR((Var){.frameType=TF, .name="returnValue"});
+        emit_READ((Var){.frameType=TF, .name="returnValue"}, Type_int);
+        return (Symb){.type = Type_variable, .value.v=(Var){.frameType = TF, .name = "returnValue"}};
     }
     for(int i=0; i<expression->arity; i++) {
         emit_DEFVAR((Var){.frameType = TF, .name = join_strings("var&", function->parameterNames[i])});
@@ -90,19 +106,19 @@ Symb saveTempSymb(Symb symb, FrameType frameType) {
 }
 
 Symb generateBinaryOperator(Expression__BinaryOperator * expression, Table * varTable, Table * functionTable) {
+    Symb left = generateExpression(expression->lSide, varTable, functionTable);
+    Symb right = generateExpression(expression->rSide, varTable, functionTable);
     if(expression->operator == TOKEN_ASSIGN) {
-        Symb left = generateExpression(expression->lSide, varTable, functionTable);
         if(left.type != Type_variable) {
             fprintf(stderr, "Left side of assigment needs to be variable\n");
             // NOTE: not sure if right exit code
             exit(2);
         }
-        Symb right = generateExpression(expression->rSide, varTable, functionTable);
         right = saveTempSymb(right, LF);
         emit_MOVE(left.value.v, right);
         return right;
     }
-    Symb left = saveTempSymb(left, LF);
+    left = saveTempSymb(left, LF);
     size_t outVarId = getNextCodeGenUID();
     StringBuilder sb;
     StringBuilder__init(&sb);
@@ -111,7 +127,6 @@ Symb generateBinaryOperator(Expression__BinaryOperator * expression, Table * var
     Var outVar = (Var){.frameType=LF, .name=sb.text};
     emit_DEFVAR(outVar);
     Symb outSymb = (Symb){.type=Type_variable, .value.v = outVar};
-    Symb right = generateExpression(expression->rSide, varTable, functionTable);
     switch(expression->operator) {
         case TOKEN_PLUS:
             emit_ADD(outVar, left, right);
@@ -168,8 +183,11 @@ Symb generateExpression(Expression * expression, Table * varTable, Table * funct
             return generateFunctionCall((Expression__FunctionCall*)expression, varTable, functionTable);
             break;
         case EXPRESSION_BINARY_OPERATOR:
-            generateBinaryOperator((Expression__BinaryOperator*)expression, varTable, functionTable);
+            return generateBinaryOperator((Expression__BinaryOperator*)expression, varTable, functionTable);
             break;
+        default:
+            fprintf(stderr, "Unknown expression type found while generating output code\n");
+            exit(99);
     }
 }
 
@@ -317,13 +335,35 @@ void generateFunction(Function* function, Table * functionTable) {
 void generateCode(StatementList * program, Table * functionTable) {
     emit_header();
     Table * globalTable = table_init();
+    size_t statementCount;
+    Statement *** allStatements = getAllStatements((Statement*)program, &statementCount);
+    for(int i=0; i<statementCount; i++) {
+        Statement * statement = *allStatements[i];
+        if(statement->statementType == STATEMENT_EXPRESSION && ((Expression*)statement)->expressionType == EXPRESSION_VARIABLE) {
+            Expression__Variable* variable = (Expression__Variable*) statement;
+            if(table_find(globalTable, variable->name) == NULL) {
+                VariableInfo * variableInfo = malloc(sizeof(VariableInfo));
+                variableInfo->name = variable->name;
+                variableInfo->isGlobal = true;
+                variableInfo->type.type = TYPE_UNKNOWN;
+                variableInfo->type.isRequired = false;
+                table_insert(globalTable, variable->name, variableInfo);
+                emit_DEFVAR((Var){.frameType=GF, .name=join_strings("var&", variable->name)});
+            }
+        }
+    }
+    free(allStatements);
+    emit_CREATEFRAME();
+    emit_PUSHFRAME();
     generateStatementList(program, globalTable, functionTable);
     emit_EXIT((Symb){.type=Type_int, .value.i=0});
     for(int i = 0; i < TB_SIZE; i++) {
         TableItem* item = functionTable->tb[i];
         while(item != NULL) {
             Function* function = (Function*) item->data;
-            generateFunction(function, functionTable);
+            if(function->body != NULL) {
+                generateFunction(function, functionTable);
+            }
             item = item->next;
         }
     }

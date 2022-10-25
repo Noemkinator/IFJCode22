@@ -407,10 +407,84 @@ bool parse_function(Function ** retFunction) {
 
 #include "code_generator.c"
 
+void loadBuiltinFunctions(Table * functionTable) {
+    Function * reads = Function__init();
+    reads->name = "reads";
+    reads->returnType.isRequired = false;
+    reads->returnType.type = TYPE_STRING;
+    table_insert(functionTable, "reads", reads);
+    Function * readi = Function__init();
+    readi->name = "readi";
+    readi->returnType.isRequired = false;
+    readi->returnType.type = TYPE_INT;
+    table_insert(functionTable, "readi", readi);
+    Function * readf = Function__init();
+    readf->name = "readf";
+    readf->returnType.isRequired = false;
+    readf->returnType.type = TYPE_FLOAT;
+    table_insert(functionTable, "readf", readf);
+    
+    Function * write = Function__init();
+    write->name = "write";
+    write->returnType.type = TYPE_VOID;
+    table_insert(functionTable, "write", write);
+
+    Function * floatval = Function__init();
+    floatval->name = "floatval";
+    floatval->returnType.isRequired = true;
+    floatval->returnType.type = TYPE_FLOAT;
+    Function__addParameter(floatval, (Type){.isRequired = false, .type = TYPE_UNKNOWN}, "term");
+    table_insert(functionTable, "floatval", floatval);
+
+    Function * intval = Function__init();
+    intval->name = "intval";
+    intval->returnType.isRequired = true;
+    intval->returnType.type = TYPE_INT;
+    Function__addParameter(intval, (Type){.isRequired = false, .type = TYPE_UNKNOWN}, "term");
+    table_insert(functionTable, "intval", intval);
+
+    Function * strval = Function__init();
+    strval->name = "strval";
+    strval->returnType.isRequired = true;
+    strval->returnType.type = TYPE_STRING;
+    Function__addParameter(strval, (Type){.isRequired = false, .type = TYPE_UNKNOWN}, "term");
+    table_insert(functionTable, "strval", strval);
+
+    Function * strlen = Function__init();
+    strlen->name = "strlen";
+    strlen->returnType.isRequired = true;
+    strlen->returnType.type = TYPE_INT;
+    Function__addParameter(strlen, (Type){.isRequired = false, .type = TYPE_UNKNOWN}, "s");
+    table_insert(functionTable, "strlen", strlen);
+
+    Function * substring = Function__init();
+    substring->name = "substring";
+    substring->returnType.isRequired = false;
+    substring->returnType.type = TYPE_STRING;
+    Function__addParameter(substring, (Type){.isRequired = false, .type = TYPE_UNKNOWN}, "s");
+    Function__addParameter(substring, (Type){.isRequired = false, .type = TYPE_UNKNOWN}, "i");
+    Function__addParameter(substring, (Type){.isRequired = false, .type = TYPE_UNKNOWN}, "j");
+    table_insert(functionTable, "substring", substring);
+
+    Function * ord = Function__init();
+    ord->name = "ord";
+    ord->returnType.isRequired = true;
+    ord->returnType.type = TYPE_INT;
+    Function__addParameter(ord, (Type){.isRequired = false, .type = TYPE_UNKNOWN}, "c");
+    table_insert(functionTable, "ord", ord);
+
+    Function * chr = Function__init();
+    chr->name = "chr";
+    chr->returnType.isRequired = true;
+    chr->returnType.type = TYPE_STRING;
+    Function__addParameter(chr, (Type){.isRequired = false, .type = TYPE_UNKNOWN}, "i");
+    table_insert(functionTable, "chr", chr);
+}
+
 bool parse() {
     Table * function_table = table_init();
+    loadBuiltinFunctions(function_table);
     StatementList * program = StatementList__init();
-    Function * f = NULL;
     nextToken = getNextToken();
     while(nextToken.type != TOKEN_EOF) {
         if(nextToken.type == TOKEN_FUNCTION) {
@@ -420,7 +494,6 @@ bool parse() {
                 fprintf(stderr, "Function %s already defined\n", function->name);
                 exit(3);
             }
-            f=function;
             table_insert(function_table, function->name, function);
         } else {
             StatementList * statementList;

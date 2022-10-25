@@ -3,6 +3,7 @@
 
 #include <stddef.h>
 #include <stdio.h>
+#include <ctype.h>
 #include "emitter.h"
 
 void emit_header() {
@@ -31,12 +32,29 @@ void emit_var(Var var) {
 	printf("%s@%s", frameName, var.name);
 }
 
+void emit_string(char * string) {
+	printf("string@");
+	while(*string) {
+		if(isspace(*string) || *string == '#' || *string == '\\' || *string < 32) {
+			unsigned int c = (unsigned int)(unsigned char)*string;
+			printf("\\%d", c/100);
+			c %= 100;
+			printf("%d", c/10);
+			c %= 10;
+			printf("%d", c);
+		} else {
+			printf("%c", *string);
+		}
+		string++;
+	}
+}
+
 void emit_symb(Symb symb) {
 	switch(symb.type) {
 		case Type_int:		printf("int@%d", symb.value.i);	break;
 		case Type_bool:		printf("bool@%s", symb.value.b ? "true" : "false");	break;
 		case Type_float:	printf("float@%a", symb.value.f);	break;
-		case Type_string:	printf("string@%s", symb.value.s);	break;
+		case Type_string:	emit_string(symb.value.s);	break;
 		case Type_variable:	emit_var(symb.value.v);	break;
 	}
 }
@@ -307,7 +325,6 @@ void emit_READ(Var var, StorageType type) {
 
 void emit_WRITE(Symb symb) {
 	printf("WRITE ");
-	printf(" ");
 	emit_symb(symb);
 	printf("\n");
 }
