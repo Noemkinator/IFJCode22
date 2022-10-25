@@ -47,6 +47,27 @@ void generateVariable(Expression__Variable * statement, Table * varTable, Table 
     emit_PUSHS((Symb){.type = Type_variable, .value.v.frameType = ((VariableInfo*)table_find(varTable, statement->name)->data)->isGlobal ? GF : LF, .value.v.name = statement->name});
 }
 
+void generateExpression(Expression * expression, Table * varTable, Table * functionTable);
+
+void generateFunctionCall(Expression__FunctionCall * expression, Table * varTable, Table * functionTable) {
+    emit_CREATEFRAME();
+    Function * function = (Function*)table_find(functionTable, expression->name)->data;
+    if(function->arity != expression->arity) {
+        fprintf(stderr, "ERR: Function %s called with wrong number of arguments\n", expression->name);
+        exit(4);
+        return;
+    }
+    for(int i=0; i<expression->arity; i++) {
+        generateExpression(expression->arguments[i], varTable, functionTable);
+        emit_DEFVAR((Var){.frameType = TF, .name = join_strings("var$", function->parameterNames[i])});
+        emit_POPS((Var){.frameType = TF, .name = join_strings("var$", function->parameterNames[i])});
+    }
+    char * functionLabel = join_strings("function&", expression->name);
+    emit_CALL(functionLabel);
+    free(functionLabel);
+    emit_POPS((Var){.frameType = TF, .name = "returnValue"});
+}
+
 void generateExpression(Expression * expression, Table * varTable, Table * functionTable) {
     switch(expression->expressionType) {
         case EXPRESSION_CONSTANT:
@@ -56,6 +77,7 @@ void generateExpression(Expression * expression, Table * varTable, Table * funct
             generateVariable((Expression__Variable*)expression, varTable, functionTable);
             break;
         case EXPRESSION_FUNCTION_CALL:
+            generateFunctionCall((Expression__FunctionCall*)expression, varTable, functionTable);
             break;
         case EXPRESSION_BINARY_OPERATOR:
             break;
@@ -72,11 +94,11 @@ void generateIf(StatementIf * statement, Table * varTable, Table * functionTable
     size_t ifUID = getNextCodeGenUID();
     StringBuilder ifElseSb;
     StringBuilder__init(&ifElseSb);
-    StringBuilder__appendString(&ifElseSb, "ifElse$");
+    StringBuilder__appendString(&ifElseSb, "ifElse&");
     StringBuilder__appendInt(&ifElseSb, ifUID);
     StringBuilder ifEndSb;
     StringBuilder__init(&ifEndSb);
-    StringBuilder__appendString(&ifEndSb, "ifEnd$");
+    StringBuilder__appendString(&ifEndSb, "ifEnd&");
     StringBuilder__appendInt(&ifEndSb, ifUID);
 
     generateExpression(statement->condition, varTable, functionTable);
@@ -96,11 +118,11 @@ void generateWhile(StatementWhile * statement, Table * varTable, Table * functio
     size_t whileUID = getNextCodeGenUID();
     StringBuilder whileStartSb;
     StringBuilder__init(&whileStartSb);
-    StringBuilder__appendString(&whileStartSb, "whileStart$");
+    StringBuilder__appendString(&whileStartSb, "whileStart&");
     StringBuilder__appendInt(&whileStartSb, whileUID);
     StringBuilder whileEndSb;
     StringBuilder__init(&whileEndSb);
-    StringBuilder__appendString(&whileEndSb, "whileEnd$");
+    StringBuilder__appendString(&whileEndSb, "whileEnd&");
     StringBuilder__appendInt(&whileEndSb, whileUID);
 
     emit_LABEL(whileStartSb.text);
@@ -171,7 +193,9 @@ Statement *** getAllStatements(Statement * parent, size_t * count) {
 void generateFunction(Function* function, Table * functionTable) {
     if(function->body == NULL) return;
     Table* localTable = table_init();
-    emit_LABEL(join_strings("function&", function->name));
+    char * functionLabel = join_strings("function&", function->name);
+    emit_LABEL(functionLabel);
+    free(functionLabel);
     emit_CREATEFRAME();
     emit_DEFVAR((Var){frameType: TF, name: "returnValue"});
     size_t statementCount;
@@ -187,7 +211,16 @@ void generateFunction(Function* function, Table * functionTable) {
                 variableInfo->type.type = TYPE_UNKNOWN;
                 variableInfo->type.isRequired = false;
                 table_insert(localTable, variable->name, variableInfo);
-                emit_DEFVAR((Var){.frameType=TF, .name=join_strings("var&", variable->name)});
+                bool isParameter = false;
+                for(int j=0; j<function->arity; j++) {
+                    if(strcmp(function->parameterNames[j], variable->name) == 0) {
+                        isParameter = true;
+                        break;
+                    }
+                }
+                if(!isParameter) {
+                    emit_DEFVAR((Var){.frameType=TF, .name=join_strings("var&", variable->name)});
+                }
             }
         }
     }
