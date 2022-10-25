@@ -82,7 +82,7 @@ void generateStatement(Statement * statement, Table * varTable, Table * function
         case STATEMENT_WHILE:
             break;
         case STATEMENT_RETURN:
-            generateReturn(statement, varTable, functionTable);
+            generateReturn((StatementReturn*)statement, varTable, functionTable);
             break;
         case STATEMENT_FUNCTION:
             fprintf(stderr, "OFF, ignoring function...\n");
@@ -151,7 +151,7 @@ void generateFunction(Function* function, Table * functionTable) {
 void generateCode(StatementList * program, Table * functionTable) {
     emit_header();
     Table * globalTable = table_init();
-    generateStatement(program, globalTable, functionTable);
+    generateStatementList(program, globalTable, functionTable);
     for(int i = 0; i < TB_SIZE; i++) {
         TableItem* item = functionTable->tb[i];
         while(item != NULL) {

@@ -30,8 +30,8 @@ Statement *** StatementList__getChildren(StatementList * this, int * childrenCou
 
 StatementList* StatementList__init() {
     StatementList* this = malloc(sizeof(StatementList));
-    this->super.serialize = StatementList__serialize;
-    this->super.getChildren = StatementList__getChildren;
+    this->super.serialize = (void (*)(struct Statement *, StringBuilder *))StatementList__serialize;
+    this->super.getChildren = (struct Statement *** (*)(struct Statement *, int *))StatementList__getChildren;
     this->super.statementType = STATEMENT_LIST;
     this->listSize = 0;
     this->statements = NULL;
@@ -132,8 +132,8 @@ Type Expression__Constant__getType(Expression__Constant *this) {
 Expression__Constant* Expression__Constant__init() {
     Expression__Constant *this = malloc(sizeof(Expression__Constant));
     this->super.expressionType = EXPRESSION_CONSTANT;
-    this->super.super.serialize = Expression__Constant__serialize;
-    this->super.super.getChildren = Expression__Constant__getChildren;
+    this->super.super.serialize = (void (*)(struct Statement *, StringBuilder *))Expression__Constant__serialize;
+    this->super.super.getChildren = (struct Statement *** (*)(struct Statement *, int *))Expression__Constant__getChildren;
     this->super.getType = Expression__Constant__getType;
     this->type.isRequired = false;
     this->type.type = TYPE_UNKNOWN;
@@ -161,8 +161,8 @@ Type Expression__Variable__getType(Expression__Variable *this) {
 Expression__Variable* Expression__Variable__init() {
     Expression__Variable *this = malloc(sizeof(Expression__Variable));
     this->super.expressionType = EXPRESSION_VARIABLE;
-    this->super.super.serialize = Expression__Variable__serialize;
-    this->super.super.getChildren = Expression__Variable__getChildren;
+    this->super.super.serialize = (void (*)(struct Statement *, StringBuilder *))Expression__Variable__serialize;
+    this->super.super.getChildren = (struct Statement *** (*)(struct Statement *, int *))Expression__Variable__getChildren;
     this->super.getType = Expression__Variable__getType;
     this->name = NULL;
     return this;
@@ -174,7 +174,7 @@ void Expression__FunctionCall__serialize(Expression__FunctionCall *this, StringB
     StringBuilder__appendString(stringBuilder, "\", \"arguments\": [");
     for (int i = 0; i < this->arity; i++) {
         if(this->arguments[i] != NULL) {
-            this->arguments[i]->super.serialize(this->arguments[i], stringBuilder);
+            this->arguments[i]->super.serialize((Statement*)this->arguments[i], stringBuilder);
         } else {
             StringBuilder__appendString(stringBuilder, "null");
         }
@@ -206,8 +206,8 @@ Expression__FunctionCall* Expression__FunctionCall__init() {
     Expression__FunctionCall *this = malloc(sizeof(Expression__FunctionCall));
     this->super.expressionType = EXPRESSION_FUNCTION_CALL;
     this->super.getType = Expression__FunctionCall__getType;
-    this->super.super.serialize = Expression__FunctionCall__serialize;
-    this->super.super.getChildren = Expression__FunctionCall__getChildren;
+    this->super.super.serialize = (void (*)(struct Statement *, StringBuilder *))Expression__FunctionCall__serialize;
+    this->super.super.getChildren = (struct Statement *** (*)(struct Statement *, int *))Expression__FunctionCall__getChildren;
     this->name = NULL;
     this->arity = 0;
     this->arguments = NULL;
@@ -226,13 +226,13 @@ void Expression__BinaryOperator__serialize(Expression__BinaryOperator *this, Str
     StringBuilder__appendString(stringBuilder, "TODO");
     StringBuilder__appendString(stringBuilder, "\", \"lSide\": ");
     if(this->lSide != NULL) {
-        this->lSide->super.serialize(this->lSide, stringBuilder);
+        this->lSide->super.serialize((Statement*)this->lSide, stringBuilder);
     } else {
         StringBuilder__appendString(stringBuilder, "null");
     }
     StringBuilder__appendString(stringBuilder, ", \"rSide\": ");
     if(this->rSide != NULL) {
-        this->rSide->super.serialize(this->rSide, stringBuilder);
+        this->rSide->super.serialize((Statement*)this->rSide, stringBuilder);
     } else {
         StringBuilder__appendString(stringBuilder, "null");
     }
@@ -257,8 +257,8 @@ Type Expression__BinaryOperation__getType(Expression__BinaryOperator *this) {
 Expression__BinaryOperator* Expression__BinaryOperator__init() {
     Expression__BinaryOperator *this = malloc(sizeof(Expression__BinaryOperator));
     this->super.expressionType = EXPRESSION_BINARY_OPERATOR;
-    this->super.super.serialize = Expression__BinaryOperator__serialize;
-    this->super.super.getChildren = Expression__BinaryOperator__getChildren;
+    this->super.super.serialize = (void (*)(struct Statement *, StringBuilder *))Expression__BinaryOperator__serialize;
+    this->super.super.getChildren = (struct Statement *** (*)(struct Statement *, int *))Expression__BinaryOperator__getChildren;
     this->super.getType = Expression__BinaryOperation__getType;
     this->lSide = NULL;
     this->rSide = NULL;
@@ -268,7 +268,7 @@ Expression__BinaryOperator* Expression__BinaryOperator__init() {
 void StatementIf__serialize(StatementIf *this, StringBuilder * stringBuilder) {
     StringBuilder__appendString(stringBuilder, "{\"statementType\": \"STATEMENT_IF\", \"condition\": ");
     if(this->condition != NULL) {
-        this->condition->super.serialize(this->condition, stringBuilder);
+        this->condition->super.serialize((Statement*)this->condition, stringBuilder);
     } else {
         StringBuilder__appendString(stringBuilder, "null");
     }
@@ -299,8 +299,8 @@ Statement *** StatementIf__getChildren(StatementIf *this, int * childrenCount) {
 StatementIf* StatementIf__init() {
     StatementIf *this = malloc(sizeof(StatementIf));
     this->super.statementType = STATEMENT_IF;
-    this->super.serialize = StatementIf__serialize;
-    this->super.getChildren = StatementIf__getChildren;
+    this->super.serialize = (void (*)(struct Statement *, StringBuilder *))StatementIf__serialize;
+    this->super.getChildren = (struct Statement *** (*)(struct Statement *, int *))StatementIf__getChildren;
     this->condition = NULL;
     this->ifBody = NULL;
     this->elseBody = NULL;
@@ -310,7 +310,7 @@ StatementIf* StatementIf__init() {
 void StatementWhile__serialize(StatementWhile *this, StringBuilder * stringBuilder) {
     StringBuilder__appendString(stringBuilder, "{\"statementType\": \"STATEMENT_WHILE\", \"condition\": ");
     if(this->condition != NULL) {
-        this->condition->super.serialize(this->condition, stringBuilder);
+        this->condition->super.serialize((Statement*)this->condition, stringBuilder);
     } else {
         StringBuilder__appendString(stringBuilder, "null");
     }
@@ -334,8 +334,8 @@ Statement *** StatementWhile__getChildren(StatementWhile *this, int * childrenCo
 StatementWhile* StatementWhile__init() {
     StatementWhile *this = malloc(sizeof(StatementWhile));
     this->super.statementType = STATEMENT_WHILE;
-    this->super.serialize = StatementWhile__serialize;
-    this->super.getChildren = StatementWhile__getChildren;
+    this->super.serialize = (void (*)(struct Statement *, StringBuilder *))StatementWhile__serialize;
+    this->super.getChildren = (struct Statement *** (*)(struct Statement *, int *))StatementWhile__getChildren;
     this->condition = NULL;
     this->body = NULL;
     return this;
@@ -344,7 +344,7 @@ StatementWhile* StatementWhile__init() {
 void StatementReturn__serialize(StatementReturn *this, StringBuilder * stringBuilder) {
     StringBuilder__appendString(stringBuilder, "{\"statementType\": \"STATEMENT_RETURN\", \"expression\": ");
     if(this->expression != NULL) {
-        this->expression->super.serialize(this->expression, stringBuilder);
+        this->expression->super.serialize((Statement*)this->expression, stringBuilder);
     } else {
         StringBuilder__appendString(stringBuilder, "null");
     }
@@ -361,8 +361,8 @@ Statement *** StatementReturn__getChildren(StatementReturn *this, int * children
 StatementReturn* StatementReturn__init() {
     StatementReturn *this = malloc(sizeof(StatementReturn));
     this->super.statementType = STATEMENT_RETURN;
-    this->super.serialize = StatementReturn__serialize;
-    this->super.getChildren = StatementReturn__getChildren;
+    this->super.serialize = (void (*)(struct Statement *, StringBuilder *))StatementReturn__serialize;
+    this->super.getChildren = (struct Statement *** (*)(struct Statement *, int *))StatementReturn__getChildren;
     this->expression = NULL;
     return this;
 }
@@ -393,6 +393,9 @@ void Function__serialize(Function *this, StringBuilder * stringBuilder) {
             case TYPE_UNKNOWN:
                 StringBuilder__appendString(stringBuilder, "unknown");
                 break;
+            case TYPE_VOID:
+                StringBuilder__appendString(stringBuilder, "void");
+                break;
         }
         StringBuilder__appendString(stringBuilder, "\"},");
     }
@@ -417,8 +420,8 @@ Statement *** Function__getChildren(Function *this, int * childrenCount) {
 
 Function* Function__init() {
     Function *this = malloc(sizeof(Function));
-    this->super.serialize = Function__serialize;
-    this->super.getChildren = Function__getChildren;
+    this->super.serialize = (void (*)(struct Statement *, StringBuilder *))Function__serialize;
+    this->super.getChildren = (struct Statement *** (*)(struct Statement *, int *))Function__getChildren;
     this->name = NULL;
     this->returnType.isRequired = false;
     this->returnType.type = TYPE_UNKNOWN;

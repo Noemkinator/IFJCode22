@@ -7,6 +7,7 @@
 #include "symtable.h"
 #include <stdio.h>
 #include <stdint.h>
+#include <ctype.h>
 
 Token nextToken;
 
@@ -114,11 +115,11 @@ bool parse_terminal_expression(Expression ** expression) {
     }
     if(nextToken.type == TOKEN_VARIABLE) {
         Expression__Variable * variable = Expression__Variable__init();
-        *expression = variable;
+        *expression = (Expression*)variable;
         variable->name = getTokenTextPermanent(nextToken);
     } else if(nextToken.type == TOKEN_INTEGER || nextToken.type == TOKEN_FLOAT || nextToken.type == TOKEN_STRING) {
         Expression__Constant * constant = Expression__Constant__init();
-        *expression = constant;
+        *expression = (Expression*)constant;
         Type type;
         type.isRequired = true;
         if(nextToken.type == TOKEN_INTEGER) {
@@ -156,7 +157,7 @@ bool parse_expression(Expression ** expression, int previousPrecedence) {
         if(previousPrecedence < currentPrecedence || (previousPrecedence == 1 && currentPrecedence == 1)) { // hack because = is right associative unlike rest of operators
             Expression__BinaryOperator * operator = Expression__BinaryOperator__init();
             operator->lSide = *expression;
-            *expression = operator;
+            *expression = (Expression*)operator;
             nextToken = getNextToken();
             if(!parse_expression(&operator->rSide, currentPrecedence)) return false;
         } else {
@@ -200,7 +201,7 @@ bool parse_if(StatementIf ** statementIfRet) {
         return false;
     }
     nextToken = getNextToken();
-    if(!parse_statement_list(&statementIf->ifBody)) return false;
+    if(!parse_statement_list((StatementList**)&statementIf->ifBody)) return false;
     if(nextToken.type != TOKEN_CLOSE_CURLY_BRACKET) {
         printParserError(nextToken, "Missing } after if");
         return false;
@@ -216,8 +217,7 @@ bool parse_if(StatementIf ** statementIfRet) {
         return false;
     }
     nextToken = getNextToken();
-    StatementList * statementListElse;
-    if(!parse_statement_list(&statementIf->elseBody)) return false;
+    if(!parse_statement_list((StatementList**)&statementIf->elseBody)) return false;
     if(nextToken.type != TOKEN_CLOSE_CURLY_BRACKET) {
         printParserError(nextToken, "Missing } after else");
         return false;
@@ -246,7 +246,7 @@ bool parse_while(StatementWhile ** statementWhileRet) {
         return false;
     }
     nextToken = getNextToken();
-    if(!parse_statement_list(&statementWhile->body)) return false;
+    if(!parse_statement_list((StatementList**)&statementWhile->body)) return false;
     if(nextToken.type != TOKEN_CLOSE_CURLY_BRACKET) {
         printParserError(nextToken, "Missing } after while");
         return false;
@@ -308,14 +308,14 @@ bool parse_return(StatementReturn ** statementReturnRet) {
 bool parse_statement(Statement ** retStatement) {
     switch (nextToken.type) {
         case TOKEN_IF:
-            return parse_if(retStatement);
+            return parse_if((StatementIf**)retStatement);
         case TOKEN_WHILE:
-            return parse_while(retStatement);
+            return parse_while((StatementWhile**)retStatement);
         case TOKEN_RETURN:
-            return parse_return(retStatement);
+            return parse_return((StatementReturn**)retStatement);
         default:
             if(nextToken.type == TOKEN_OPEN_BRACKET || nextToken.type == TOKEN_IDENTIFIER || nextToken.type == TOKEN_VARIABLE || nextToken.type == TOKEN_INTEGER || nextToken.type == TOKEN_FLOAT || nextToken.type == TOKEN_STRING) {
-                if(!parse_expression(retStatement, 0)) return false;
+                if(!parse_expression((Expression**)retStatement, 0)) return false;
                 if(nextToken.type != TOKEN_SEMICOLON) {
                     printParserError(nextToken, "Missing ; after expression");
                     return false;
@@ -395,7 +395,7 @@ bool parse_function(Function ** retFunction) {
         return false;
     }
     nextToken = getNextToken();
-    if(!parse_statement_list(&function->body)) return false;
+    if(!parse_statement_list((StatementList**)&function->body)) return false;
     if(nextToken.type != TOKEN_CLOSE_CURLY_BRACKET) {
         printParserError(nextToken, "Missing } after function");
         return false;
@@ -431,7 +431,7 @@ bool parse() {
     // https://jsoncrack.com/editor
     StringBuilder stringBuilder;
     StringBuilder__init(&stringBuilder);
-    f->super.serialize(f, &stringBuilder);
+    f->super.serialize((Statement*)f, &stringBuilder);
     puts(stringBuilder.text);
     generateCode(program, function_table);
     return true;
