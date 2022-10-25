@@ -48,6 +48,7 @@ void emit_label(char * label) {
 void emit_MOVE(Var var, Symb symb) {
 	printf("MOVE ");
 	emit_var(var);
+	printf(" ");
 	emit_symb(symb);
 	printf("\n");
 }
