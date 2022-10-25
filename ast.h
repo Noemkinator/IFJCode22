@@ -42,6 +42,7 @@ typedef struct {
         TYPE_INT,
         TYPE_FLOAT,
         TYPE_STRING,
+        TYPE_NULL,
         TYPE_VOID,
         TYPE_UNKNOWN
     } type;

@@ -37,6 +37,9 @@ Symb generateConstant(Expression__Constant * constant) {
         case TYPE_STRING:
             return (Symb){.type = Type_string, .value.s = constant->value.string};
             break;
+        case TYPE_NULL:
+            return (Symb){.type = Type_null};
+            break;
         default:
             fprintf(stderr, "ERR: Invalid constant\n");
             exit(99);

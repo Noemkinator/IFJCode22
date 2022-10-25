@@ -17,6 +17,7 @@ void emit_type(StorageType type) {
 		case Type_bool:		typeName = "bool";	break;
 		case Type_float:	typeName = "float";	break;
 		case Type_string:	typeName = "string";	break;
+		case Type_null: 	typeName = "nil";	break;
 		case Type_variable:	typeName = "variable";	break;
 	}
 	printf("%s", typeName);
@@ -55,6 +56,7 @@ void emit_symb(Symb symb) {
 		case Type_bool:		printf("bool@%s", symb.value.b ? "true" : "false");	break;
 		case Type_float:	printf("float@%a", symb.value.f);	break;
 		case Type_string:	emit_string(symb.value.s);	break;
+		case Type_null: 	printf("nil@nil");	break;
 		case Type_variable:	emit_var(symb.value.v);	break;
 	}
 }

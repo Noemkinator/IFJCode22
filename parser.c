@@ -109,7 +109,7 @@ bool parse_terminal_expression(Expression ** expression) {
         if(!parse_function_call(expression)) return false;
         return true;
     }
-    if(nextToken.type != TOKEN_VARIABLE && nextToken.type != TOKEN_INTEGER && nextToken.type != TOKEN_FLOAT && nextToken.type != TOKEN_STRING) {
+    if(nextToken.type != TOKEN_VARIABLE && nextToken.type != TOKEN_INTEGER && nextToken.type != TOKEN_FLOAT && nextToken.type != TOKEN_STRING && nextToken.type != TOKEN_NULL) {
         printParserError(nextToken, "Expected expression");
         return false;
     }
@@ -117,7 +117,7 @@ bool parse_terminal_expression(Expression ** expression) {
         Expression__Variable * variable = Expression__Variable__init();
         *expression = (Expression*)variable;
         variable->name = getTokenTextPermanent(nextToken);
-    } else if(nextToken.type == TOKEN_INTEGER || nextToken.type == TOKEN_FLOAT || nextToken.type == TOKEN_STRING) {
+    } else if(nextToken.type == TOKEN_INTEGER || nextToken.type == TOKEN_FLOAT || nextToken.type == TOKEN_STRING || nextToken.type == TOKEN_NULL) {
         Expression__Constant * constant = Expression__Constant__init();
         *expression = (Expression*)constant;
         Type type;
@@ -134,6 +134,9 @@ bool parse_terminal_expression(Expression ** expression) {
             type.type = TYPE_STRING;
             constant->type = type;
             constant->value.string = decodeString(getTokenText(nextToken));
+        } else if(nextToken.type == TOKEN_NULL) {
+            type.type = TYPE_NULL;
+            constant->type = type;
         }
     }
     nextToken = getNextToken();

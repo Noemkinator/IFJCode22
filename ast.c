@@ -92,6 +92,9 @@ void Expression__Constant__serialize(Expression__Constant *this, StringBuilder *
         case TYPE_STRING:
             StringBuilder__appendString(stringBuilder, "string");
             break;
+        case TYPE_NULL:
+            StringBuilder__appendString(stringBuilder, "null");
+            break;
         case TYPE_VOID:
             StringBuilder__appendString(stringBuilder, "void");
             break;
@@ -109,6 +112,9 @@ void Expression__Constant__serialize(Expression__Constant *this, StringBuilder *
             break;
         case TYPE_STRING:
             StringBuilder__appendEscapedStr(stringBuilder, this->value.string);
+            break;
+        case TYPE_NULL:
+            StringBuilder__appendString(stringBuilder, "null");
             break;
         case TYPE_VOID:
             StringBuilder__appendString(stringBuilder, "");
@@ -428,6 +434,9 @@ void Function__serialize(Function *this, StringBuilder * stringBuilder) {
                 break;
             case TYPE_STRING:
                 StringBuilder__appendString(stringBuilder, "string");
+                break;
+            case TYPE_NULL:
+                StringBuilder__appendString(stringBuilder, "null");
                 break;
             case TYPE_UNKNOWN:
                 StringBuilder__appendString(stringBuilder, "unknown");

@@ -11,6 +11,7 @@ typedef enum {
 	Type_bool,
 	Type_float,
 	Type_string,
+	Type_null,
 	Type_variable
 } StorageType;
 
