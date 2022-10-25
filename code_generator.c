@@ -18,13 +18,42 @@ size_t getNextCodeGenUID() {
     return codeGenUID++;
 }
 
+typedef struct {
+    char * name;
+    bool isGlobal;
+    Type type;
+} VariableInfo;
+
 void generateStatement(Statement * statement, Table * varTable, Table * functionTable);
+
+void generateConstant(Expression__Constant * constant) {
+    switch (constant->type.type) {
+        case TYPE_INT:
+            emit_PUSHS((Symb){.type = Type_int, .value.i = constant->value.integer});
+            break;
+        case TYPE_FLOAT:
+            emit_PUSHS((Symb){.type = Type_float, .value.f = constant->value.real});
+            break;
+        case TYPE_STRING:
+            emit_PUSHS((Symb){.type = Type_string, .value.s = constant->value.string});
+            break;
+        case TYPE_VOID:
+        case TYPE_UNKNOWN:
+            fprintf(stderr, "ERR: Invalid constant\n");
+    }
+}
+
+void generateVariable(Expression__Variable * statement, Table * varTable, Table * functionTable) {
+    emit_PUSHS((Symb){.type = Type_variable, .value.v.frameType = ((VariableInfo*)table_find(varTable, statement->name)->data)->isGlobal ? GF : LF, .value.v.name = statement->name});
+}
 
 void generateExpression(Expression * expression, Table * varTable, Table * functionTable) {
     switch(expression->expressionType) {
         case EXPRESSION_CONSTANT:
+            generateConstant((Expression__Constant*)expression);
             break;
         case EXPRESSION_VARIABLE:
+            generateVariable((Expression__Variable*)expression, varTable, functionTable);
             break;
         case EXPRESSION_FUNCTION_CALL:
             break;
@@ -63,8 +92,35 @@ void generateIf(StatementIf * statement, Table * varTable, Table * functionTable
     StringBuilder__free(&ifEndSb);
 }
 
+void generateWhile(StatementWhile * statement, Table * varTable, Table * functionTable) {
+    size_t whileUID = getNextCodeGenUID();
+    StringBuilder whileStartSb;
+    StringBuilder__init(&whileStartSb);
+    StringBuilder__appendString(&whileStartSb, "whileStart$");
+    StringBuilder__appendInt(&whileStartSb, whileUID);
+    StringBuilder whileEndSb;
+    StringBuilder__init(&whileEndSb);
+    StringBuilder__appendString(&whileEndSb, "whileEnd$");
+    StringBuilder__appendInt(&whileEndSb, whileUID);
+
+    emit_LABEL(whileStartSb.text);
+    generateExpression(statement->condition, varTable, functionTable);
+    emit_PUSHS((Symb){.type=Type_bool, .value.b = true});
+    emit_JUMPIFNEQS(whileEndSb.text);
+    generateStatement(statement->body, varTable, functionTable);
+    emit_JUMP(whileStartSb.text);
+    emit_LABEL(whileEndSb.text);
+
+    StringBuilder__free(&whileStartSb);
+    StringBuilder__free(&whileEndSb);
+}
+
 void generateReturn(StatementReturn * statement, Table * varTable, Table * functionTable) {
-    generateExpression(statement->expression,  varTable, functionTable);
+    // TODO global return
+    if(statement->expression != NULL) {
+        generateExpression(statement->expression,  varTable, functionTable);
+        emit_POPS((Var){.frameType = LF, .name = "returnValue"});
+    }
     emit_RETURN();
 }
 
@@ -79,7 +135,9 @@ void generateStatement(Statement * statement, Table * varTable, Table * function
             break;
         case STATEMENT_IF:
             generateIf((StatementIf*)statement, varTable, functionTable);
+            break;
         case STATEMENT_WHILE:
+            generateWhile((StatementWhile*)statement, varTable, functionTable);
             break;
         case STATEMENT_RETURN:
             generateReturn((StatementReturn*)statement, varTable, functionTable);
@@ -110,12 +168,6 @@ Statement *** getAllStatements(Statement * parent, size_t * count) {
     return children;
 }
 
-typedef struct {
-    char * name;
-    bool isGlobal;
-    Type type;
-} VariableInfo;
-
 void generateFunction(Function* function, Table * functionTable) {
     if(function->body == NULL) return;
     Table* localTable = table_init();
@@ -139,6 +191,7 @@ void generateFunction(Function* function, Table * functionTable) {
             }
         }
     }
+    free(allStatements);
     for(int i = 0; i < function->arity; i++) {
         
     }
