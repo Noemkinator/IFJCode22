@@ -53,19 +53,107 @@ Symb generateExpression(Expression * expression, Table * varTable, Table * funct
 
 Symb generateFunctionCall(Expression__FunctionCall * expression, Table * varTable, Table * functionTable) {
     emit_CREATEFRAME();
-    Function * function = (Function*)table_find(functionTable, expression->name)->data;
+    TableItem * tableItem = table_find(functionTable, expression->name);
+    if(tableItem == NULL) {
+        fprintf(stderr, "Trying to call undefined function\n");
+        exit(3);
+    }
+    Function * function = (Function*)tableItem->data;
     if(function->arity != expression->arity) {
         fprintf(stderr, "ERR: Function %s called with wrong number of arguments\n", expression->name);
         exit(4);
     }
     for(int i=0; i<expression->arity; i++) {
-        emit_DEFVAR((Var){.frameType = TF, .name = join_strings("var$", function->parameterNames[i])});
-        emit_MOVE((Var){.frameType = TF, .name = join_strings("var$", function->parameterNames[i])}, generateExpression(expression->arguments[i], varTable, functionTable));
+        emit_DEFVAR((Var){.frameType = TF, .name = join_strings("var&", function->parameterNames[i])});
+        emit_MOVE((Var){.frameType = TF, .name = join_strings("var&", function->parameterNames[i])}, generateExpression(expression->arguments[i], varTable, functionTable));
     }
     char * functionLabel = join_strings("function&", expression->name);
     emit_CALL(functionLabel);
     free(functionLabel);
     return (Symb){.type = Type_variable, .value.v=(Var){.frameType = TF, .name = "returnValue"}};
+}
+
+Symb saveTempSymb(Symb symb, FrameType frameType) {
+    if(symb.type != Type_variable || symb.value.v.frameType != TF) {
+        return symb;
+    }
+    size_t saveId = getNextCodeGenUID();
+    // causes mem leak
+    StringBuilder sb;
+    StringBuilder__init(&sb);
+    StringBuilder__appendString(&sb, "var&temp_symb_save&");
+    StringBuilder__appendInt(&sb, saveId);
+    Var var = (Var){.frameType = frameType, .name = sb.text};
+    emit_DEFVAR(var);
+    emit_MOVE(var, symb);
+    return (Symb){.type = Type_variable, .value.v = var};
+}
+
+Symb generateBinaryOperator(Expression__BinaryOperator * expression, Table * varTable, Table * functionTable) {
+    if(expression->operator == TOKEN_ASSIGN) {
+        Symb left = generateExpression(expression->lSide, varTable, functionTable);
+        if(left.type != Type_variable) {
+            fprintf(stderr, "Left side of assigment needs to be variable\n");
+            // NOTE: not sure if right exit code
+            exit(2);
+        }
+        Symb right = generateExpression(expression->rSide, varTable, functionTable);
+        right = saveTempSymb(right, LF);
+        emit_MOVE(left.value.v, right);
+        return right;
+    }
+    Symb left = saveTempSymb(left, LF);
+    size_t outVarId = getNextCodeGenUID();
+    StringBuilder sb;
+    StringBuilder__init(&sb);
+    StringBuilder__appendString(&sb, "var&operator_output&");
+    StringBuilder__appendInt(&sb, outVarId);
+    Var outVar = (Var){.frameType=LF, .name=sb.text};
+    emit_DEFVAR(outVar);
+    Symb outSymb = (Symb){.type=Type_variable, .value.v = outVar};
+    Symb right = generateExpression(expression->rSide, varTable, functionTable);
+    switch(expression->operator) {
+        case TOKEN_PLUS:
+            emit_ADD(outVar, left, right);
+            break;
+        case TOKEN_MINUS:
+            emit_SUB(outVar, left, right);
+            break;
+        case TOKEN_CONCATENATE:
+            emit_SUB(outVar, left, right);
+            break;
+        case TOKEN_MULTIPLY:
+            emit_SUB(outVar, left, right);
+            break;
+        case TOKEN_DIVIDE:
+            emit_SUB(outVar, left, right);
+            break;
+        case TOKEN_EQUALS:
+            emit_EQ(outVar, left, right);
+            break;
+        case TOKEN_NOT_EQUALS:
+            emit_EQ(outVar, left, right);
+            emit_NOT(outVar, outSymb);
+            break;
+        case TOKEN_LESS:
+            emit_LT(outVar, left, right);
+            break;
+        case TOKEN_GREATER:
+            emit_GT(outVar, left, right);
+            break;
+        case TOKEN_LESS_OR_EQUALS:
+            emit_GT(outVar, left, right);
+            emit_NOT(outVar, outSymb);
+            break;
+        case TOKEN_GREATER_OR_EQUALS:
+            emit_LT(outVar, left, right);
+            emit_NOT(outVar, outSymb);
+            break;
+        default:
+            fprintf(stderr, "Unknown operator found while generating output code\n");
+            exit(99);
+    }
+    return outSymb;
 }
 
 Symb generateExpression(Expression * expression, Table * varTable, Table * functionTable) {
@@ -80,6 +168,7 @@ Symb generateExpression(Expression * expression, Table * varTable, Table * funct
             return generateFunctionCall((Expression__FunctionCall*)expression, varTable, functionTable);
             break;
         case EXPRESSION_BINARY_OPERATOR:
+            generateBinaryOperator((Expression__BinaryOperator*)expression, varTable, functionTable);
             break;
     }
 }
@@ -191,7 +280,6 @@ void generateFunction(Function* function, Table * functionTable) {
     char * functionLabel = join_strings("function&", function->name);
     emit_LABEL(functionLabel);
     free(functionLabel);
-    emit_CREATEFRAME();
     emit_DEFVAR((Var){frameType: TF, name: "returnValue"});
     size_t statementCount;
     Statement *** allStatements = getAllStatements(function->body, &statementCount);
@@ -220,9 +308,6 @@ void generateFunction(Function* function, Table * functionTable) {
         }
     }
     free(allStatements);
-    for(int i = 0; i < function->arity; i++) {
-        
-    }
     emit_PUSHFRAME();
     generateStatement(function->body, localTable, functionTable);
     emit_POPFRAME();
@@ -233,6 +318,7 @@ void generateCode(StatementList * program, Table * functionTable) {
     emit_header();
     Table * globalTable = table_init();
     generateStatementList(program, globalTable, functionTable);
+    emit_EXIT((Symb){.type=Type_int, .value.i=0});
     for(int i = 0; i < TB_SIZE; i++) {
         TableItem* item = functionTable->tb[i];
         while(item != NULL) {

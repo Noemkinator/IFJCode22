@@ -156,6 +156,7 @@ bool parse_expression(Expression ** expression, int previousPrecedence) {
         int currentPrecedence = getOperatorPrecedence(operatorToken);
         if(previousPrecedence < currentPrecedence || (previousPrecedence == 1 && currentPrecedence == 1)) { // hack because = is right associative unlike rest of operators
             Expression__BinaryOperator * operator = Expression__BinaryOperator__init();
+            operator->operator = operatorToken.type;
             operator->lSide = *expression;
             *expression = (Expression*)operator;
             nextToken = getNextToken();
@@ -431,7 +432,7 @@ bool parse() {
     // https://jsoncrack.com/editor
     StringBuilder stringBuilder;
     StringBuilder__init(&stringBuilder);
-    f->super.serialize((Statement*)f, &stringBuilder);
+    program->super.serialize((Statement*)program, &stringBuilder);
     fprintf(stderr, "%s\n", stringBuilder.text);
     generateCode(program, function_table);
     return true;

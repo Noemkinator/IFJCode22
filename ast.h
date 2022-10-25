@@ -105,6 +105,7 @@ typedef struct {
 
     Expression * lSide;
     Expression * rSide;
+    TokenType operator;
 } Expression__BinaryOperator;
 
 Expression__BinaryOperator* Expression__BinaryOperator__init();

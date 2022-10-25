@@ -223,7 +223,46 @@ Expression__FunctionCall* Expression__FunctionCall__addArgument(Expression__Func
 
 void Expression__BinaryOperator__serialize(Expression__BinaryOperator *this, StringBuilder * stringBuilder) {
     StringBuilder__appendString(stringBuilder, "{\"expressionType\": \"EXPRESSION_BINARY_OPERATION\", \"operator\": \"");
-    StringBuilder__appendString(stringBuilder, "TODO");
+    switch (this->operator) {
+        case TOKEN_PLUS:
+            StringBuilder__appendString(stringBuilder, "+");
+            break;
+        case TOKEN_MINUS:
+            StringBuilder__appendString(stringBuilder, "-");
+            break;
+        case TOKEN_CONCATENATE:
+            StringBuilder__appendString(stringBuilder, ".");
+            break;
+        case TOKEN_MULTIPLY:
+            StringBuilder__appendString(stringBuilder, "*");
+            break;
+        case TOKEN_DIVIDE:
+            StringBuilder__appendString(stringBuilder, "/");
+            break;
+        case TOKEN_ASSIGN:
+            StringBuilder__appendString(stringBuilder, "=");
+            break;
+        case TOKEN_EQUALS:
+            StringBuilder__appendString(stringBuilder, "===");
+            break;
+        case TOKEN_NOT_EQUALS:
+            StringBuilder__appendString(stringBuilder, "!==");
+            break;
+        case TOKEN_LESS:
+            StringBuilder__appendString(stringBuilder, "<");
+            break;
+        case TOKEN_GREATER:
+            StringBuilder__appendString(stringBuilder, ">");
+            break;
+        case TOKEN_LESS_OR_EQUALS:
+            StringBuilder__appendString(stringBuilder, "<=");
+            break;
+        case TOKEN_GREATER_OR_EQUALS:
+            StringBuilder__appendString(stringBuilder, ">=");
+            break;
+        default:
+            StringBuilder__appendString(stringBuilder, "TODO");
+    }
     StringBuilder__appendString(stringBuilder, "\", \"lSide\": ");
     if(this->lSide != NULL) {
         this->lSide->super.serialize((Statement*)this->lSide, stringBuilder);

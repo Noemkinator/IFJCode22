@@ -100,7 +100,9 @@ void emit_CLEARS() {
 void emit_ADD(Var var, Symb symb1, Symb symb2) {
 	printf("ADD ");
 	emit_var(var);
+	printf(" ");
 	emit_symb(symb1);
+	printf(" ");
 	emit_symb(symb2);
 	printf("\n");
 }
@@ -108,7 +110,9 @@ void emit_ADD(Var var, Symb symb1, Symb symb2) {
 void emit_SUB(Var var, Symb symb1, Symb symb2) {
 	printf("SUB ");
 	emit_var(var);
+	printf(" ");
 	emit_symb(symb1);
+	printf(" ");
 	emit_symb(symb2);
 	printf("\n");
 }
@@ -116,7 +120,9 @@ void emit_SUB(Var var, Symb symb1, Symb symb2) {
 void emit_MUL(Var var, Symb symb1, Symb symb2) {
 	printf("MUL ");
 	emit_var(var);
+	printf(" ");
 	emit_symb(symb1);
+	printf(" ");
 	emit_symb(symb2);
 	printf("\n");
 }
@@ -124,7 +130,9 @@ void emit_MUL(Var var, Symb symb1, Symb symb2) {
 void emit_DIV(Var var, Symb symb1, Symb symb2) {
 	printf("DIV ");
 	emit_var(var);
+	printf(" ");
 	emit_symb(symb1);
+	printf(" ");
 	emit_symb(symb2);
 	printf("\n");
 }
@@ -132,7 +140,9 @@ void emit_DIV(Var var, Symb symb1, Symb symb2) {
 void emit_IDIV(Var var, Symb symb1, Symb symb2) {
 	printf("IDIV ");
 	emit_var(var);
+	printf(" ");
 	emit_symb(symb1);
+	printf(" ");
 	emit_symb(symb2);
 	printf("\n");
 }
@@ -160,7 +170,9 @@ void emit_IDIVS() {
 void emit_LT(Var var, Symb symb1, Symb symb2) {
 	printf("LT ");
 	emit_var(var);
+	printf(" ");
 	emit_symb(symb1);
+	printf(" ");
 	emit_symb(symb2);
 	printf("\n");
 }
@@ -168,7 +180,9 @@ void emit_LT(Var var, Symb symb1, Symb symb2) {
 void emit_GT(Var var, Symb symb1, Symb symb2) {
 	printf("GT ");
 	emit_var(var);
+	printf(" ");
 	emit_symb(symb1);
+	printf(" ");
 	emit_symb(symb2);
 	printf("\n");
 }
@@ -176,7 +190,9 @@ void emit_GT(Var var, Symb symb1, Symb symb2) {
 void emit_EQ(Var var, Symb symb1, Symb symb2) {
 	printf("EQ ");
 	emit_var(var);
+	printf(" ");
 	emit_symb(symb1);
+	printf(" ");
 	emit_symb(symb2);
 	printf("\n");
 }
@@ -197,6 +213,7 @@ void emit_AND(Var var, Symb symb1, Symb symb2) {
 	printf("AND ");
 	emit_var(var);
 	emit_symb(symb1);
+	printf(" ");
 	emit_symb(symb2);
 	printf("\n");
 }
@@ -205,6 +222,7 @@ void emit_OR(Var var, Symb symb1, Symb symb2) {
 	printf("OR ");
 	emit_var(var);
 	emit_symb(symb1);
+	printf(" ");
 	emit_symb(symb2);
 	printf("\n");
 }
@@ -212,6 +230,7 @@ void emit_OR(Var var, Symb symb1, Symb symb2) {
 void emit_NOT(Var var, Symb symb) {
 	printf("NOT ");
 	emit_var(var);
+	printf(" ");
 	emit_symb(symb);
 	printf("\n");
 }
@@ -231,6 +250,7 @@ void emit_NOTS() {
 void emit_INT2FLOAT(Var var, Symb symb) {
 	printf("INT2FLOAT ");
 	emit_var(var);
+	printf(" ");
 	emit_symb(symb);
 	printf("\n");
 }
@@ -238,6 +258,7 @@ void emit_INT2FLOAT(Var var, Symb symb) {
 void emit_FLOAT2INT(Var var, Symb symb) {
 	printf("FLOAT2INT ");
 	emit_var(var);
+	printf(" ");
 	emit_symb(symb);
 	printf("\n");
 }
@@ -245,6 +266,7 @@ void emit_FLOAT2INT(Var var, Symb symb) {
 void emit_INT2CHAR(Var var, Symb symb) {
 	printf("INT2CHAR ");
 	emit_var(var);
+	printf(" ");
 	emit_symb(symb);
 	printf("\n");
 }
@@ -252,7 +274,9 @@ void emit_INT2CHAR(Var var, Symb symb) {
 void emit_STRI2INT(Var var, Symb symb1, Symb symb2) {
 	printf("STRI2INT ");
 	emit_var(var);
+	printf(" ");
 	emit_symb(symb1);
+	printf(" ");
 	emit_symb(symb2);
 	printf("\n");
 }
@@ -276,12 +300,14 @@ void emit_STRI2INTS() {
 void emit_READ(Var var, StorageType type) {
 	printf("READ ");
 	emit_var(var);
+	printf(" ");
 	emit_type(type);
 	printf("\n");
 }
 
 void emit_WRITE(Symb symb) {
 	printf("WRITE ");
+	printf(" ");
 	emit_symb(symb);
 	printf("\n");
 }
@@ -289,7 +315,9 @@ void emit_WRITE(Symb symb) {
 void emit_CONCAT(Var var, Symb symb1, Symb symb2) {
 	printf("CONCAT ");
 	emit_var(var);
+	printf(" ");
 	emit_symb(symb1);
+	printf(" ");
 	emit_symb(symb2);
 	printf("\n");
 }
@@ -297,6 +325,7 @@ void emit_CONCAT(Var var, Symb symb1, Symb symb2) {
 void emit_STRLEN(Var var, Symb symb) {
 	printf("STRLEN ");
 	emit_var(var);
+	printf(" ");
 	emit_symb(symb);
 	printf("\n");
 }
@@ -304,7 +333,9 @@ void emit_STRLEN(Var var, Symb symb) {
 void emit_GETCHAR(Var var, Symb symb1, Symb symb2) {
 	printf("GETCHAR ");
 	emit_var(var);
+	printf(" ");
 	emit_symb(symb1);
+	printf(" ");
 	emit_symb(symb2);
 	printf("\n");
 }
@@ -312,7 +343,9 @@ void emit_GETCHAR(Var var, Symb symb1, Symb symb2) {
 void emit_SETCHAR(Var var, Symb symb1, Symb symb2) {
 	printf("SETCHAR ");
 	emit_var(var);
+	printf(" ");
 	emit_symb(symb1);
+	printf(" ");
 	emit_symb(symb2);
 	printf("\n");
 }
@@ -320,6 +353,7 @@ void emit_SETCHAR(Var var, Symb symb1, Symb symb2) {
 void emit_TYPE(Var var, Symb symb) {
 	printf("TYPE ");
 	emit_var(var);
+	printf(" ");
 	emit_symb(symb);
 	printf("\n");
 }
@@ -335,6 +369,7 @@ void emit_JUMP(char *label) {
 void emit_JUMPIFEQ(char *label, Symb symb1, Symb symb2) {
 	printf("JUMPIFEQ %s ", label);
 	emit_symb(symb1);
+	printf(" ");
 	emit_symb(symb2);
 	printf("\n");
 }
@@ -342,6 +377,7 @@ void emit_JUMPIFEQ(char *label, Symb symb1, Symb symb2) {
 void emit_JUMPIFNEQ(char *label, Symb symb1, Symb symb2) {
 	printf("JUMPIFNEQ %s ", label);
 	emit_symb(symb1);
+	printf(" ");
 	emit_symb(symb2);
 	printf("\n");
 }
