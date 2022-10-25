@@ -77,9 +77,63 @@ Symb generateFunctionCall(Expression__FunctionCall * expression, Table * varTabl
         fprintf(stderr, "ERR: Function %s called with wrong number of arguments\n", expression->name);
         exit(4);
     }
-    if(strcmp(function->name, "readi") == 0) {
+    if(strcmp(function->name, "reads") == 0) {
+        emit_DEFVAR((Var){.frameType=TF, .name="returnValue"});
+        emit_READ((Var){.frameType=TF, .name="returnValue"}, Type_string);
+        return (Symb){.type = Type_variable, .value.v=(Var){.frameType = TF, .name = "returnValue"}};
+    } else if(strcmp(function->name, "readi") == 0) {
         emit_DEFVAR((Var){.frameType=TF, .name="returnValue"});
         emit_READ((Var){.frameType=TF, .name="returnValue"}, Type_int);
+        return (Symb){.type = Type_variable, .value.v=(Var){.frameType = TF, .name = "returnValue"}};
+    } else if(strcmp(function->name, "readf") == 0) {
+        emit_DEFVAR((Var){.frameType=TF, .name="returnValue"});
+        emit_READ((Var){.frameType=TF, .name="returnValue"}, Type_float);
+        return (Symb){.type = Type_variable, .value.v=(Var){.frameType = TF, .name = "returnValue"}};
+    } else if(strcmp(function->name, "floatval") == 0) {
+        Symb symb = generateExpression(expression->arguments[0], varTable, functionTable, false);
+        emit_DEFVAR((Var){.frameType=TF, .name="returnValue"});
+        emit_INT2FLOAT((Var){.frameType=TF, .name="returnValue"}, symb);
+        return (Symb){.type = Type_variable, .value.v=(Var){.frameType = TF, .name = "returnValue"}};
+    } else if(strcmp(function->name, "intval") == 0) {
+        Symb symb = generateExpression(expression->arguments[0], varTable, functionTable, false);
+        emit_DEFVAR((Var){.frameType=TF, .name="returnValue"});
+        emit_FLOAT2INT((Var){.frameType=TF, .name="returnValue"}, symb);
+        return (Symb){.type = Type_variable, .value.v=(Var){.frameType = TF, .name = "returnValue"}};
+    } else if(strcmp(function->name, "strval") == 0) {
+        Symb symb = generateExpression(expression->arguments[0], varTable, functionTable, false);
+        emit_DEFVAR((Var){.frameType=TF, .name="returnValue"});
+        // TODO
+        return (Symb){.type = Type_variable, .value.v=(Var){.frameType = TF, .name = "returnValue"}};
+    } else if(strcmp(function->name, "strlen") == 0) {
+        Symb symb = generateExpression(expression->arguments[0], varTable, functionTable, false);
+        emit_DEFVAR((Var){.frameType=TF, .name="returnValue"});
+        emit_STRLEN((Var){.frameType=TF, .name="returnValue"}, symb);
+        return (Symb){.type = Type_variable, .value.v=(Var){.frameType = TF, .name = "returnValue"}};
+    } else if(strcmp(function->name, "substring") == 0) {
+        Symb symb1 = generateExpression(expression->arguments[0], varTable, functionTable, false);
+        Symb symb2 = generateExpression(expression->arguments[1], varTable, functionTable, false);
+        Symb symb3 = generateExpression(expression->arguments[2], varTable, functionTable, false);
+        emit_DEFVAR((Var){.frameType=TF, .name="returnValue"});
+        // TODO
+        return (Symb){.type = Type_variable, .value.v=(Var){.frameType = TF, .name = "returnValue"}};
+    } else if(strcmp(function->name, "ord") == 0) {
+        size_t ordId = getNextCodeGenUID();
+        StringBuilder sb;
+        StringBuilder__init(&sb);
+        StringBuilder__appendString(&sb, "ord_end&");
+        StringBuilder__appendInt(&sb, ordId);
+        Symb symb = generateExpression(expression->arguments[0], varTable, functionTable, false);
+        emit_DEFVAR((Var){.frameType=TF, .name="returnValue"});
+        emit_STRLEN((Var){.frameType=TF, .name="returnValue"}, symb);
+        emit_JUMPIFEQ(sb.text, (Symb){.type = Type_variable, .value.v = (Var){.frameType=TF, .name="returnValue"}}, (Symb){.type=Type_int, .value.i=0});
+        emit_STRI2INT((Var){.frameType=TF, .name="returnValue"}, symb, (Symb){.type=Type_int, .value.i=0});
+        emit_LABEL(sb.text);
+        StringBuilder__free(&sb);
+        return (Symb){.type = Type_variable, .value.v=(Var){.frameType = TF, .name = "returnValue"}};
+    } else if(strcmp(function->name, "chr") == 0) {
+        Symb symb1 = generateExpression(expression->arguments[0], varTable, functionTable, false);
+        emit_DEFVAR((Var){.frameType=TF, .name="returnValue"});
+        emit_INT2CHAR((Var){.frameType=TF, .name="returnValue"}, symb1);
         return (Symb){.type = Type_variable, .value.v=(Var){.frameType = TF, .name = "returnValue"}};
     }
     for(int i=0; i<expression->arity; i++) {
