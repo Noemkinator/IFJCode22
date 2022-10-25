@@ -249,6 +249,7 @@ void generateReturn(StatementReturn * statement, Table * varTable, Table * funct
     if(statement->expression != NULL) {
         emit_MOVE((Var){.frameType = LF, .name = "returnValue"}, generateExpression(statement->expression,  varTable, functionTable, false));
     }
+    emit_POPFRAME();
     emit_RETURN();
 }
 
@@ -332,8 +333,12 @@ void generateFunction(Function* function, Table * functionTable) {
     free(allStatements);
     emit_PUSHFRAME();
     generateStatement(function->body, localTable, functionTable);
-    emit_POPFRAME();
-    emit_RETURN();
+    // TODO, handle differently
+    // for now emit return if function does not end with return
+    if(function->body->statementType != STATEMENT_LIST || ((StatementList*)function->body)->listSize == 0 || ((StatementList*)function->body)->statements[((StatementList*)function->body)->listSize-1]->statementType != STATEMENT_RETURN) {
+        emit_POPFRAME();
+        emit_RETURN();
+    }
 }
 
 void generateCode(StatementList * program, Table * functionTable) {
