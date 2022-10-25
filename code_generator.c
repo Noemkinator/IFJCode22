@@ -140,13 +140,13 @@ Symb generateBinaryOperator(Expression__BinaryOperator * expression, Table * var
             emit_SUB(outVar, left, right);
             break;
         case TOKEN_CONCATENATE:
-            emit_SUB(outVar, left, right);
+            emit_CONCAT(outVar, left, right);
             break;
         case TOKEN_MULTIPLY:
-            emit_SUB(outVar, left, right);
+            emit_MUL(outVar, left, right);
             break;
         case TOKEN_DIVIDE:
-            emit_SUB(outVar, left, right);
+            emit_DIV(outVar, left, right);
             break;
         case TOKEN_EQUALS:
             emit_EQ(outVar, left, right);
