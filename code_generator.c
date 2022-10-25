@@ -44,7 +44,9 @@ void generateConstant(Expression__Constant * constant) {
 }
 
 void generateVariable(Expression__Variable * statement, Table * varTable, Table * functionTable) {
-    emit_PUSHS((Symb){.type = Type_variable, .value.v.frameType = ((VariableInfo*)table_find(varTable, statement->name)->data)->isGlobal ? GF : LF, .value.v.name = statement->name});
+    char * varId = join_strings("var&", statement->name);
+    emit_PUSHS((Symb){.type = Type_variable, .value.v.frameType = ((VariableInfo*)table_find(varTable, statement->name)->data)->isGlobal ? GF : LF, .value.v.name = varId});
+    free(varId);
 }
 
 void generateExpression(Expression * expression, Table * varTable, Table * functionTable);

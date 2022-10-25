@@ -432,7 +432,7 @@ bool parse() {
     StringBuilder stringBuilder;
     StringBuilder__init(&stringBuilder);
     f->super.serialize((Statement*)f, &stringBuilder);
-    puts(stringBuilder.text);
+    fprintf(stderr, "%s\n", stringBuilder.text);
     generateCode(program, function_table);
     return true;
 }

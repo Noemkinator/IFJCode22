@@ -10,10 +10,10 @@
 int main(int argc, char ** argv) {
 	initParser();
 	if(parse()) {
-		printf("OK\n");
+		fprintf(stderr, "OK\n");
 		return 0;
 	} else {
-		printf("ERROR\n");
+		fprintf(stderr, "ERROR\n");
 		return 2;
 	}
 }
