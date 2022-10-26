@@ -167,11 +167,37 @@ Expression * performConstantFolding(Expression__BinaryOperator * in) {
             }
         }
     }
+    return NULL;
 }
 
 Statement * performStatementFolding(Statement * in) {
     switch(in->statementType) {
+        case STATEMENT_IF: {
+            StatementIf* ifStatement = (StatementIf *) in;
+            if(ifStatement->condition->expressionType == EXPRESSION_CONSTANT) {
+                Expression__Constant * condition = (Expression__Constant *) ifStatement->condition;
+                condition = performConstantCast(condition, (Type){.type = TYPE_BOOL, .isRequired = true});
+                if(condition->value.boolean) {
+                    return ifStatement->ifBody;
+                } else {
+                    return ifStatement->elseBody;
+                }
+            }
+            break;
+        }
+        case STATEMENT_WHILE: {
+            StatementWhile* whileStatement = (StatementWhile *) in;
+            if(whileStatement->condition->expressionType == EXPRESSION_CONSTANT) {
+                Expression__Constant * condition = (Expression__Constant *) whileStatement->condition;
+                condition = performConstantCast(condition, (Type){.type = TYPE_BOOL, .isRequired = true});
+                if(!condition->value.boolean) {
+                    return StatementList__init();
+                }
+            }
+            break;
+        }
         default:
-            return NULL;
+            break;
     }
+    return NULL;
 }
