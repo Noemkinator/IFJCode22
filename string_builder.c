@@ -38,6 +38,9 @@ StringBuilder* StringBuilder__appendEscapedStr(StringBuilder *this, const char *
         } else if(c == '\"') {
             StringBuilder__appendChar(this, '\\');
             StringBuilder__appendChar(this, '\"');
+        } else if(c == '\n') {
+            StringBuilder__appendChar(this, '\\');
+            StringBuilder__appendChar(this, 'n');
         } else {
             StringBuilder__appendChar(this, c);
         }
