@@ -97,6 +97,7 @@ char * decodeString(char * text) {
 bool parse_terminal_expression(Expression ** expression) {
     *expression = NULL;
     if(nextToken.type == TOKEN_OPEN_BRACKET) {
+        nextToken = getNextToken();
         if(parse_expression(expression, 0)) return false;
         if(nextToken.type != TOKEN_CLOSE_BRACKET) {
             printParserError(nextToken, "Expected closing bracket");
