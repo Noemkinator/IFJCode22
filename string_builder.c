@@ -45,15 +45,15 @@ StringBuilder* StringBuilder__appendEscapedStr(StringBuilder *this, const char *
     return this;
 }
 
-StringBuilder* StringBuilder__appendInt(StringBuilder *this, int i) {
-    char str[12];
-    sprintf(str, "%d", i);
+StringBuilder* StringBuilder__appendInt(StringBuilder *this, long long int i) {
+    char str[128];
+    sprintf(str, "%lld", i);
     return StringBuilder__appendString(this, str);
 }
 
-StringBuilder* StringBuilder__appendFloat(StringBuilder *this, float f) {
-    char str[20];
-    sprintf(str, "%f", f);
+StringBuilder* StringBuilder__appendFloat(StringBuilder *this, double f) {
+    char str[128];
+    sprintf(str, "%a", f);
     return StringBuilder__appendString(this, str);
 }
 

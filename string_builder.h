@@ -17,8 +17,8 @@ void StringBuilder__free(StringBuilder *this);
 StringBuilder* StringBuilder__appendString(StringBuilder *this, const char *str);
 StringBuilder* StringBuilder__appendChar(StringBuilder *this, char c);
 StringBuilder* StringBuilder__appendEscapedStr(StringBuilder *this, const char *str);
-StringBuilder* StringBuilder__appendInt(StringBuilder *this, int i);
-StringBuilder* StringBuilder__appendFloat(StringBuilder *this, float f);
+StringBuilder* StringBuilder__appendInt(StringBuilder *this, long long int i);
+StringBuilder* StringBuilder__appendFloat(StringBuilder *this, double f);
 StringBuilder* StringBuilder__removeLastChar(StringBuilder* this);
 
 #endif // __STRING_BUILDER_H__

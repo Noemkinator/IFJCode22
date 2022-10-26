@@ -69,7 +69,7 @@ typedef struct {
 
     Type type;
     union {
-        int integer;
+        long long int integer;
         double real;
         char *string;
     } value;
