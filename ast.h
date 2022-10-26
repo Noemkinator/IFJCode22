@@ -42,6 +42,7 @@ typedef struct {
         TYPE_INT,
         TYPE_FLOAT,
         TYPE_STRING,
+        TYPE_BOOL,
         TYPE_NULL,
         TYPE_VOID,
         TYPE_UNKNOWN
@@ -72,6 +73,7 @@ typedef struct {
         long long int integer;
         double real;
         char *string;
+        bool boolean;
     } value;
 } Expression__Constant;
 

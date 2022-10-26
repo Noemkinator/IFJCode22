@@ -8,6 +8,12 @@ Expression__Constant * performConstantCast(Expression__Constant * in, Type targe
     if(targetType.isRequired == false && in->type.type == TYPE_NULL) {
         return in;
     }
+    if(in->type.type != TYPE_INT && in->type.type != TYPE_FLOAT && in->type.type != TYPE_STRING && in->type.type != TYPE_BOOL && in->type.type != TYPE_NULL) {
+        return in;
+    }
+    if(targetType.type != TYPE_INT && targetType.type != TYPE_FLOAT && targetType.type != TYPE_STRING && targetType.type != TYPE_BOOL) {
+        return in;
+    }
     Expression__Constant * result = Expression__Constant__init();
     result->type = targetType;
     switch(targetType.type) {
@@ -19,10 +25,15 @@ Expression__Constant * performConstantCast(Expression__Constant * in, Type targe
                 case TYPE_STRING:
                     result->value.integer = atoll(in->value.string);
                     break;
+                case TYPE_BOOL:
+                    result->value.integer = in->value.boolean;
+                    break;
                 case TYPE_NULL:
                     result->value.integer = 0;
                     break;
                 default:
+                    fprintf(stderr, "Bad constant cast");
+                    exit(99);
                     break;
             }
             break;
@@ -34,10 +45,15 @@ Expression__Constant * performConstantCast(Expression__Constant * in, Type targe
                 case TYPE_STRING:
                     result->value.real = atof(in->value.string);
                     break;
+                case TYPE_BOOL:
+                    result->value.real = in->value.boolean;
+                    break;
                 case TYPE_NULL:
                     result->value.real = 0.0;
                     break;
                 default:
+                    fprintf(stderr, "Bad constant cast");
+                    exit(99);
                     break;
             }
             break;
@@ -51,11 +67,37 @@ Expression__Constant * performConstantCast(Expression__Constant * in, Type targe
                     result->value.string = malloc(128);
                     sprintf(result->value.string, "%g", in->value.real);
                     break;
+                case TYPE_BOOL:
+                    result->value.string = malloc(6);
+                    sprintf(result->value.string, "%s", in->value.boolean ? "1" : "");
+                    break;
                 case TYPE_NULL:
                     result->value.string = malloc(1);
                     result->value.string[0] = '\0';
                     break;
                 default:
+                    fprintf(stderr, "Bad constant cast");
+                    exit(99);
+                    break;
+            }
+            break;
+        case TYPE_BOOL:
+            switch(in->type.type) {
+                case TYPE_INT:
+                    result->value.boolean = in->value.integer != 0;
+                    break;
+                case TYPE_FLOAT:
+                    result->value.boolean = in->value.real != 0.0;
+                    break;
+                case TYPE_STRING:
+                    result->value.boolean = in->value.string[0] != '\0';
+                    break;
+                case TYPE_NULL:
+                    result->value.boolean = false;
+                    break;
+                default:
+                    fprintf(stderr, "Bad constant cast");
+                    exit(99);
                     break;
             }
             break;

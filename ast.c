@@ -74,6 +74,8 @@ Type tokenToType(Token token) {
         type.type = TYPE_FLOAT;
     } else if(strcmp(tokenText, "string") == 0) {
         type.type = TYPE_STRING;
+    } else if(strcmp(tokenText, "boolean") == 0) {
+        type.type = TYPE_BOOL;
     } else if(strcmp(tokenText, "void") == 0) {
         type.type = TYPE_VOID;
     }
@@ -91,6 +93,9 @@ void Expression__Constant__serialize(Expression__Constant *this, StringBuilder *
             break;
         case TYPE_STRING:
             StringBuilder__appendString(stringBuilder, "string");
+            break;
+        case TYPE_BOOL:
+            StringBuilder__appendString(stringBuilder, "boolean");
             break;
         case TYPE_NULL:
             StringBuilder__appendString(stringBuilder, "null");
@@ -112,6 +117,9 @@ void Expression__Constant__serialize(Expression__Constant *this, StringBuilder *
             break;
         case TYPE_STRING:
             StringBuilder__appendEscapedStr(stringBuilder, this->value.string);
+            break;
+        case TYPE_BOOL:
+            StringBuilder__appendString(stringBuilder, this->value.boolean ? "true" : "false");
             break;
         case TYPE_NULL:
             StringBuilder__appendString(stringBuilder, "null");
@@ -434,6 +442,9 @@ void Function__serialize(Function *this, StringBuilder * stringBuilder) {
                 break;
             case TYPE_STRING:
                 StringBuilder__appendString(stringBuilder, "string");
+                break;
+            case TYPE_BOOL:
+                StringBuilder__appendString(stringBuilder, "bool");
                 break;
             case TYPE_NULL:
                 StringBuilder__appendString(stringBuilder, "null");
