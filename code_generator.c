@@ -369,6 +369,7 @@ void generateFunction(Function* function, Table * functionTable) {
     Statement *** allStatements = getAllStatements(function->body, &statementCount);
     for(int i=0; i<statementCount; i++) {
         Statement * statement = *allStatements[i];
+        if(statement == NULL) continue;
         if(statement->statementType == STATEMENT_EXPRESSION && ((Expression*)statement)->expressionType == EXPRESSION_VARIABLE) {
             Expression__Variable* variable = (Expression__Variable*) statement;
             if(table_find(localTable, variable->name) == NULL) {
@@ -416,6 +417,7 @@ void generateCode(StatementList * program, Table * functionTable) {
     Statement *** allStatements = getAllStatements((Statement*)program, &statementCount);
     for(int i=0; i<statementCount; i++) {
         Statement * statement = *allStatements[i];
+        if(statement == NULL) continue;
         if(statement->statementType == STATEMENT_EXPRESSION && ((Expression*)statement)->expressionType == EXPRESSION_VARIABLE) {
             Expression__Variable* variable = (Expression__Variable*) statement;
             if(table_find(globalTable, variable->name) == NULL) {
