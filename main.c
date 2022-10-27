@@ -1,5 +1,9 @@
-// Implementace překladače imperativního jazyka IFJ22
-// Authors: Jiří Gallo (xgallo04)
+/**
+ * @file main.c
+ * @author Jiří Gallo (xgallo04)
+ * @brief Main file of the program
+ * @date 2022-10-27
+ */
 
 #include <unistd.h>
 #include "parser.h"

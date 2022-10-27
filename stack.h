@@ -9,6 +9,9 @@
 #include "lexer_processor.h"
 #include <stdbool.h>
 
+/**
+ * @brief Struct for storing symbol and token in stack
+ */
 typedef enum {
     SYM_START_DOLLAR,
     SYM_NON_TERMINAL,

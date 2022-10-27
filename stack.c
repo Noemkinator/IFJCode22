@@ -7,11 +7,23 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+/**
+ * @brief Initialize stack object
+ * 
+ * @param stack 
+ */
 void init_stack(Stack* stack) {
     stack->top = NULL;
 }
 
-// returns true if push was successful, otherwise returns false
+/**
+ * @brief Push symbol to stack
+ * 
+ * @param stack 
+ * @param symbol 
+ * @return true if push was successful
+ * @return false if push failed
+ */
 bool push(Stack* stack, Symbol symbol) {
     StackItem* new_item = malloc(sizeof(StackItem));
     if(new_item == NULL) return false;
@@ -21,6 +33,13 @@ bool push(Stack* stack, Symbol symbol) {
     return true;
 }
 
+/**
+ * @brief Pop symbol from stack
+ * 
+ * @param stack 
+ * @return true if pop was successful
+ * @return false if pop failed
+ */
 bool pop(Stack* stack) {
     StackItem* temp;
     if(!is_empty(stack)) {
@@ -32,6 +51,11 @@ bool pop(Stack* stack) {
     return false;
 }
 
+/**
+ * @brief Pop all symbols from stack
+ * 
+ * @param stack 
+ */
 void pop_all(Stack* stack) {
     StackItem* temp;
     while(!is_empty(stack)) {
@@ -42,13 +66,25 @@ void pop_all(Stack* stack) {
     stack->top = NULL;
 }
 
+/**
+ * @brief Get top symbol from stack
+ * 
+ * @param stack 
+ * @return StackItem* 
+ */
 StackItem* top(Stack* stack) {
     if(!is_empty(stack)) {
         return stack->top;
     }
 }
 
-// returns most top terminal, returns NULL if stack doesn't contain any terminal
+/**
+ * @brief Get top terminal symbol from stack
+ * 
+ * @param stack 
+ * @return StackItem* <most top terminal symbol>
+ * @return NULL if stack doesn't contain any terminal symbol
+ */
 StackItem* top_term(Stack* stack) {
     StackItem* temp = stack->top;
     while(temp != NULL) {
@@ -61,6 +97,13 @@ StackItem* top_term(Stack* stack) {
     return temp;
 }
 
+/**
+ * @brief Check if symbol is terminal
+ * 
+ * @param symbol 
+ * @return true if symbol is terminal
+ * @return false if symbol is non-terminal
+ */
 bool is_terminal(Symbol symbol) {
     if(symbol == SYM_NON_TERMINAL || symbol == SYM_START_DOLLAR) {
         return false;
@@ -68,10 +111,23 @@ bool is_terminal(Symbol symbol) {
     return true;
 }
 
+/**
+ * @brief Check if stack is empty
+ * 
+ * @param stack 
+ * @return true if stack is empty
+ * @return false if stack is not empty
+ */
 bool is_empty(Stack* stack) {
     return stack->top == NULL;
 }
 
+/**
+ * @brief Convert symbol enum to string
+ * 
+ * @param symbol 
+ * @return char* 
+ */
 char* symbol_to_string(Symbol symbol) {
     switch(symbol) {
         case SYM_START_DOLLAR:

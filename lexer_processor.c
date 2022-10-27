@@ -1,5 +1,10 @@
-// Implementace překladače imperativního jazyka IFJ22
-// Authors: Jiří Gallo (xgallo04)
+/**
+ * @file lexer_processor.c
+ * @author Jiří Gallo (xgallo04)
+ * @brief Lexical processor
+ * @date 2022-10-27
+ */
+
 
 #include "lexer_processor.h"
 #include <string.h>

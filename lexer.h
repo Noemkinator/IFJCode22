@@ -1,5 +1,9 @@
-// Implementace překladače imperativního jazyka IFJ22
-// Authors: Jiří Gallo (xgallo04)
+/**
+ * @file lexer.h
+ * @author Jiří Gallo (xgallo04)
+ * @brief Lexical analyzer library
+ * @date 2022-10-26
+ */
 
 #ifndef __LEXER_H__
 #define __LEXER_H__
@@ -8,7 +12,10 @@
 
 extern char * sourceText;
 extern size_t sourceTextLength;
-
+/**
+ * @brief TokenTypes enum
+ * @details Enum of all possible token types
+ */
 typedef enum {
     TOKEN_EOF,
     TOKEN_WHITESPACE,
@@ -49,12 +56,15 @@ typedef enum {
     TOKEN_VARIABLE
 } TokenType;
 
+/**
+ * @brief Token structure
+ */
 typedef struct {
-    int line;
-    int column;
-    int sourcePosition;
-    int length;
-    TokenType type;
+    int line;/*< Line number>*/
+    int column;/*< Column number>*/
+    int sourcePosition;/*< Position in source code>*/
+    int length;/*< Length of token>*/
+    TokenType type;/*< Type of token>*/
 } Token;
 
 void printTokenPreview(Token token);
