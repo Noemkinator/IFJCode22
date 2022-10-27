@@ -159,7 +159,7 @@ Symb generateFunctionCall(Expression__FunctionCall * expression, Table * varTabl
         StringBuilder__appendString(&strval_not_null, "strval_not_null&");
         StringBuilder__appendInt(&strval_not_null, strvalUID);
         emit_JUMPIFNEQ(strval_not_null.text, type, (Symb){.type=Type_string, .value.s="nil"});
-        emit_MOVE((Var){.frameType=TF, .name="returnValue"}, (Symb){.type=Type_string, .value=""});
+        emit_MOVE((Var){.frameType=TF, .name="returnValue"}, (Symb){.type=Type_string, .value.s=""});
         emit_JUMP(strval_end.text);
         emit_LABEL(strval_not_null.text);
         emit_DPRINT((Symb){.type=Type_string, .value.s="Unsupported argument type of strval\n"});
