@@ -1,3 +1,9 @@
+/**
+ * @file string_builder.h
+ * @author Jiří Gallo (xgallo04)
+ * @brief String builder library
+ * @date 2022-10-27
+ */
 #ifndef __STRING_BUILDER_H__
 #define __STRING_BUILDER_H__
 
@@ -6,10 +12,13 @@
 #include <stdlib.h>
 #include <stdio.h>
 
+/**
+ * @brief String builder structure
+ */
 typedef struct {
-    char *text;
-    size_t length;
-    size_t capacity;
+    char *text; /*<Pointer to the text>*/
+    size_t length;/*<Length of the text>*/
+    size_t capacity;/*<Capacity of the string>*/
 } StringBuilder;
 
 StringBuilder* StringBuilder__init(StringBuilder *this);
