@@ -304,6 +304,46 @@ Type Expression__BinaryOperation__getType(Expression__BinaryOperator *this) {
     Type type;
     type.isRequired = false;
     type.type = TYPE_UNKNOWN;
+    switch (this->operator) {
+        case TOKEN_PLUS:
+        case TOKEN_MINUS:
+        case TOKEN_MULTIPLY: {
+            Type lType = this->lSide->getType(this->lSide);
+            Type rType = this->rSide->getType(this->rSide);
+            if(lType.type == TYPE_INT && rType.type == TYPE_INT) {
+                type.type = TYPE_INT;
+            } else if(lType.type == TYPE_FLOAT || rType.type == TYPE_FLOAT) {
+                type.type = TYPE_FLOAT;
+            } else {
+                type.type = TYPE_UNKNOWN;
+            }
+            type.isRequired = true;
+            break;
+        }
+        case TOKEN_CONCATENATE:
+            type.type = TYPE_STRING;
+            type.isRequired = true;
+            type.isRequired = true;
+            break;
+        case TOKEN_DIVIDE:
+            type.type = TYPE_FLOAT;
+            type.isRequired = true;
+            break;
+        case TOKEN_ASSIGN:
+            type = this->rSide->getType(this->rSide);
+            break;
+        case TOKEN_EQUALS:
+        case TOKEN_NOT_EQUALS:
+        case TOKEN_LESS:
+        case TOKEN_GREATER:
+        case TOKEN_LESS_OR_EQUALS:
+        case TOKEN_GREATER_OR_EQUALS:
+            type.type = TYPE_BOOL;
+            type.isRequired = true;
+            break;
+        default:
+            break;
+    }
     return type;
 }
 
