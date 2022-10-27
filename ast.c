@@ -1,8 +1,18 @@
-// Implementace překladače imperativního jazyka IFJ22
-// Authors: Jiří Gallo (xgallo04)
+/**
+ * @file ast.c
+ * @author Jiří Gallo (xgallo04)
+ * @brief Abstract syntax tree
+ * @date 2022-10-26
+ */
 
 #include "ast.h"
 
+/**
+ * @brief Statement list serializer
+ * 
+ * @param this 
+ * @param stringBuilder 
+ */
 void StatementList__serialize(StatementList * this, StringBuilder * stringBuilder) {
     StringBuilder__appendString(stringBuilder, "{\"statementType\": \"STATEMENT_LIST\", \"statements\": [");
     for (int i = 0; i < this->listSize; i++) {
@@ -19,6 +29,13 @@ void StatementList__serialize(StatementList * this, StringBuilder * stringBuilde
     StringBuilder__appendString(stringBuilder, "]}");
 }
 
+/**
+ * @brief Get children of statement list
+ * 
+ * @param this 
+ * @param childrenCount 
+ * @return Statement*** 
+ */
 Statement *** StatementList__getChildren(StatementList * this, int * childrenCount) {
     *childrenCount = this->listSize;
     Statement *** children = malloc(sizeof(Statement**) * this->listSize);
@@ -28,6 +45,11 @@ Statement *** StatementList__getChildren(StatementList * this, int * childrenCou
     return children;
 }
 
+/**
+ * @brief Statement list constructor
+ * 
+ * @return StatementList* 
+ */
 StatementList* StatementList__init() {
     StatementList* this = malloc(sizeof(StatementList));
     this->super.serialize = (void (*)(struct Statement *, StringBuilder *))StatementList__serialize;
@@ -38,6 +60,13 @@ StatementList* StatementList__init() {
     return this;
 }
 
+/**
+ * @brief Add statement to statement list
+ * 
+ * @param this 
+ * @param statement 
+ * @return StatementList* 
+ */
 StatementList* StatementList__addStatement(StatementList* this, Statement* statement) {
     this->listSize++;
     this->statements = realloc(this->statements, this->listSize * sizeof(Statement*));
@@ -45,6 +74,13 @@ StatementList* StatementList__addStatement(StatementList* this, Statement* state
     return this;
 }
 
+/**
+ * @brief Append statement list to statement list
+ * 
+ * @param this 
+ * @param statementList 
+ * @return StatementList* 
+ */
 StatementList* StatementList__append(StatementList* this, StatementList* statementList) {
     this->listSize += statementList->listSize;
     this->statements = realloc(this->statements, this->listSize * sizeof(Statement*));
@@ -53,7 +89,13 @@ StatementList* StatementList__append(StatementList* this, StatementList* stateme
     }
     return this;
 }
-
+ 
+/**
+ * @brief Convert token to type
+ * 
+ * @param token 
+ * @return Type 
+ */
 Type tokenToType(Token token) {
     Type type;
     type.isRequired = false;
@@ -82,6 +124,12 @@ Type tokenToType(Token token) {
     return type;
 }
 
+/**
+ * @brief Constant expression serializer
+ * 
+ * @param type 
+ * @return char* 
+ */
 void Expression__Constant__serialize(Expression__Constant *this, StringBuilder * stringBuilder) {
     StringBuilder__appendString(stringBuilder, "{\"expressionType\": \"EXPRESSION_CONSTANT\", \"type\": \"");
     switch (this->type.type) {
@@ -134,15 +182,33 @@ void Expression__Constant__serialize(Expression__Constant *this, StringBuilder *
     StringBuilder__appendString(stringBuilder, "\"}");
 }
 
+/**
+ * @brief Get constant expression children
+ * 
+ * @param type 
+ * @return Statement*** 
+ */
 Statement *** Expression__Constant__getChildren(Expression__Constant *this, int * childrenCount) {
     *childrenCount = 0;
     return NULL;
 }
 
+/**
+ * @brief Get constant expression type
+ * 
+ * @param this 
+ * @return Type 
+ */
 Type Expression__Constant__getType(Expression__Constant *this) {
     return this->type;
 }
 
+/**
+ * @brief Constant expression constructor
+ * 
+ * @param type 
+ * @return Expression__Constant* 
+ */
 Expression__Constant* Expression__Constant__init() {
     Expression__Constant *this = malloc(sizeof(Expression__Constant));
     this->super.expressionType = EXPRESSION_CONSTANT;
@@ -154,17 +220,34 @@ Expression__Constant* Expression__Constant__init() {
     return this;
 }
 
+/**
+ * @brief Variable expression serializer
+ * 
+ * @param type 
+ */
 void Expression__Variable__serialize(Expression__Variable *this, StringBuilder * stringBuilder) {
     StringBuilder__appendString(stringBuilder, "{\"expressionType\": \"EXPRESSION_VARIABLE\", \"name\": \"");
     StringBuilder__appendEscapedStr(stringBuilder, this->name);
     StringBuilder__appendString(stringBuilder, "\"}");
 }
 
+/**
+ * @brief Get variable expression children
+ * 
+ * @param type 
+ * @return Statement*** 
+ */
 Statement *** Expression__Variable__getChildren(Expression__Variable *this, int * childrenCount) {
     *childrenCount = 0;
     return NULL;
 }
 
+/**
+ * @brief Get variable expression type
+ * 
+ * @param this 
+ * @return Type 
+ */
 Type Expression__Variable__getType(Expression__Variable *this) {
     Type type;
     type.isRequired = false;
@@ -172,6 +255,12 @@ Type Expression__Variable__getType(Expression__Variable *this) {
     return type;
 }
 
+/**
+ * @brief Variable expression constructor
+ * 
+ * @param type 
+ * @return Expression__Variable* 
+ */
 Expression__Variable* Expression__Variable__init() {
     Expression__Variable *this = malloc(sizeof(Expression__Variable));
     this->super.expressionType = EXPRESSION_VARIABLE;
@@ -182,6 +271,11 @@ Expression__Variable* Expression__Variable__init() {
     return this;
 }
 
+/**
+ * @brief Function call expression serializer
+ * 
+ * @param type 
+ */
 void Expression__FunctionCall__serialize(Expression__FunctionCall *this, StringBuilder * stringBuilder) {
     StringBuilder__appendString(stringBuilder, "{\"expressionType\": \"EXPRESSION_FUNCTION_CALL\", \"name\": \"");
     StringBuilder__appendEscapedStr(stringBuilder, this->name);
@@ -200,6 +294,12 @@ void Expression__FunctionCall__serialize(Expression__FunctionCall *this, StringB
     StringBuilder__appendString(stringBuilder, "]}");
 }
 
+/**
+ * @brief Get function call expression children
+ * 
+ * @param type 
+ * @return Statement*** 
+ */
 Statement *** Expression__FunctionCall__getChildren(Expression__FunctionCall *this, int * childrenCount) {
     *childrenCount = this->arity;
     Statement *** children = malloc(*childrenCount * sizeof(Statement**));
@@ -209,6 +309,12 @@ Statement *** Expression__FunctionCall__getChildren(Expression__FunctionCall *th
     return children;
 }
 
+/**
+ * @brief Get function call expression type
+ * 
+ * @param this 
+ * @return Type 
+ */
 Type Expression__FunctionCall__getType(Expression__FunctionCall *this) {
     Type type;
     type.isRequired = false;
@@ -216,6 +322,12 @@ Type Expression__FunctionCall__getType(Expression__FunctionCall *this) {
     return type;
 }
 
+/**
+ * @brief Function call expression constructor
+ * 
+ * @param type 
+ * @return Expression__FunctionCall* 
+ */
 Expression__FunctionCall* Expression__FunctionCall__init() {
     Expression__FunctionCall *this = malloc(sizeof(Expression__FunctionCall));
     this->super.expressionType = EXPRESSION_FUNCTION_CALL;
@@ -228,6 +340,11 @@ Expression__FunctionCall* Expression__FunctionCall__init() {
     return this;
 }
 
+/**
+ * @brief Add argument to function call expression
+ * 
+ * @param type 
+ */
 Expression__FunctionCall* Expression__FunctionCall__addArgument(Expression__FunctionCall *this, Expression *argument) {
     this->arity++;
     this->arguments = realloc(this->arguments, this->arity * sizeof(Expression*));
@@ -235,6 +352,11 @@ Expression__FunctionCall* Expression__FunctionCall__addArgument(Expression__Func
     return this;
 }
 
+/**
+ * @brief Binary operator expression serializer
+ * 
+ * @param type 
+ */
 void Expression__BinaryOperator__serialize(Expression__BinaryOperator *this, StringBuilder * stringBuilder) {
     StringBuilder__appendString(stringBuilder, "{\"expressionType\": \"EXPRESSION_BINARY_OPERATION\", \"operator\": \"");
     switch (this->operator) {
@@ -292,6 +414,12 @@ void Expression__BinaryOperator__serialize(Expression__BinaryOperator *this, Str
     StringBuilder__appendString(stringBuilder, "}");
 }
 
+/**
+ * @brief Get binary operator expression children
+ * 
+ * @param type 
+ * @return Statement*** 
+ */
 Statement *** Expression__BinaryOperator__getChildren(Expression__BinaryOperator *this, int * childrenCount) {
     *childrenCount = 2;
     Statement *** children = malloc(*childrenCount * sizeof(Statement**));
@@ -300,6 +428,12 @@ Statement *** Expression__BinaryOperator__getChildren(Expression__BinaryOperator
     return children;
 }
 
+/**
+ * @brief Get binary operator expression type
+ * 
+ * @param this 
+ * @return Type 
+ */
 Type Expression__BinaryOperation__getType(Expression__BinaryOperator *this) {
     Type type;
     type.isRequired = false;
@@ -347,6 +481,12 @@ Type Expression__BinaryOperation__getType(Expression__BinaryOperator *this) {
     return type;
 }
 
+/**
+ * @brief Binary operator expression constructor
+ * 
+ * @param type 
+ * @return Expression__BinaryOperator* 
+ */
 Expression__BinaryOperator* Expression__BinaryOperator__init() {
     Expression__BinaryOperator *this = malloc(sizeof(Expression__BinaryOperator));
     this->super.expressionType = EXPRESSION_BINARY_OPERATOR;
@@ -358,6 +498,11 @@ Expression__BinaryOperator* Expression__BinaryOperator__init() {
     return this;
 }
 
+/**
+ * @brief <if> statement serializer
+ * 
+ * @param type 
+ */
 void StatementIf__serialize(StatementIf *this, StringBuilder * stringBuilder) {
     StringBuilder__appendString(stringBuilder, "{\"statementType\": \"STATEMENT_IF\", \"condition\": ");
     if(this->condition != NULL) {
@@ -380,6 +525,12 @@ void StatementIf__serialize(StatementIf *this, StringBuilder * stringBuilder) {
     StringBuilder__appendString(stringBuilder, "}");
 }
 
+/**
+ * @brief Get <if> statement children
+ * 
+ * @param type 
+ * @return Statement*** 
+ */
 Statement *** StatementIf__getChildren(StatementIf *this, int * childrenCount) {
     *childrenCount = 3;
     Statement *** children = malloc(*childrenCount * sizeof(Statement**));
@@ -389,6 +540,12 @@ Statement *** StatementIf__getChildren(StatementIf *this, int * childrenCount) {
     return children;
 }
 
+/**
+ * @brief <if> statement constructor
+ * 
+ * @param type 
+ * @return StatementIf* 
+ */
 StatementIf* StatementIf__init() {
     StatementIf *this = malloc(sizeof(StatementIf));
     this->super.statementType = STATEMENT_IF;
@@ -400,6 +557,11 @@ StatementIf* StatementIf__init() {
     return this;
 }
 
+/**
+ * @brief <while> statement serializer
+ * 
+ * @param type 
+ */
 void StatementWhile__serialize(StatementWhile *this, StringBuilder * stringBuilder) {
     StringBuilder__appendString(stringBuilder, "{\"statementType\": \"STATEMENT_WHILE\", \"condition\": ");
     if(this->condition != NULL) {
@@ -416,6 +578,12 @@ void StatementWhile__serialize(StatementWhile *this, StringBuilder * stringBuild
     StringBuilder__appendString(stringBuilder, "}");
 }
 
+/**
+ * @brief Get <while> statement children
+ * 
+ * @param type 
+ * @return Statement*** 
+ */
 Statement *** StatementWhile__getChildren(StatementWhile *this, int * childrenCount) {
     *childrenCount = 2;
     Statement *** children = malloc(*childrenCount * sizeof(Statement**));
@@ -424,6 +592,12 @@ Statement *** StatementWhile__getChildren(StatementWhile *this, int * childrenCo
     return children;
 }
 
+/**
+ * @brief <while> statement constructor
+ * 
+ * @param type 
+ * @return StatementWhile* 
+ */
 StatementWhile* StatementWhile__init() {
     StatementWhile *this = malloc(sizeof(StatementWhile));
     this->super.statementType = STATEMENT_WHILE;
@@ -434,6 +608,11 @@ StatementWhile* StatementWhile__init() {
     return this;
 }
 
+/**
+ * @brief <return> statement serializer
+ * 
+ * @param type 
+ */
 void StatementReturn__serialize(StatementReturn *this, StringBuilder * stringBuilder) {
     StringBuilder__appendString(stringBuilder, "{\"statementType\": \"STATEMENT_RETURN\", \"expression\": ");
     if(this->expression != NULL) {
@@ -444,6 +623,12 @@ void StatementReturn__serialize(StatementReturn *this, StringBuilder * stringBui
     StringBuilder__appendString(stringBuilder, "}");
 }
 
+/**
+ * @brief Get <return> statement children
+ * 
+ * @param type 
+ * @return Statement*** 
+ */
 Statement *** StatementReturn__getChildren(StatementReturn *this, int * childrenCount) {
     *childrenCount = 1;
     Statement *** children = malloc(*childrenCount * sizeof(Statement**));
@@ -451,6 +636,12 @@ Statement *** StatementReturn__getChildren(StatementReturn *this, int * children
     return children;
 }
 
+/**
+ * @brief <return> statement constructor
+ * 
+ * @param type 
+ * @return StatementReturn* 
+ */
 StatementReturn* StatementReturn__init() {
     StatementReturn *this = malloc(sizeof(StatementReturn));
     this->super.statementType = STATEMENT_RETURN;
@@ -460,6 +651,11 @@ StatementReturn* StatementReturn__init() {
     return this;
 }
 
+/**
+ * @brief Function serializer
+ * 
+ * @param type 
+ */
 void Function__serialize(Function *this, StringBuilder * stringBuilder) {
     StringBuilder__appendString(stringBuilder, "{\"functionType\": \"FUNCTION\", \"name\": \"");
     StringBuilder__appendString(stringBuilder, this->name);
@@ -510,6 +706,12 @@ void Function__serialize(Function *this, StringBuilder * stringBuilder) {
     StringBuilder__appendString(stringBuilder, "}");
 }
 
+/**
+ * @brief Get function children
+ * 
+ * @param type 
+ * @return Statement*** 
+ */
 Statement *** Function__getChildren(Function *this, int * childrenCount) {
     *childrenCount = 1;
     Statement *** children = malloc(*childrenCount * sizeof(Statement**));
@@ -517,6 +719,12 @@ Statement *** Function__getChildren(Function *this, int * childrenCount) {
     return children;
 }
 
+/**
+ * @brief Function constructor
+ * 
+ * @param type 
+ * @return Function* 
+ */
 Function* Function__init() {
     Function *this = malloc(sizeof(Function));
     this->super.serialize = (void (*)(struct Statement *, StringBuilder *))Function__serialize;
@@ -530,6 +738,11 @@ Function* Function__init() {
     return this;
 }
 
+/**
+ * @brief Add function parameter
+ * 
+ * @param type 
+ */
 Function* Function__addParameter(Function *this, Type type, char *name) {
     this->arity++;
     this->parameterTypes = realloc(this->parameterTypes, this->arity * sizeof(Type));

@@ -1,5 +1,9 @@
-// Implementace překladače imperativního jazyka IFJ22
-// Authors: Jiří Gallo (xgallo04)
+/**
+ * @file ast.h
+ * @author Jiří Gallo (xgallo04)
+ * @brief Abstract syntax tree library
+ * @date 2022-10-26
+ */
 
 #include "lexer.h"
 #include "string_builder.h"
@@ -9,6 +13,9 @@
 #ifndef __AST_H__
 #define __AST_H__
 
+/**
+ * @brief Statement type enumeration
+ */
 typedef enum {
     STATEMENT_EXPRESSION,
     STATEMENT_LIST,
@@ -18,16 +25,22 @@ typedef enum {
     STATEMENT_FUNCTION
 } StatementType;
 
+/**
+ * @brief Statement structure
+ */
 typedef struct Statement {
-    StatementType statementType;
-    void (*serialize)(struct Statement *this, StringBuilder * stringBuilder);
-    struct Statement *** (*getChildren)(struct Statement *this, int * childrenCount);
+    StatementType statementType;/*<Statement type>*/
+    void (*serialize)(struct Statement *this, StringBuilder * stringBuilder);/*<Serialize function pointer>*/
+    struct Statement *** (*getChildren)(struct Statement *this, int * childrenCount); /*<Get children function pointer>*/
 } Statement;
 
+/**
+ * @brief Statement list structure
+ */
 typedef struct {
-    Statement super;
-    int listSize;
-    Statement ** statements;
+    Statement super;/*<Superclass>*/
+    int listSize;/*<Size of the list>*/
+    Statement ** statements;/*<List of statements>*/
 } StatementList;
 
 StatementList* StatementList__init();
@@ -36,8 +49,9 @@ StatementList* StatementList__addStatement(StatementList* this, Statement* state
 
 StatementList* StatementList__append(StatementList* this, StatementList* statementList);
 
+
 typedef struct {
-    bool isRequired;
+    bool isRequired; /*<Is the parameter required>*/
     enum {
         TYPE_INT,
         TYPE_FLOAT,
@@ -46,11 +60,14 @@ typedef struct {
         TYPE_NULL,
         TYPE_VOID,
         TYPE_UNKNOWN
-    } type;
+    } type; /*<Type of the parameter>*/
 } Type;
 
 Type tokenToType(Token token);
 
+/**
+ * @brief Expression type enumeration
+ */
 typedef enum {
     EXPRESSION_CONSTANT,
     EXPRESSION_VARIABLE,
@@ -58,23 +75,26 @@ typedef enum {
     EXPRESSION_BINARY_OPERATOR
 } ExpressionType;
 
+/**
+ * @brief Expression structure
+ */
 typedef struct {
-    Statement super;
-    ExpressionType expressionType;
-    Type (*getType)();
+    Statement super;/*<Superclass>*/
+    ExpressionType expressionType;/*<Expression type>*/
+    Type (*getType)();/*<Get type function pointer>*/
 } Expression;
 
 typedef struct {
-    Expression super;
+    Expression super;/*<Superclass>*/
 
 
-    Type type;
+    Type type;/*<Type of the constant>*/
     union {
-        long long int integer;
-        double real;
-        char *string;
-        bool boolean;
-    } value;
+        long long int integer;/*<Integer value>*/
+        double real;/*<Real value>*/
+        char *string;/*<String value>*/
+        bool boolean;/*<Boolean value>*/
+    } value;/*<Value of the constant>*/
 } Expression__Constant;
 
 Type Expression__Constant__getType(Expression__Constant *this);
@@ -82,9 +102,9 @@ Type Expression__Constant__getType(Expression__Constant *this);
 Expression__Constant* Expression__Constant__init();
 
 typedef struct {
-    Expression super;
+    Expression super; /*<Superclass>*/
 
-    char *name;
+    char *name; /*<Name of the variable>*/
 } Expression__Variable;
 
 Type Expression__Variable__getType(Expression__Variable *this);
@@ -92,10 +112,10 @@ Type Expression__Variable__getType(Expression__Variable *this);
 Expression__Variable* Expression__Variable__init();
 
 typedef struct {
-    Expression super;
+    Expression super; /*<Superclass>*/
 
-    char * name;
-    int arity;
+    char * name; /*<Name of the function>*/
+    int arity; /*<Arity of the function>*/
     Expression ** arguments;
 } Expression__FunctionCall;
 
@@ -104,50 +124,50 @@ Expression__FunctionCall* Expression__FunctionCall__init();
 Expression__FunctionCall* Expression__FunctionCall__addArgument(Expression__FunctionCall *this, Expression *argument);
 
 typedef struct {
-    Expression super;
+    Expression super; /*<Superclass>*/
 
-    Expression * lSide;
-    Expression * rSide;
-    TokenType operator;
+    Expression * lSide; /*<Left side of the expression>*/
+    Expression * rSide; /*<Right side of the expression>*/
+    TokenType operator; /*<Operator>*/
 } Expression__BinaryOperator;
 
 Expression__BinaryOperator* Expression__BinaryOperator__init();
 
 typedef struct {
-    Statement super;
+    Statement super; /*<Superclass>*/
 
-    Expression * condition;
-    Statement * ifBody;
-    Statement * elseBody;
+    Expression * condition; /*<Condition of the if statement>*/
+    Statement * ifBody; /*<If body>*/
+    Statement * elseBody; /*<Else body>*/
 } StatementIf;
 
 StatementIf* StatementIf__init();
 
 typedef struct {
-    Statement super;
+    Statement super; /*<Superclass>*/
 
-    Expression * condition;
-    Statement * body;
+    Expression * condition; /*<Condition of the while statement>*/
+    Statement * body; /*<Body of the while statement>*/
 } StatementWhile;
 
 StatementWhile* StatementWhile__init();
 
 typedef struct {
-    Statement super;
+    Statement super; /*<Superclass>*/
 
-    Expression * expression;
+    Expression * expression; /*<Expression to be returned>*/
 } StatementReturn;
 
 StatementReturn* StatementReturn__init();
 
 typedef struct {
-    Statement super;
-    char * name;
-    Type returnType;
-    int arity;
-    Type * parameterTypes;
-    char ** parameterNames;
-    Statement * body;
+    Statement super; /*<Superclass>*/
+    char * name; /*<Name of the function>*/
+    Type returnType; /*<Return type of the function>*/
+    int arity; /*<Arity of the function>*/
+    Type * parameterTypes; /*<Types of the parameters>*/
+    char ** parameterNames; /*<Names of the parameters>*/
+    Statement * body; /*<Body of the function>*/
 } Function;
 
 Function* Function__init();
