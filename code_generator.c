@@ -162,6 +162,35 @@ Symb saveTempSymb(Symb symb, FrameType frameType) {
     return (Symb){.type = Type_variable, .value.v = var};
 }
 
+Symb generateSymbType(Expression * expression, Symb symb) {
+    Type type = expression->getType(expression);
+    if(type.isRequired == true) {
+        switch (type.type) {
+            case TYPE_INT:
+                return (Symb){.type = Type_string, .value.s = "int"};
+            case TYPE_BOOL:
+                return (Symb){.type = Type_string, .value.s = "bool"};
+            case TYPE_FLOAT:
+                return (Symb){.type = Type_string, .value.s = "float"};
+            case TYPE_STRING:
+                return (Symb){.type = Type_string, .value.s = "string"};
+            default:
+                break;
+        }
+    }
+    if(type.type == TYPE_NULL) {
+        return (Symb){.type = Type_string, .value.s = "nil"};
+    }
+    StringBuilder sb;
+    StringBuilder__init(&sb);
+    StringBuilder__appendString(&sb, "var&type_output&");
+    StringBuilder__appendInt(&sb, getNextCodeGenUID());
+    Var typeOut = (Var){.frameType=LF, .name=sb.text};
+    emit_DEFVAR(typeOut);
+    emit_TYPE(typeOut, symb);
+    return (Symb){.type = Type_variable, .value.v = typeOut};
+}
+
 Symb generateBinaryOperator(Expression__BinaryOperator * expression, Table * varTable, Table * functionTable, bool throwaway, Var * outVarAlt) {
     Symb left = generateExpression(expression->lSide, varTable, functionTable, false, NULL);
     if(expression->operator == TOKEN_ASSIGN) {
@@ -215,9 +244,34 @@ Symb generateBinaryOperator(Expression__BinaryOperator * expression, Table * var
         case TOKEN_DIVIDE:
             emit_DIV(outVar, left, right);
             break;
-        case TOKEN_EQUALS:
-            emit_EQ(outVar, left, right);
+        case TOKEN_EQUALS: {
+            Symb typeOut1 = generateSymbType(expression->lSide, left);
+            Symb typeOut2 = generateSymbType(expression->rSide, right);
+            if(typeOut1.type == Type_string && typeOut2.type == Type_string) {
+                if(strcmp(typeOut1.value.s, typeOut2.value.s) == 0) {
+                    emit_EQ(outVar, left, right);
+                } else {
+                    return (Symb){.type = Type_bool, .value.b = false};
+                }
+            } else {
+                size_t operatorTypeCheckId = getNextCodeGenUID();
+                StringBuilder sb3;
+                StringBuilder__init(&sb3);
+                StringBuilder__appendString(&sb3, "type_check_ok&");
+                StringBuilder__appendInt(&sb3, operatorTypeCheckId);
+                emit_JUMPIFEQ(sb3.text, typeOut1, typeOut2);
+                emit_MOVE(outVar, (Symb){.type=Type_bool, .value.b=false});
+                StringBuilder sb4;
+                StringBuilder__init(&sb4);
+                StringBuilder__appendString(&sb4, "operator_done&");
+                StringBuilder__appendInt(&sb4, operatorTypeCheckId);
+                emit_JUMP(sb4.text);
+                emit_LABEL(sb3.text);
+                emit_EQ(outVar, left, right);
+                emit_LABEL(sb4.text);
+            }
             break;
+        }
         case TOKEN_NOT_EQUALS:
             emit_EQ(outVar, left, right);
             emit_NOT(outVar, outSymb);
