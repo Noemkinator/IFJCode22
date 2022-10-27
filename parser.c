@@ -177,7 +177,7 @@ extern bool parse_statement();
 bool parse_statement_list(StatementList ** statementListRet) {
     StatementList * statementList = StatementList__init();
     *statementListRet = statementList;
-    while(nextToken.type == TOKEN_OPEN_BRACKET || nextToken.type == TOKEN_IDENTIFIER || nextToken.type == TOKEN_VARIABLE || nextToken.type == TOKEN_INTEGER || nextToken.type == TOKEN_FLOAT || nextToken.type == TOKEN_STRING || nextToken.type == TOKEN_VARIABLE || nextToken.type == TOKEN_IF || nextToken.type == TOKEN_WHILE || nextToken.type == TOKEN_IDENTIFIER || nextToken.type == TOKEN_RETURN) {
+    while(nextToken.type == TOKEN_OPEN_BRACKET || nextToken.type == TOKEN_IDENTIFIER || nextToken.type == TOKEN_VARIABLE || nextToken.type == TOKEN_INTEGER || nextToken.type == TOKEN_FLOAT || nextToken.type == TOKEN_STRING || nextToken.type == TOKEN_VARIABLE || nextToken.type == TOKEN_IF || nextToken.type == TOKEN_WHILE || nextToken.type == TOKEN_IDENTIFIER || nextToken.type == TOKEN_RETURN || nextToken.type == TOKEN_NULL) {
         Statement * statement;
         bool success = parse_statement(&statement);
         StatementList__addStatement(statementList, statement);
@@ -319,7 +319,7 @@ bool parse_statement(Statement ** retStatement) {
         case TOKEN_RETURN:
             return parse_return((StatementReturn**)retStatement);
         default:
-            if(nextToken.type == TOKEN_OPEN_BRACKET || nextToken.type == TOKEN_IDENTIFIER || nextToken.type == TOKEN_VARIABLE || nextToken.type == TOKEN_INTEGER || nextToken.type == TOKEN_FLOAT || nextToken.type == TOKEN_STRING) {
+            if(nextToken.type == TOKEN_OPEN_BRACKET || nextToken.type == TOKEN_IDENTIFIER || nextToken.type == TOKEN_VARIABLE || nextToken.type == TOKEN_INTEGER || nextToken.type == TOKEN_FLOAT || nextToken.type == TOKEN_STRING || nextToken.type == TOKEN_NULL) {
                 if(!parse_expression((Expression**)retStatement, 0)) return false;
                 if(nextToken.type != TOKEN_SEMICOLON) {
                     printParserError(nextToken, "Missing ; after expression");
