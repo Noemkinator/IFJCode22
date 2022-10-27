@@ -99,6 +99,15 @@ Symb generateFunctionCall(Expression__FunctionCall * expression, Table * varTabl
             }
             // TODO add return void
             return (Symb){.type=Type_int, .value.i=0};
+        } else if(strcmp(function->name, "strval") == 0) {
+            if(expression->arity == 1) {
+                Type type = expression->arguments[0]->getType(expression->arguments[0]);
+                if(type.type == TYPE_STRING && type.isRequired == true) {
+                    return generateExpression(expression->arguments[0], varTable, functionTable, false, NULL);
+                } else if(type.type == TYPE_NULL) {
+                    return (Symb){.type = Type_string, .value.s = ""};
+                }
+            }
         }
     }
     emit_CREATEFRAME();
