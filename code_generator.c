@@ -272,10 +272,36 @@ Symb generateBinaryOperator(Expression__BinaryOperator * expression, Table * var
             }
             break;
         }
-        case TOKEN_NOT_EQUALS:
-            emit_EQ(outVar, left, right);
-            emit_NOT(outVar, outSymb);
+        case TOKEN_NOT_EQUALS: {
+            Symb typeOut1 = generateSymbType(expression->lSide, left);
+            Symb typeOut2 = generateSymbType(expression->rSide, right);
+            if(typeOut1.type == Type_string && typeOut2.type == Type_string) {
+                if(strcmp(typeOut1.value.s, typeOut2.value.s) == 0) {
+                    emit_EQ(outVar, left, right);
+                    emit_NOT(outVar, outSymb);
+                } else {
+                    return (Symb){.type = Type_bool, .value.b = true};
+                }
+            } else {
+                size_t operatorTypeCheckId = getNextCodeGenUID();
+                StringBuilder sb3;
+                StringBuilder__init(&sb3);
+                StringBuilder__appendString(&sb3, "type_check_ok&");
+                StringBuilder__appendInt(&sb3, operatorTypeCheckId);
+                emit_JUMPIFEQ(sb3.text, typeOut1, typeOut2);
+                emit_MOVE(outVar, (Symb){.type=Type_bool, .value.b=true});
+                StringBuilder sb4;
+                StringBuilder__init(&sb4);
+                StringBuilder__appendString(&sb4, "operator_done&");
+                StringBuilder__appendInt(&sb4, operatorTypeCheckId);
+                emit_JUMP(sb4.text);
+                emit_LABEL(sb3.text);
+                emit_EQ(outVar, left, right);
+                emit_NOT(outVar, outSymb);
+                emit_LABEL(sb4.text);
+            }
             break;
+        }
         case TOKEN_LESS:
             emit_LT(outVar, left, right);
             break;
