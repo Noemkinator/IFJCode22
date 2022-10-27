@@ -29,8 +29,8 @@ typedef struct {
 typedef struct {
 	StorageType type;
 	union {
-		int i;
-		float f;
+		long long int i;
+		double f;
 		char * s;
 		bool b;
 		Var v;
