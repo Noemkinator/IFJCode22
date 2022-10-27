@@ -52,6 +52,35 @@ Symb generateVariable(Expression__Variable * statement, Table * varTable, Table 
     return (Symb){.type = Type_variable, .value.v.frameType = ((VariableInfo*)table_find(varTable, statement->name)->data)->isGlobal ? GF : LF, .value.v.name = varId};
 }
 
+Symb generateSymbType(Expression * expression, Symb symb) {
+    Type type = expression->getType(expression);
+    if(type.isRequired == true) {
+        switch (type.type) {
+            case TYPE_INT:
+                return (Symb){.type = Type_string, .value.s = "int"};
+            case TYPE_BOOL:
+                return (Symb){.type = Type_string, .value.s = "bool"};
+            case TYPE_FLOAT:
+                return (Symb){.type = Type_string, .value.s = "float"};
+            case TYPE_STRING:
+                return (Symb){.type = Type_string, .value.s = "string"};
+            default:
+                break;
+        }
+    }
+    if(type.type == TYPE_NULL) {
+        return (Symb){.type = Type_string, .value.s = "nil"};
+    }
+    StringBuilder sb;
+    StringBuilder__init(&sb);
+    StringBuilder__appendString(&sb, "var&type_output&");
+    StringBuilder__appendInt(&sb, getNextCodeGenUID());
+    Var typeOut = (Var){.frameType=LF, .name=sb.text};
+    emit_DEFVAR(typeOut);
+    emit_TYPE(typeOut, symb);
+    return (Symb){.type = Type_variable, .value.v = typeOut};
+}
+
 Symb generateExpression(Expression * expression, Table * varTable, Table * functionTable, bool throwaway, Var * outVar);
 
 Symb generateFunctionCall(Expression__FunctionCall * expression, Table * varTable, Table * functionTable) {
@@ -70,6 +99,15 @@ Symb generateFunctionCall(Expression__FunctionCall * expression, Table * varTabl
             }
             // TODO add return void
             return (Symb){.type=Type_int, .value.i=0};
+        } else if(strcmp(function->name, "strval") == 0) {
+            if(expression->arity == 1) {
+                Type type = expression->arguments[0]->getType(expression->arguments[0]);
+                if(type.type == TYPE_STRING && type.isRequired == true) {
+                    return generateExpression(expression->arguments[0], varTable, functionTable, false, NULL);
+                } else if(type.type == TYPE_NULL) {
+                    return (Symb){.type = Type_string, .value.s = ""};
+                }
+            }
         }
     }
     emit_CREATEFRAME();
@@ -102,7 +140,31 @@ Symb generateFunctionCall(Expression__FunctionCall * expression, Table * varTabl
     } else if(strcmp(function->name, "strval") == 0) {
         Symb symb = generateExpression(expression->arguments[0], varTable, functionTable, false, NULL);
         emit_DEFVAR((Var){.frameType=TF, .name="returnValue"});
-        // TODO
+        size_t strvalUID = getNextCodeGenUID();
+        Symb type = generateSymbType(expression->arguments[0], symb);
+        StringBuilder strval_end;
+        StringBuilder__init(&strval_end);
+        StringBuilder__appendString(&strval_end, "strval_end&");
+        StringBuilder__appendInt(&strval_end, strvalUID);
+        StringBuilder strval_not_string;
+        StringBuilder__init(&strval_not_string);
+        StringBuilder__appendString(&strval_not_string, "strval_not_string&");
+        StringBuilder__appendInt(&strval_not_string, strvalUID);
+        emit_JUMPIFNEQ(strval_not_string.text, type, (Symb){.type=Type_string, .value.s="string"});
+        emit_MOVE((Var){.frameType=TF, .name="returnValue"}, symb);
+        emit_JUMP(strval_end.text);
+        emit_LABEL(strval_not_string.text);
+        StringBuilder strval_not_null;
+        StringBuilder__init(&strval_not_null);
+        StringBuilder__appendString(&strval_not_null, "strval_not_null&");
+        StringBuilder__appendInt(&strval_not_null, strvalUID);
+        emit_JUMPIFNEQ(strval_not_null.text, type, (Symb){.type=Type_string, .value.s="nil"});
+        emit_MOVE((Var){.frameType=TF, .name="returnValue"}, (Symb){.type=Type_string, .value=""});
+        emit_JUMP(strval_end.text);
+        emit_LABEL(strval_not_null.text);
+        emit_DPRINT((Symb){.type=Type_string, .value.s="Unsupported argument type of strval\n"});
+        emit_EXIT((Symb){.type=Type_int, .value.i=4});
+        emit_LABEL(strval_end.text);
         return (Symb){.type = Type_variable, .value.v=(Var){.frameType = TF, .name = "returnValue"}};
     } else if(strcmp(function->name, "strlen") == 0) {
         Symb symb = generateExpression(expression->arguments[0], varTable, functionTable, false, NULL);
@@ -160,35 +222,6 @@ Symb saveTempSymb(Symb symb, FrameType frameType) {
     emit_DEFVAR(var);
     emit_MOVE(var, symb);
     return (Symb){.type = Type_variable, .value.v = var};
-}
-
-Symb generateSymbType(Expression * expression, Symb symb) {
-    Type type = expression->getType(expression);
-    if(type.isRequired == true) {
-        switch (type.type) {
-            case TYPE_INT:
-                return (Symb){.type = Type_string, .value.s = "int"};
-            case TYPE_BOOL:
-                return (Symb){.type = Type_string, .value.s = "bool"};
-            case TYPE_FLOAT:
-                return (Symb){.type = Type_string, .value.s = "float"};
-            case TYPE_STRING:
-                return (Symb){.type = Type_string, .value.s = "string"};
-            default:
-                break;
-        }
-    }
-    if(type.type == TYPE_NULL) {
-        return (Symb){.type = Type_string, .value.s = "nil"};
-    }
-    StringBuilder sb;
-    StringBuilder__init(&sb);
-    StringBuilder__appendString(&sb, "var&type_output&");
-    StringBuilder__appendInt(&sb, getNextCodeGenUID());
-    Var typeOut = (Var){.frameType=LF, .name=sb.text};
-    emit_DEFVAR(typeOut);
-    emit_TYPE(typeOut, symb);
-    return (Symb){.type = Type_variable, .value.v = typeOut};
 }
 
 Symb generateBinaryOperator(Expression__BinaryOperator * expression, Table * varTable, Table * functionTable, bool throwaway, Var * outVarAlt) {
