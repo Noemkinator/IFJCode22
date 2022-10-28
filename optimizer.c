@@ -1,4 +1,7 @@
-#include "ast.h"
+// Implementace překladače imperativního jazyka IFJ22
+// Authors: Jiří Gallo (xgallo04)
+
+#include "optimizer.h"
 
 Expression__Constant * performConstantCast(Expression__Constant * in, Type targetType) {
     if(in->type.type == targetType.type) {
@@ -107,64 +110,63 @@ Expression__Constant * performConstantCast(Expression__Constant * in, Type targe
     return result;
 }
 
-Expression * performConstantFolding(Expression__BinaryOperator * in) {
+Expression__Constant * performConstantFolding(Expression__BinaryOperator * in) {
     if(in->lSide->expressionType == EXPRESSION_CONSTANT && in->rSide->expressionType == EXPRESSION_CONSTANT) {
         Expression__Constant * left = (Expression__Constant *) in->lSide;
         Expression__Constant * right = (Expression__Constant *) in->rSide;
         Expression__Constant * result = Expression__Constant__init();
         switch(in->operator) {
-            switch(in->operator) {
-                case TOKEN_PLUS:
-                    if(left->type.type == TYPE_INT && right->type.type == TYPE_INT) {
-                        result->value.integer = left->value.integer + right->value.integer;
-                        result->type.type = TYPE_INT;
-                        return result;
-                    } else if((left->type.type == TYPE_FLOAT || left->type.type == TYPE_INT) && right->type.type == TYPE_FLOAT || right->type.type == TYPE_INT) {
-                        result->value.real = performConstantCast(left, (Type){.type = TYPE_FLOAT, .isRequired = true})->value.real + performConstantCast(right, (Type){.type = TYPE_FLOAT, .isRequired = true})->value.real;
-                        result->type.type = TYPE_FLOAT;
-                        return result;
-                    } else {
-                        free(result);
-                        return NULL;
-                    }
-                case TOKEN_MINUS:
-                    if(left->type.type == TYPE_INT && right->type.type == TYPE_INT) {
-                        result->value.integer = left->value.integer - right->value.integer;
-                        result->type.type = TYPE_INT;
-                        return result;
-                    } else if((left->type.type == TYPE_FLOAT || left->type.type == TYPE_INT) && right->type.type == TYPE_FLOAT || right->type.type == TYPE_INT) {
-                        result->value.real = performConstantCast(left, (Type){.type = TYPE_FLOAT, .isRequired = true})->value.real - performConstantCast(right, (Type){.type = TYPE_FLOAT, .isRequired = true})->value.real;
-                        result->type.type = TYPE_FLOAT;
-                        return result;
-                    } else {
-                        free(result);
-                        return NULL;
-                    }
-                case TOKEN_CONCATENATE:
-                    StringBuilder sb;
-                    StringBuilder__init(&sb);
-                    StringBuilder__appendString(&sb, performConstantCast(left, (Type){.type = TYPE_STRING, .isRequired = true})->value.string);
-                    StringBuilder__appendString(&sb, performConstantCast(right, (Type){.type = TYPE_STRING, .isRequired = true})->value.string);
-                    result->value.string = sb.text;
-                    result->type.type = TYPE_STRING;
+            case TOKEN_PLUS:
+                if(left->type.type == TYPE_INT && right->type.type == TYPE_INT) {
+                    result->value.integer = left->value.integer + right->value.integer;
+                    result->type.type = TYPE_INT;
                     return result;
-                case TOKEN_MULTIPLY:
-                    if(left->type.type == TYPE_INT && right->type.type == TYPE_INT) {
-                        result->value.integer = left->value.integer * right->value.integer;
-                        result->type.type = TYPE_INT;
-                        return result;
-                    } else if((left->type.type == TYPE_FLOAT || left->type.type == TYPE_INT) && right->type.type == TYPE_FLOAT || right->type.type == TYPE_INT) {
-                        result->value.real = performConstantCast(left, (Type){.type = TYPE_FLOAT, .isRequired = true})->value.real * performConstantCast(right, (Type){.type = TYPE_FLOAT, .isRequired = true})->value.real;
-                        result->type.type = TYPE_FLOAT;
-                        return result;
-                    } else {
-                        free(result);
-                        return NULL;
-                    }
-                default:
+                } else if((left->type.type == TYPE_FLOAT || left->type.type == TYPE_INT) && (right->type.type == TYPE_FLOAT || right->type.type == TYPE_INT)) {
+                    result->value.real = performConstantCast(left, (Type){.type = TYPE_FLOAT, .isRequired = true})->value.real + performConstantCast(right, (Type){.type = TYPE_FLOAT, .isRequired = true})->value.real;
+                    result->type.type = TYPE_FLOAT;
+                    return result;
+                } else {
                     free(result);
                     return NULL;
+                }
+            case TOKEN_MINUS:
+                if(left->type.type == TYPE_INT && right->type.type == TYPE_INT) {
+                    result->value.integer = left->value.integer - right->value.integer;
+                    result->type.type = TYPE_INT;
+                    return result;
+                } else if((left->type.type == TYPE_FLOAT || left->type.type == TYPE_INT) && (right->type.type == TYPE_FLOAT || right->type.type == TYPE_INT)) {
+                    result->value.real = performConstantCast(left, (Type){.type = TYPE_FLOAT, .isRequired = true})->value.real - performConstantCast(right, (Type){.type = TYPE_FLOAT, .isRequired = true})->value.real;
+                    result->type.type = TYPE_FLOAT;
+                    return result;
+                } else {
+                    free(result);
+                    return NULL;
+                }
+            case TOKEN_CONCATENATE: {
+                StringBuilder sb;
+                StringBuilder__init(&sb);
+                StringBuilder__appendString(&sb, performConstantCast(left, (Type){.type = TYPE_STRING, .isRequired = true})->value.string);
+                StringBuilder__appendString(&sb, performConstantCast(right, (Type){.type = TYPE_STRING, .isRequired = true})->value.string);
+                result->value.string = sb.text;
+                result->type.type = TYPE_STRING;
+                return result;
             }
+            case TOKEN_MULTIPLY:
+                if(left->type.type == TYPE_INT && right->type.type == TYPE_INT) {
+                    result->value.integer = left->value.integer * right->value.integer;
+                    result->type.type = TYPE_INT;
+                    return result;
+                } else if((left->type.type == TYPE_FLOAT || left->type.type == TYPE_INT) && (right->type.type == TYPE_FLOAT || right->type.type == TYPE_INT)) {
+                    result->value.real = performConstantCast(left, (Type){.type = TYPE_FLOAT, .isRequired = true})->value.real * performConstantCast(right, (Type){.type = TYPE_FLOAT, .isRequired = true})->value.real;
+                    result->type.type = TYPE_FLOAT;
+                    return result;
+                } else {
+                    free(result);
+                    return NULL;
+                }
+            default:
+                free(result);
+                return NULL;
         }
     }
     return NULL;
@@ -191,7 +193,7 @@ Statement * performStatementFolding(Statement * in) {
                 Expression__Constant * condition = (Expression__Constant *) whileStatement->condition;
                 condition = performConstantCast(condition, (Type){.type = TYPE_BOOL, .isRequired = true});
                 if(!condition->value.boolean) {
-                    return StatementList__init();
+                    return (Statement*)StatementList__init();
                 }
             }
             break;
