@@ -101,6 +101,10 @@ Type tokenToType(Token token) {
     type.isRequired = false;
     type.type = TYPE_UNKNOWN;
     if(token.type != TOKEN_TYPE) {
+        if(token.type == TOKEN_VOID) {
+            type.type = TYPE_VOID;
+            type.isRequired = true;
+        }
         return type;
     }
     char * tokenText = getTokenText(token);
@@ -118,8 +122,6 @@ Type tokenToType(Token token) {
         type.type = TYPE_STRING;
     } else if(strcmp(tokenText, "boolean") == 0) {
         type.type = TYPE_BOOL;
-    } else if(strcmp(tokenText, "void") == 0) {
-        type.type = TYPE_VOID;
     }
     return type;
 }

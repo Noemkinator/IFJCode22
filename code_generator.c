@@ -592,7 +592,7 @@ void generateWhile(StatementWhile * statement, Context ctx) {
 }
 
 void generateReturn(StatementReturn * statement, Context ctx) {
-    if(statement->expression != NULL) {
+    if(statement != NULL && statement->expression != NULL) {
         Symb expr = generateExpression(statement->expression, ctx, ctx.isGlobal, NULL);
         if(!ctx.isGlobal) {
             emit_MOVE((Var){.frameType = LF, .name = "returnValue"}, expr);
