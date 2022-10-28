@@ -90,7 +90,7 @@ Symb generateSymbType(Expression * expression, Symb symb, Context ctx) {
 
 Symb generateExpression(Expression * expression, Context ctx, bool throwaway, Var * outVar);
 
-Symb generateFunctionCall(Expression__FunctionCall * expression, Context ctx) {
+Symb generateFunctionCall(Expression__FunctionCall * expression, Context ctx, Var * outVarAlt) {
     TableItem * tableItem = table_find(ctx.functionTable, expression->name);
     if(tableItem == NULL) {
         fprintf(stderr, "Trying to call undefined function\n");
@@ -127,17 +127,20 @@ Symb generateFunctionCall(Expression__FunctionCall * expression, Context ctx) {
     StringBuilder__appendInt(&sbRet, getNextCodeGenUID());
     if(strcmp(function->name, "reads") == 0) {
         Var var = (Var){.frameType=ctx.isGlobal ? GF : LF, .name=sbRet.text};
-        emit_DEFVAR(var);
+        if(outVarAlt != NULL) var = *outVarAlt;
+        if(outVarAlt == NULL) emit_DEFVAR(var);
         emit_READ(var, Type_string);
         return (Symb){.type = Type_variable, .value.v=var};
     } else if(strcmp(function->name, "readi") == 0) {
         Var var = (Var){.frameType=ctx.isGlobal ? GF : LF, .name=sbRet.text};
-        emit_DEFVAR(var);
+        if(outVarAlt != NULL) var = *outVarAlt;
+        if(outVarAlt == NULL) emit_DEFVAR(var);
         emit_READ(var, Type_int);
         return (Symb){.type = Type_variable, .value.v=var};
     } else if(strcmp(function->name, "readf") == 0) {
         Var var = (Var){.frameType=ctx.isGlobal ? GF : LF, .name=sbRet.text};
-        emit_DEFVAR(var);
+        if(outVarAlt != NULL) var = *outVarAlt;
+        if(outVarAlt == NULL) emit_DEFVAR(var);
         emit_READ(var, Type_float);
         return (Symb){.type = Type_variable, .value.v=var};
     }
@@ -435,7 +438,7 @@ Symb generateExpression(Expression * expression, Context ctx, bool throwaway, Va
             return generateVariable((Expression__Variable*)expression, ctx);
             break;
         case EXPRESSION_FUNCTION_CALL:
-            return generateFunctionCall((Expression__FunctionCall*)expression, ctx);
+            return generateFunctionCall((Expression__FunctionCall*)expression, ctx, outVar);
             break;
         case EXPRESSION_BINARY_OPERATOR:
             return generateBinaryOperator((Expression__BinaryOperator*)expression, ctx, throwaway, outVar);
