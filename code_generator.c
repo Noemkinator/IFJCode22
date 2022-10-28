@@ -490,12 +490,18 @@ void generateWhile(StatementWhile * statement, Context ctx) {
 }
 
 void generateReturn(StatementReturn * statement, Context ctx) {
-    // TODO global return, when is global return then throwaway is true
     if(statement->expression != NULL) {
-        emit_MOVE((Var){.frameType = LF, .name = "returnValue"}, generateExpression(statement->expression,  ctx, false, NULL));
+        Symb expr = generateExpression(statement->expression, ctx, ctx.isGlobal, NULL);
+        if(!ctx.isGlobal) {
+            emit_MOVE((Var){.frameType = LF, .name = "returnValue"}, expr);
+        }
     }
-    emit_POPFRAME();
-    emit_RETURN();
+    if(!ctx.isGlobal) {
+        emit_POPFRAME();
+        emit_RETURN();
+    } else {
+        emit_EXIT((Symb){.type=Type_int, .value.i=0});
+    }
 }
 
 void generateStatement(Statement * statement, Context ctx) {
@@ -634,7 +640,9 @@ void generateCode(StatementList * program, Table * functionTable) {
     ctx.functionTable = functionTable;
     ctx.isGlobal = true;
     generateStatementList(program, ctx);
-    emit_EXIT((Symb){.type=Type_int, .value.i=0});
+    if(program->listSize == 0 || program->statements[program->listSize-1]->statementType != STATEMENT_RETURN) {
+        emit_EXIT((Symb){.type=TYPE_INT, .value.i=0});
+    }
     emit_DEFVAR_end();
     emit_instruction_end();
     for(int i = 0; i < TB_SIZE; i++) {
