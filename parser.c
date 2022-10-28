@@ -389,7 +389,7 @@ bool parse_function(Function ** retFunction) {
         return false;
     }
     Token returnType = getNextToken();
-    if(returnType.type != TOKEN_TYPE) {
+    if(returnType.type != TOKEN_TYPE && returnType.type != TOKEN_VOID) {
         printParserError(returnType, "Missing return type of function");
         return false;
     }
