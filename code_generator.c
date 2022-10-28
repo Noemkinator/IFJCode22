@@ -608,8 +608,6 @@ void generateFunction(Function* function, Table * functionTable) {
     ctx.functionTable = functionTable;
     ctx.isGlobal = false;
     generateStatement(function->body, ctx);
-    // TODO, handle differently
-    // for now emit return if function does not end with return
     if(function->body->statementType != STATEMENT_LIST || ((StatementList*)function->body)->listSize == 0 || ((StatementList*)function->body)->statements[((StatementList*)function->body)->listSize-1]->statementType != STATEMENT_RETURN) {
         if(function->returnType.type != TYPE_VOID) {
             emit_DPRINT((Symb){.type=Type_string, .value.s="ERR: Function didn't return a value!"});
