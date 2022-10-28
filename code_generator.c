@@ -117,24 +117,32 @@ Symb generateFunctionCall(Expression__FunctionCall * expression, Context ctx) {
             }
         }
     }
-    emit_CREATEFRAME();
     if(function->arity != expression->arity) {
         fprintf(stderr, "ERR: Function %s called with wrong number of arguments\n", expression->name);
         exit(4);
     }
+    StringBuilder sbRet;
+    StringBuilder__init(&sbRet);
+    StringBuilder__appendString(&sbRet, "var&returnValue&");
+    StringBuilder__appendInt(&sbRet, getNextCodeGenUID());
     if(strcmp(function->name, "reads") == 0) {
-        emit_DEFVAR((Var){.frameType=TF, .name="returnValue"});
-        emit_READ((Var){.frameType=TF, .name="returnValue"}, Type_string);
-        return (Symb){.type = Type_variable, .value.v=(Var){.frameType = TF, .name = "returnValue"}};
+        Var var = (Var){.frameType=ctx.isGlobal ? GF : LF, .name=sbRet.text};
+        emit_DEFVAR(var);
+        emit_READ(var, Type_string);
+        return (Symb){.type = Type_variable, .value.v=var};
     } else if(strcmp(function->name, "readi") == 0) {
-        emit_DEFVAR((Var){.frameType=TF, .name="returnValue"});
-        emit_READ((Var){.frameType=TF, .name="returnValue"}, Type_int);
-        return (Symb){.type = Type_variable, .value.v=(Var){.frameType = TF, .name = "returnValue"}};
+        Var var = (Var){.frameType=ctx.isGlobal ? GF : LF, .name=sbRet.text};
+        emit_DEFVAR(var);
+        emit_READ(var, Type_int);
+        return (Symb){.type = Type_variable, .value.v=var};
     } else if(strcmp(function->name, "readf") == 0) {
-        emit_DEFVAR((Var){.frameType=TF, .name="returnValue"});
-        emit_READ((Var){.frameType=TF, .name="returnValue"}, Type_float);
-        return (Symb){.type = Type_variable, .value.v=(Var){.frameType = TF, .name = "returnValue"}};
-    } else if(strcmp(function->name, "floatval") == 0) {
+        Var var = (Var){.frameType=ctx.isGlobal ? GF : LF, .name=sbRet.text};
+        emit_DEFVAR(var);
+        emit_READ(var, Type_float);
+        return (Symb){.type = Type_variable, .value.v=var};
+    }
+    emit_CREATEFRAME();
+    if(strcmp(function->name, "floatval") == 0) {
         Symb symb = generateExpression(expression->arguments[0], ctx, false, NULL);
         emit_DEFVAR((Var){.frameType=TF, .name="returnValue"});
         emit_INT2FLOAT((Var){.frameType=TF, .name="returnValue"}, symb);
