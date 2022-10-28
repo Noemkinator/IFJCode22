@@ -94,7 +94,7 @@ Symb generateSymbType(Expression * expression, Symb symb, Context ctx) {
 
 Symb generateCastToBool(Expression * expression, Symb symb, Context ctx) {
     Type type = expression->getType(expression);
-    if(type.type == TYPE_BOOL) {
+    if(type.type == TYPE_BOOL && type.isRequired == true) {
         return symb;
     }
     if(expression->expressionType == EXPRESSION_CONSTANT) {
