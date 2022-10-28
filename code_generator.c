@@ -59,7 +59,7 @@ Symb generateVariable(Expression__Variable * statement, Context ctx) {
     return (Symb){.type = Type_variable, .value.v.frameType = ((VariableInfo*)table_find(ctx.varTable, statement->name)->data)->isGlobal ? GF : LF, .value.v.name = varId};
 }
 
-Symb generateSymbType(Expression * expression, Symb symb) {
+Symb generateSymbType(Expression * expression, Symb symb, Context ctx) {
     Type type = expression->getType(expression);
     if(type.isRequired == true) {
         switch (type.type) {
@@ -82,7 +82,7 @@ Symb generateSymbType(Expression * expression, Symb symb) {
     StringBuilder__init(&sb);
     StringBuilder__appendString(&sb, "var&type_output&");
     StringBuilder__appendInt(&sb, getNextCodeGenUID());
-    Var typeOut = (Var){.frameType=LF, .name=sb.text};
+    Var typeOut = (Var){.frameType=ctx.isGlobal ? GF : LF, .name=sb.text};
     emit_DEFVAR(typeOut);
     emit_TYPE(typeOut, symb);
     return (Symb){.type = Type_variable, .value.v = typeOut};
@@ -148,7 +148,7 @@ Symb generateFunctionCall(Expression__FunctionCall * expression, Context ctx) {
         Symb symb = generateExpression(expression->arguments[0], ctx, false, NULL);
         emit_DEFVAR((Var){.frameType=TF, .name="returnValue"});
         size_t strvalUID = getNextCodeGenUID();
-        Symb type = generateSymbType(expression->arguments[0], symb);
+        Symb type = generateSymbType(expression->arguments[0], symb, ctx);
         StringBuilder strval_end;
         StringBuilder__init(&strval_end);
         StringBuilder__appendString(&strval_end, "strval_end&");
@@ -301,7 +301,7 @@ Symb generateBinaryOperator(Expression__BinaryOperator * expression, Context ctx
             right = generateExpression(expression->rSide, ctx, false, NULL);
         }
         if(!throwaway) {
-            right = saveTempSymb(right, LF);
+            right = saveTempSymb(right, ctx.isGlobal ? GF : LF);
         }
         if((!throwaway && outVarAlt == NULL) || right.type != left.type || right.value.v.frameType != left.value.v.frameType || strcmp(right.value.v.name, left.value.v.name) != 0) {
             emit_MOVE(left.value.v, right);
@@ -309,7 +309,7 @@ Symb generateBinaryOperator(Expression__BinaryOperator * expression, Context ctx
         return right;
     }
     Symb right = generateExpression(expression->rSide, ctx, false, NULL);
-    left = saveTempSymb(left, LF);
+    left = saveTempSymb(left, ctx.isGlobal ? GF : LF);
     size_t outVarId = getNextCodeGenUID();
     StringBuilder sb;
     StringBuilder__init(&sb);
@@ -317,7 +317,7 @@ Symb generateBinaryOperator(Expression__BinaryOperator * expression, Context ctx
     StringBuilder__appendInt(&sb, outVarId);
     Var outVar;
     if(outVarAlt == NULL) {
-        outVar = (Var){.frameType=LF, .name=sb.text};
+        outVar = (Var){.frameType=ctx.isGlobal ? GF : LF, .name=sb.text};
         emit_DEFVAR(outVar);
     } else {
         outVar = *outVarAlt;
@@ -340,8 +340,8 @@ Symb generateBinaryOperator(Expression__BinaryOperator * expression, Context ctx
             emit_DIV(outVar, left, right);
             break;
         case TOKEN_EQUALS: {
-            Symb typeOut1 = generateSymbType(expression->lSide, left);
-            Symb typeOut2 = generateSymbType(expression->rSide, right);
+            Symb typeOut1 = generateSymbType(expression->lSide, left, ctx);
+            Symb typeOut2 = generateSymbType(expression->rSide, right, ctx);
             if(typeOut1.type == Type_string && typeOut2.type == Type_string) {
                 if(strcmp(typeOut1.value.s, typeOut2.value.s) == 0) {
                     emit_EQ(outVar, left, right);
@@ -368,8 +368,8 @@ Symb generateBinaryOperator(Expression__BinaryOperator * expression, Context ctx
             break;
         }
         case TOKEN_NOT_EQUALS: {
-            Symb typeOut1 = generateSymbType(expression->lSide, left);
-            Symb typeOut2 = generateSymbType(expression->rSide, right);
+            Symb typeOut1 = generateSymbType(expression->lSide, left, ctx);
+            Symb typeOut2 = generateSymbType(expression->rSide, right, ctx);
             if(typeOut1.type == Type_string && typeOut2.type == Type_string) {
                 if(strcmp(typeOut1.value.s, typeOut2.value.s) == 0) {
                     emit_EQ(outVar, left, right);
@@ -630,10 +630,6 @@ void generateCode(StatementList * program, Table * functionTable) {
         }
     }
     free(allStatements);
-    emit_instruction_start();
-    emit_CREATEFRAME();
-    emit_PUSHFRAME();
-    emit_instruction_end();
     emit_instruction_start();
     Context ctx;
     ctx.varTable = globalTable;
