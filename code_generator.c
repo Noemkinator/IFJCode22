@@ -63,6 +63,26 @@ Symb generateVariable(Expression__Variable * statement, Context ctx) {
     return (Symb){.type = Type_variable, .value.v.frameType = ((VariableInfo*)table_find(ctx.varTable, statement->name)->data)->isGlobal ? GF : LF, .value.v.name = varId};
 }
 
+Statement *** getAllStatements(Statement * parent, size_t * count) {
+    int childrenCount = 0;
+    if(parent == NULL) return NULL;
+    Statement *** children = parent->getChildren(parent, &childrenCount);
+    *count = childrenCount;
+    if(childrenCount == 0) return NULL;
+    for(int i=0; i<childrenCount; i++) {
+        size_t subchildrenCount = 0;
+        if(*children[i] == NULL) continue;
+        Statement *** subchildren = getAllStatements(*children[i], &subchildrenCount);
+        if(subchildren == NULL) continue;
+        *count += subchildrenCount;
+        if(subchildrenCount == 0) continue;
+        children = realloc(children, sizeof(Statement**) * (*count));
+        memcpy(children + *count - subchildrenCount, subchildren, sizeof(Statement**) * subchildrenCount);
+        free(subchildren);
+    }
+    return children;
+}
+
 Symb generateSymbType(Expression * expression, Symb symb, Context ctx) {
     Type type = expression->getType(expression);
     if(type.isRequired == true) {
@@ -360,10 +380,42 @@ Symb generateFunctionCall(Expression__FunctionCall * expression, Context ctx, Va
         emit_INT2CHAR((Var){.frameType=TF, .name="returnValue"}, symb1);
         return (Symb){.type = Type_variable, .value.v=(Var){.frameType = TF, .name = "returnValue"}};
     }
-    for(int i=0; i<expression->arity; i++) {
-        emit_DEFVAR((Var){.frameType = TF, .name = join_strings("var&", function->parameterNames[i])});
-        emit_MOVE((Var){.frameType = TF, .name = join_strings("var&", function->parameterNames[i])}, generateExpression(expression->arguments[i], ctx, false, NULL));
+    bool containsNestedFunctionCall = false;
+    for(int i = 0; i < expression->arity; i++) {
+        size_t count;
+        if(expression->arguments[i]->expressionType == EXPRESSION_FUNCTION_CALL) {
+            containsNestedFunctionCall = true;
+            break;
+        }
+        Statement *** statements = getAllStatements((Statement*)expression->arguments[i], &count);
+        for(int j = 0; j < count; j++) {
+            if((*statements[j])->statementType == STATEMENT_EXPRESSION) {
+                Expression * expr = (Expression*)*statements[j];
+                if(expr->expressionType == EXPRESSION_FUNCTION_CALL) {
+                    containsNestedFunctionCall = true;
+                    break;
+                }
+            }
+        }
+        free(statements);
+        if(containsNestedFunctionCall) break;
     }
+    if(!containsNestedFunctionCall) {
+        for(int i=0; i<expression->arity; i++) {
+            emit_DEFVAR((Var){.frameType = TF, .name = join_strings("var&", function->parameterNames[i])});
+            emit_MOVE((Var){.frameType = TF, .name = join_strings("var&", function->parameterNames[i])}, generateExpression(expression->arguments[i], ctx, false, NULL));
+        }
+    } else {
+        for(int i=0; i<expression->arity; i++) {
+            emit_PUSHS(generateExpression(expression->arguments[i], ctx, true, NULL));
+        }
+        emit_CREATEFRAME();
+        for(int i=expression->arity-1; i>=0; i--) {
+            emit_DEFVAR((Var){.frameType = TF, .name = join_strings("var&", function->parameterNames[i])});
+            emit_POPS((Var){.frameType = TF, .name = join_strings("var&", function->parameterNames[i])});
+        }
+    }
+    
     char * functionLabel = join_strings("function&", expression->name);
     emit_CALL(functionLabel);
     free(functionLabel);
@@ -628,26 +680,6 @@ void generateStatement(Statement * statement, Context ctx) {
             fprintf(stderr, "OFF, ignoring function...\n");
             break;
     }
-}
-
-Statement *** getAllStatements(Statement * parent, size_t * count) {
-    int childrenCount = 0;
-    if(parent == NULL) return NULL;
-    Statement *** children = parent->getChildren(parent, &childrenCount);
-    *count = childrenCount;
-    if(childrenCount == 0) return NULL;
-    for(int i=0; i<childrenCount; i++) {
-        size_t subchildrenCount = 0;
-        if(*children[i] == NULL) continue;
-        Statement *** subchildren = getAllStatements(*children[i], &subchildrenCount);
-        if(subchildren == NULL) continue;
-        *count += subchildrenCount;
-        if(subchildrenCount == 0) continue;
-        children = realloc(children, sizeof(Statement**) * (*count));
-        memcpy(children + *count - subchildrenCount, subchildren, sizeof(Statement**) * subchildrenCount);
-        free(subchildren);
-    }
-    return children;
 }
 
 void generateFunction(Function* function, Table * functionTable) {
