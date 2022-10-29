@@ -164,6 +164,75 @@ Expression__Constant * performConstantFolding(Expression__BinaryOperator * in) {
                     free(result);
                     return NULL;
                 }
+            case TOKEN_DIVIDE:
+                if((left->type.type == TYPE_FLOAT || left->type.type == TYPE_INT) && ((right->type.type == TYPE_FLOAT && right->value.real != 0.0) || (right->type.type == TYPE_INT && right->value.integer != 0))) {
+                    result->value.real = performConstantCast(left, (Type){.type = TYPE_FLOAT, .isRequired = true})->value.real / performConstantCast(right, (Type){.type = TYPE_FLOAT, .isRequired = true})->value.real;
+                    result->type.type = TYPE_FLOAT;
+                    return result;
+                } else {
+                    free(result);
+                    return NULL;
+                }
+            case TOKEN_EQUALS: {
+                bool equals = false;
+                if(left->type.type == right->type.type) {
+                    switch(left->type.type) {
+                        case TYPE_INT:
+                            equals = left->value.integer == right->value.integer;
+                            break;
+                        case TYPE_FLOAT:
+                            equals = left->value.real == right->value.real;
+                            break;
+                        case TYPE_STRING:
+                            equals = strcmp(left->value.string, right->value.string) == 0;
+                            break;
+                        case TYPE_BOOL:
+                            equals = left->value.boolean == right->value.boolean;
+                            break;
+                        case TYPE_NULL:
+                            equals = true;
+                            break;
+                        default:
+                            fprintf(stderr, "Bad constant cast for ===");
+                            exit(99);
+                            break;
+                    }
+                }
+                result->value.boolean = equals;
+                result->type.type = TYPE_BOOL;
+                return result;
+                break;
+            }
+            case TOKEN_NOT_EQUALS: {
+                bool equals = false;
+                if(left->type.type == right->type.type) {
+                    switch(left->type.type) {
+                        case TYPE_INT:
+                            equals = left->value.integer == right->value.integer;
+                            break;
+                        case TYPE_FLOAT:
+                            equals = left->value.real == right->value.real;
+                            break;
+                        case TYPE_STRING:
+                            equals = strcmp(left->value.string, right->value.string) == 0;
+                            break;
+                        case TYPE_BOOL:
+                            equals = left->value.boolean == right->value.boolean;
+                            break;
+                        case TYPE_NULL:
+                            equals = true;
+                            break;
+                        default:
+                            fprintf(stderr, "Bad constant cast for !==");
+                            exit(99);
+                            break;
+                    }
+                }
+                result->value.boolean = !equals;
+                result->type.type = TYPE_BOOL;
+                return result;
+                break;
+            }
             default:
                 free(result);
                 return NULL;
@@ -202,4 +271,54 @@ Statement * performStatementFolding(Statement * in) {
             break;
     }
     return NULL;
+}
+
+bool optimizeStatement(Statement ** statement) {
+    if(statement == NULL) return false;
+    if(*statement == NULL) return false;
+    Statement * foldedStatement = performStatementFolding(*statement);
+    if(foldedStatement != NULL) {
+        *statement = foldedStatement;
+        return true;
+    }
+    if((*statement)->statementType == STATEMENT_EXPRESSION) {
+        Expression * expression = (Expression *) *statement;
+        if(expression->expressionType == EXPRESSION_BINARY_OPERATOR) {
+            Expression__Constant * constant = performConstantFolding((Expression__BinaryOperator *) expression);
+            if(constant != NULL) {
+                *statement = (Statement *) constant;
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+bool optimizeNestedStatements(Statement ** parent) {
+    if(parent == NULL || *parent == NULL) return false;
+    bool optimized = false;
+    optimized |= optimizeStatement(parent);
+    int childrenCount = 0;
+    Statement *** children = (*parent)->getChildren(*parent, &childrenCount);
+    if(childrenCount == 0) return optimized;
+    for(int i=0; i<childrenCount; i++) {
+        optimized |= optimizeNestedStatements(children[i]);
+    }
+    free(children);
+    return optimized;
+}
+
+void optimize(StatementList * program, Table * functionTable) {
+    bool continueOptimizing = true;
+    while(continueOptimizing) {
+        continueOptimizing = false;
+        continueOptimizing |= optimizeNestedStatements((Statement**)&program);
+        for(int i = 0; i < TB_SIZE; i++) {
+            TableItem* item = functionTable->tb[i];
+            while(item != NULL) {
+                continueOptimizing |= optimizeNestedStatements((Statement**)&item->data);
+                item = item->next;
+            }
+        }
+    }
 }

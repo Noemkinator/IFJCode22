@@ -744,6 +744,7 @@ void generateFunction(Function* function, Table * functionTable) {
 }
 
 void generateCode(StatementList * program, Table * functionTable) {
+    optimize(program, functionTable);
     emit_header();
     emit_DEFVAR_start();
     Table * globalTable = table_init();

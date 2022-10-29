@@ -5,9 +5,11 @@
 #define __OPTIMIZER_H__
 
 #include "ast.h"
+#include "symtable.h"
 
 Expression__Constant * performConstantCast(Expression__Constant * in, Type targetType);
 Expression__Constant * performConstantFolding(Expression__BinaryOperator * in);
 Statement * performStatementFolding(Statement * in);
+void optimize(StatementList * program, Table * functionTable);
 
 #endif // __OPTIMIZER_H__
