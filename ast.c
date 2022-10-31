@@ -216,7 +216,7 @@ Expression__Constant* Expression__Constant__init() {
     this->super.expressionType = EXPRESSION_CONSTANT;
     this->super.super.serialize = (void (*)(struct Statement *, StringBuilder *))Expression__Constant__serialize;
     this->super.super.getChildren = (struct Statement *** (*)(struct Statement *, int *))Expression__Constant__getChildren;
-    this->super.getType = Expression__Constant__getType;
+    this->super.getType = (Type (*)(struct Expression *, Table *))Expression__Constant__getType;
     this->type.isRequired = false;
     this->type.type = TYPE_UNKNOWN;
     return this;
@@ -268,7 +268,7 @@ Expression__Variable* Expression__Variable__init() {
     this->super.expressionType = EXPRESSION_VARIABLE;
     this->super.super.serialize = (void (*)(struct Statement *, StringBuilder *))Expression__Variable__serialize;
     this->super.super.getChildren = (struct Statement *** (*)(struct Statement *, int *))Expression__Variable__getChildren;
-    this->super.getType = Expression__Variable__getType;
+    this->super.getType = (Type (*)(struct Expression *, Table *))Expression__Variable__getType;
     this->name = NULL;
     return this;
 }
@@ -338,7 +338,7 @@ Type Expression__FunctionCall__getType(Expression__FunctionCall *this, Table * f
 Expression__FunctionCall* Expression__FunctionCall__init() {
     Expression__FunctionCall *this = malloc(sizeof(Expression__FunctionCall));
     this->super.expressionType = EXPRESSION_FUNCTION_CALL;
-    this->super.getType = Expression__FunctionCall__getType;
+    this->super.getType = (Type (*)(struct Expression *, Table *))Expression__FunctionCall__getType;
     this->super.super.serialize = (void (*)(struct Statement *, StringBuilder *))Expression__FunctionCall__serialize;
     this->super.super.getChildren = (struct Statement *** (*)(struct Statement *, int *))Expression__FunctionCall__getChildren;
     this->name = NULL;
@@ -499,7 +499,7 @@ Expression__BinaryOperator* Expression__BinaryOperator__init() {
     this->super.expressionType = EXPRESSION_BINARY_OPERATOR;
     this->super.super.serialize = (void (*)(struct Statement *, StringBuilder *))Expression__BinaryOperator__serialize;
     this->super.super.getChildren = (struct Statement *** (*)(struct Statement *, int *))Expression__BinaryOperator__getChildren;
-    this->super.getType = Expression__BinaryOperation__getType;
+    this->super.getType = (Type (*)(struct Expression *, Table *))Expression__BinaryOperation__getType;
     this->lSide = NULL;
     this->rSide = NULL;
     return this;
