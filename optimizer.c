@@ -273,6 +273,17 @@ Statement * performStatementFolding(Statement * in) {
     return NULL;
 }
 
+bool removeCodeAfterReturn(StatementList * in) {
+    for(int i = 0; i < in->listSize-1; i++) {
+        Statement * statement = in->statements[i];
+        if(statement->statementType == STATEMENT_RETURN) {
+            in->listSize = i + 1;
+            return true;
+        }
+    }
+    return false;
+}
+
 bool optimizeStatement(Statement ** statement) {
     if(statement == NULL) return false;
     if(*statement == NULL) return false;
@@ -280,6 +291,9 @@ bool optimizeStatement(Statement ** statement) {
     if(foldedStatement != NULL) {
         *statement = foldedStatement;
         return true;
+    }
+    if((*statement)->statementType == STATEMENT_LIST) {
+        if(removeCodeAfterReturn((StatementList *) *statement)) return true;
     }
     if((*statement)->statementType == STATEMENT_EXPRESSION) {
         Expression * expression = (Expression *) *statement;
