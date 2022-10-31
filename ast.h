@@ -7,6 +7,7 @@
 
 #include "lexer.h"
 #include "string_builder.h"
+#include "symtable.h"
 #include <stdbool.h>
 #include <string.h>
 
@@ -78,10 +79,10 @@ typedef enum {
 /**
  * @brief Expression structure
  */
-typedef struct {
+typedef struct Expression {
     Statement super;/*<Superclass>*/
     ExpressionType expressionType;/*<Expression type>*/
-    Type (*getType)();/*<Get type function pointer>*/
+    Type (*getType)(struct Expression * expression, Table * functionTable);/*<Get type function pointer>*/
 } Expression;
 
 typedef struct {
@@ -97,8 +98,6 @@ typedef struct {
     } value;/*<Value of the constant>*/
 } Expression__Constant;
 
-Type Expression__Constant__getType(Expression__Constant *this);
-
 Expression__Constant* Expression__Constant__init();
 
 typedef struct {
@@ -106,8 +105,6 @@ typedef struct {
 
     char *name; /*<Name of the variable>*/
 } Expression__Variable;
-
-Type Expression__Variable__getType(Expression__Variable *this);
 
 Expression__Variable* Expression__Variable__init();
 

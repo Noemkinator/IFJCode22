@@ -201,7 +201,7 @@ Statement *** Expression__Constant__getChildren(Expression__Constant *this, int 
  * @param this 
  * @return Type 
  */
-Type Expression__Constant__getType(Expression__Constant *this) {
+Type Expression__Constant__getType(Expression__Constant *this, Table * functionTable) {
     return this->type;
 }
 
@@ -250,7 +250,7 @@ Statement *** Expression__Variable__getChildren(Expression__Variable *this, int 
  * @param this 
  * @return Type 
  */
-Type Expression__Variable__getType(Expression__Variable *this) {
+Type Expression__Variable__getType(Expression__Variable *this, Table * functionTable) {
     Type type;
     type.isRequired = false;
     type.type = TYPE_UNKNOWN;
@@ -317,10 +317,15 @@ Statement *** Expression__FunctionCall__getChildren(Expression__FunctionCall *th
  * @param this 
  * @return Type 
  */
-Type Expression__FunctionCall__getType(Expression__FunctionCall *this) {
+Type Expression__FunctionCall__getType(Expression__FunctionCall *this, Table * functionTable) {
     Type type;
-    type.isRequired = false;
-    type.type = TYPE_UNKNOWN;
+    TableItem * item = table_find(functionTable, this->name);
+    if(item != NULL) {
+        type = ((Function*)item->data)->returnType;
+    } else {
+        type.isRequired = false;
+        type.type = TYPE_UNKNOWN;
+    }
     return type;
 }
 
@@ -436,7 +441,7 @@ Statement *** Expression__BinaryOperator__getChildren(Expression__BinaryOperator
  * @param this 
  * @return Type 
  */
-Type Expression__BinaryOperation__getType(Expression__BinaryOperator *this) {
+Type Expression__BinaryOperation__getType(Expression__BinaryOperator *this, Table * functionTable) {
     Type type;
     type.isRequired = false;
     type.type = TYPE_UNKNOWN;
@@ -444,8 +449,8 @@ Type Expression__BinaryOperation__getType(Expression__BinaryOperator *this) {
         case TOKEN_PLUS:
         case TOKEN_MINUS:
         case TOKEN_MULTIPLY: {
-            Type lType = this->lSide->getType(this->lSide);
-            Type rType = this->rSide->getType(this->rSide);
+            Type lType = this->lSide->getType(this->lSide, functionTable);
+            Type rType = this->rSide->getType(this->rSide, functionTable);
             if(lType.type == TYPE_INT && rType.type == TYPE_INT) {
                 type.type = TYPE_INT;
             } else if(lType.type == TYPE_FLOAT || rType.type == TYPE_FLOAT) {
@@ -466,7 +471,7 @@ Type Expression__BinaryOperation__getType(Expression__BinaryOperator *this) {
             type.isRequired = true;
             break;
         case TOKEN_ASSIGN:
-            type = this->rSide->getType(this->rSide);
+            type = this->rSide->getType(this->rSide, functionTable);
             break;
         case TOKEN_EQUALS:
         case TOKEN_NOT_EQUALS:

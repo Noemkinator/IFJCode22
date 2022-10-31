@@ -84,7 +84,7 @@ Statement *** getAllStatements(Statement * parent, size_t * count) {
 }
 
 Symb generateSymbType(Expression * expression, Symb symb, Context ctx) {
-    Type type = expression->getType(expression);
+    Type type = expression->getType(expression, ctx.functionTable);
     if(type.isRequired == true) {
         switch (type.type) {
             case TYPE_INT:
@@ -113,7 +113,7 @@ Symb generateSymbType(Expression * expression, Symb symb, Context ctx) {
 }
 
 Symb generateCastToBool(Expression * expression, Symb symb, Context ctx) {
-    Type type = expression->getType(expression);
+    Type type = expression->getType(expression, ctx.functionTable);
     if(type.type == TYPE_BOOL && type.isRequired == true) {
         return symb;
     }
@@ -217,7 +217,7 @@ Symb generateFunctionCall(Expression__FunctionCall * expression, Context ctx, Va
             return (Symb){.type=Type_int, .value.i=0};
         } else if(strcmp(function->name, "strval") == 0) {
             if(expression->arity == 1) {
-                Type type = expression->arguments[0]->getType(expression->arguments[0]);
+                Type type = expression->arguments[0]->getType(expression->arguments[0], ctx.functionTable);
                 if(type.type == TYPE_STRING && type.isRequired == true) {
                     return generateExpression(expression->arguments[0], ctx, false, NULL);
                 } else if(type.type == TYPE_NULL) {
