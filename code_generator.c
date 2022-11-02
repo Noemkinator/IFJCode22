@@ -29,6 +29,7 @@ typedef struct {
     Table * varTable;
     Table * functionTable;
     bool isGlobal;
+    Function * currentFunction;
 } Context;
 
 
@@ -692,7 +693,9 @@ void generateFunction(Function* function, Table * functionTable) {
     free(functionLabel);
     emit_DEFVAR_start();
     emit_instruction_start();
-    emit_DEFVAR((Var){frameType: TF, name: "returnValue"});
+    if(function->returnType.type != TYPE_VOID) {
+        emit_DEFVAR((Var){frameType: TF, name: "returnValue"});
+    }
     size_t statementCount;
     Statement *** allStatements = getAllStatements(function->body, &statementCount);
     for(int i=0; i<statementCount; i++) {
@@ -730,6 +733,7 @@ void generateFunction(Function* function, Table * functionTable) {
     ctx.varTable = localTable;
     ctx.functionTable = functionTable;
     ctx.isGlobal = false;
+    ctx.currentFunction = function;
     generateStatement(function->body, ctx);
     if(function->body->statementType != STATEMENT_LIST || ((StatementList*)function->body)->listSize == 0 || ((StatementList*)function->body)->statements[((StatementList*)function->body)->listSize-1]->statementType != STATEMENT_RETURN) {
         if(function->returnType.type != TYPE_VOID) {
@@ -772,6 +776,7 @@ void generateCode(StatementList * program, Table * functionTable) {
     ctx.varTable = globalTable;
     ctx.functionTable = functionTable;
     ctx.isGlobal = true;
+    ctx.currentFunction = NULL;
     generateStatementList(program, ctx);
     if(program->listSize == 0 || program->statements[program->listSize-1]->statementType != STATEMENT_RETURN) {
         emit_EXIT((Symb){.type=TYPE_INT, .value.i=0});
