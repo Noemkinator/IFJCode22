@@ -502,6 +502,10 @@ bool parse() {
         } else {
             StatementList * statementList;
             if(!parse_statement_list(&statementList)) return false;
+            if(statementList->listSize == 0) {
+                printParserError(nextToken, "Expected statement");
+                return false;
+            }
             StatementList__append(program, statementList);
             free(statementList);
         }
