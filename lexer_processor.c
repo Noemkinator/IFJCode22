@@ -37,7 +37,7 @@ Token getNextToken() {
                 fprintf(stderr, "Second character should be ?\n");
                 lexerError(token);
             }
-            if((token=getNextUnprocessedToken()).type != TOKEN_IDENTIFIER && strcmp(getTokenText(token), "php") != 0) {
+            if((token=getNextUnprocessedToken()).type != TOKEN_IDENTIFIER || strcmp(getTokenText(token), "php") != 0) {
                 fprintf(stderr, "Open tag <? should be followed by php\n");
                 lexerError(token);
             }
@@ -45,7 +45,7 @@ Token getNextToken() {
                 fprintf(stderr, "Open tag <?php should be followed by white character or comment\n");
                 lexerError(token);
             }
-            if((token=getNextNonEmptyToken()).type != TOKEN_IDENTIFIER && strcmp(getTokenText(token), "declare") != 0) {
+            if((token=getNextNonEmptyToken()).type != TOKEN_IDENTIFIER || strcmp(getTokenText(token), "declare") != 0) {
                 fprintf(stderr, "Open tag <?php should be followed by declare call\n");
                 lexerError(token);
             }
@@ -53,7 +53,7 @@ Token getNextToken() {
                 fprintf(stderr, "Missing ( in declare(strict_types=1); statement\n");
                 lexerError(token);
             }
-            if((token=getNextNonEmptyToken()).type != TOKEN_IDENTIFIER && strcmp(getTokenText(token), "strict_types") != 0) {
+            if((token=getNextNonEmptyToken()).type != TOKEN_IDENTIFIER || strcmp(getTokenText(token), "strict_types") != 0) {
                 fprintf(stderr, "Missing strict_types in declare(strict_types=1); statement\n");
                 lexerError(token);
             }
