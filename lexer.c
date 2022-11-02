@@ -134,8 +134,6 @@ Token getNextUnprocessedToken() {
     else if(c == '-') TOKEN(MINUS)
     else if(c == '.') TOKEN(CONCATENATE)
     else if(c == '*') TOKEN(MULTIPLY)
-    else if(c == '<') TOKEN(LESS)
-    else if(c == '>') TOKEN(GREATER)
     else if(c == ',') TOKEN(COMMA)
     else if(c == ':') TOKEN(COLON)
     else if((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_') {
