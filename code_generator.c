@@ -747,7 +747,49 @@ void generateFunction(Function* function, Table * functionTable) {
     emit_instruction_end();
 }
 
+void performPreoptimizationChecks(StatementList * program, Table * functionTable) {
+    for(int i = 0; i < TB_SIZE; i++) {
+        TableItem* item = functionTable->tb[i];
+        while(item != NULL) {
+            Function* function = (Function*) item->data;
+            size_t statementCount = 0;
+            Statement *** statements = getAllStatements(function->body, &statementCount);
+            for(int j=0; j < statementCount; j++) {
+                if(statements[j] == NULL || *statements[j] == NULL) continue;
+                Statement* statement = *statements[j];
+                if(statement->statementType == STATEMENT_EXPRESSION) {
+                    Expression* expression = (Expression*) statement;
+                    if(expression->expressionType == EXPRESSION_FUNCTION_CALL) {
+                        Expression__FunctionCall* functionCall = (Expression__FunctionCall*) expression;
+                        TableItem* calledFunction = table_find(functionTable, functionCall->name);
+                        if(calledFunction == NULL) {
+                            fprintf(stderr, "Function %s not defined\n", functionCall->name);
+                            exit(3);
+                        }
+                    }
+                } else if(statement->statementType == STATEMENT_RETURN) {
+                    StatementReturn* returnStatement = (StatementReturn*) statement;
+                    if(returnStatement->expression != NULL) {
+                        if(function->returnType.type == TYPE_VOID) {
+                            fprintf(stderr, "Return value in function %s with void return type\n", function->name);
+                            exit(6);
+                        }
+                    } else {
+                        if(function->returnType.type != TYPE_VOID) {
+                            fprintf(stderr, "Missing return value in function %s with non-void return type\n", function->name);
+                            exit(6);
+                        }
+                    }
+                }
+            }
+            free(statements);
+            item = item->next;
+        }
+    }
+}
+
 void generateCode(StatementList * program, Table * functionTable) {
+    performPreoptimizationChecks(program, functionTable);
     optimize(program, functionTable);
     emit_header();
     emit_DEFVAR_start();
