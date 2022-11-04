@@ -15,6 +15,7 @@
 typedef enum {
     SYM_START_DOLLAR,
     SYM_NON_TERMINAL,
+    SYM_SHIFT,
     SYM_OPEN_CURLY_BRACKET,
     SYM_CLOSE_CURLY_BRACKET,
     SYM_PLUS,
@@ -46,14 +47,13 @@ typedef struct Stack {
 
 void init_stack(Stack* stack);
 bool push(Stack* stack, Symbol symbol);
-bool pop(Stack* stack);
+void pop(Stack* stack);
 void pop_all(Stack* stack);
 StackItem* top(Stack* stack);
 StackItem* top_term(Stack* stack);
 bool is_terminal(Symbol symbol);
 bool is_empty(Stack* stack);
-
-char* symbol_enum_to_string(Symbol symbol);
+char* symbol_to_string(Symbol symbol);
 void print_stack(Stack* stack);
 
 #endif // __STACK_H__

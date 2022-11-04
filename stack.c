@@ -40,15 +40,13 @@ bool push(Stack* stack, Symbol symbol) {
  * @return true if pop was successful
  * @return false if pop failed
  */
-bool pop(Stack* stack) {
+void pop(Stack* stack) {
     StackItem* temp;
-    if(!is_empty(stack)) {
+    if(stack->top != NULL) {
         temp = stack->top;
         stack->top = stack->top->next;
         free(temp);
-        return true;
     }
-    return false;
 }
 
 /**
@@ -58,7 +56,7 @@ bool pop(Stack* stack) {
  */
 void pop_all(Stack* stack) {
     StackItem* temp;
-    while(!is_empty(stack)) {
+    while(stack->top != NULL) {
         temp = stack->top;
         stack->top = stack->top->next;
         free(temp);
@@ -71,11 +69,12 @@ void pop_all(Stack* stack) {
  * 
  * @param stack 
  * @return StackItem* 
+ * @return NULL if stack is empty
  */
 StackItem* top(Stack* stack) {
-    if(!is_empty(stack)) {
+    if(stack->top != NULL) {
         return stack->top;
-    }
+    } else return NULL;
 }
 
 /**
@@ -105,7 +104,7 @@ StackItem* top_term(Stack* stack) {
  * @return false if symbol is non-terminal
  */
 bool is_terminal(Symbol symbol) {
-    if(symbol == SYM_NON_TERMINAL || symbol == SYM_START_DOLLAR) {
+    if(symbol == SYM_NON_TERMINAL) {
         return false;
     }
     return true;
@@ -134,6 +133,8 @@ char* symbol_to_string(Symbol symbol) {
             return "$";
         case SYM_NON_TERMINAL:
             return "E";
+        case SYM_SHIFT:
+            return "SFT(<)";
         case SYM_OPEN_CURLY_BRACKET:
             return "(";
         case SYM_CLOSE_CURLY_BRACKET:
@@ -170,5 +171,13 @@ char* symbol_to_string(Symbol symbol) {
             return ">=";
         default:
             return "ERROR";
+    }
+}
+
+void print_stack(Stack* stack) {
+    StackItem* top = stack->top;
+    while(top != NULL) {
+        printf("%s\n", symbol_to_string(top->symbol));
+        top = top->next;
     }
 }

@@ -6,18 +6,18 @@
 #ifndef __EXPRESSION_H__
 #define __EXPRESSION_H__
 
-#define TB_SIZE 9
+#define PREC_TB_SIZE 9
 
 #include "stack.h"
 
-extern int precedence_tb[TB_SIZE][TB_SIZE];
+extern int precedence_tb[PREC_TB_SIZE][PREC_TB_SIZE];
 
 typedef enum {
     SFT,  // Shift (<)
     RED,  // Reduction (>)
     EQU,  // Equal (=)
     ERR   // Error
-} PrecTbSymbols;
+} PrecTbOperators;
 
 typedef enum {
     INDX_IDENTIFIER,    // i
@@ -49,10 +49,12 @@ typedef enum {
 } ExpRules;
 
 Symbol token_to_symbol(Token token);
-
-void shift(Stack stack);
-void reduction(Stack stack);
-void equal(Stack stack);
-
+ExpRules rule_select(Symbol s1, Symbol s2, Symbol s3);
+int get_prec_operator(StackItem* top_term, Symbol s);
+char* prec_tb_op_to_char(PrecTbOperators op);
+void shift(Stack* stack, Symbol s);
+void reduce(Stack* stack, Symbol s);
+void equal(Stack* stack, Symbol s);
+bool parse_expression();
 
 #endif // __EXPRESSION_H__
