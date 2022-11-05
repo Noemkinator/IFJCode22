@@ -7,7 +7,7 @@
 #ifndef __SYMTABLE_H__
 #define __SYMTABLE_H__
 
-#define TB_SIZE 5  // just for debug purposes
+#define TB_SIZE 256
 
 #include <stdio.h>
 #include <string.h>
