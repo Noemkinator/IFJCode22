@@ -4,6 +4,7 @@
 #include "parser.h"
 #include "lexer_processor.h"
 #include "ast.h"
+#include "expression.h"
 #include "symtable.h"
 #include <stdio.h>
 #include <stdint.h>
@@ -16,9 +17,9 @@ void printParserError(Token token, char * message) {
     fprintf(stderr, "PARSER ERROR: %s on line %d, column %d\n", message, token.line, token.column);
 }
 
-bool is_operator(Token token) {
-    return token.type == TOKEN_PLUS || token.type == TOKEN_MINUS || token.type == TOKEN_MULTIPLY || token.type == TOKEN_DIVIDE || token.type == TOKEN_CONCATENATE || token.type == TOKEN_LESS || token.type == TOKEN_LESS_OR_EQUALS || token.type == TOKEN_GREATER || token.type == TOKEN_GREATER_OR_EQUALS || token.type == TOKEN_EQUALS || token.type == TOKEN_NOT_EQUALS || token.type == TOKEN_ASSIGN;
-}
+//bool is_operator(Token token) {
+    //return token.type == TOKEN_PLUS || token.type == TOKEN_MINUS || token.type == TOKEN_MULTIPLY || token.type == TOKEN_DIVIDE || token.type == TOKEN_CONCATENATE || token.type == TOKEN_LESS || token.type == TOKEN_LESS_OR_EQUALS || token.type == TOKEN_GREATER || token.type == TOKEN_GREATER_OR_EQUALS || token.type == TOKEN_EQUALS || token.type == TOKEN_NOT_EQUALS || token.type == TOKEN_ASSIGN;
+//}
 
 extern bool parse_function_call();
 extern bool parse_expression(Expression ** expression, int previousPrecedence);

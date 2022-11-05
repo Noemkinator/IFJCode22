@@ -9,6 +9,7 @@
 #define PREC_TB_SIZE 9
 
 #include "stack.h"
+#include "ast.h"
 
 extern int precedence_tb[PREC_TB_SIZE][PREC_TB_SIZE];
 
@@ -53,8 +54,10 @@ ExpRules rule_select(Symbol s1, Symbol s2, Symbol s3);
 int get_prec_operator(StackItem* top_term, Symbol s);
 char* prec_tb_op_to_char(PrecTbOperators op);
 void shift(Stack* stack, Symbol s);
-void reduce(Stack* stack, Symbol s);
+bool reduce(Stack* stack, Symbol s, Token token, Expression** exp);
 void equal(Stack* stack, Symbol s);
-bool parse_expression();
+bool parse_exp(Expression** exp);
+
+bool is_operator(Token token);
 
 #endif // __EXPRESSION_H__

@@ -4,7 +4,6 @@
  */
 
 #include "expression.h"
-#include "ast.h"
 
 int precedence_tb[PREC_TB_SIZE][PREC_TB_SIZE] = {
 //  i    (    )   */   +-   .    <>   !=    $
@@ -85,6 +84,8 @@ ExpRules rule_select(Symbol s1,Symbol s2, Symbol s3) {
                 return RL_EQUALS;
             case SYM_NOT_EQUALS:
                 return RL_NOT_EQUALS;
+            default:
+                return RL_ERROR;
         } 
     }
     else if(s1 == SYM_OPEN_CURLY_BRACKET && s2 == SYM_NON_TERMINAL && s3 == SYM_CLOSE_CURLY_BRACKET) {
@@ -122,6 +123,8 @@ int get_prec_tb_indx(Symbol s) {
         return 7;
     case SYM_START_DOLLAR:
         return 8;
+    default:
+        return -1;
     }
 }
 
@@ -129,6 +132,7 @@ int get_prec_operator(StackItem* top_term, Symbol s) {
     if(top_term == NULL) return -1;
     int top_term_indx = get_prec_tb_indx(top_term->symbol);
     int input_symbol_indx = get_prec_tb_indx(s);
+    if(top_term_indx == -1 || input_symbol_indx == -1) return -1;
     return precedence_tb[top_term_indx][input_symbol_indx];
 }
 
@@ -142,8 +146,14 @@ char* prec_tb_op_to_char(PrecTbOperators op) {
     case EQU:
         return "=";
     case ERR:
-      return "ERR";
+        return "ERR";
+    default:
+        return "ERR";
     }
+}
+
+bool is_operator(Token token) {
+    return token.type == TOKEN_PLUS || token.type == TOKEN_MINUS || token.type == TOKEN_MULTIPLY || token.type == TOKEN_DIVIDE || token.type == TOKEN_CONCATENATE || token.type == TOKEN_LESS || token.type == TOKEN_LESS_OR_EQUALS || token.type == TOKEN_GREATER || token.type == TOKEN_GREATER_OR_EQUALS || token.type == TOKEN_EQUALS || token.type == TOKEN_NOT_EQUALS || token.type == TOKEN_ASSIGN;
 }
 
 void shift(Stack* stack, Symbol s) {
@@ -152,11 +162,12 @@ void shift(Stack* stack, Symbol s) {
     push(stack, s);
 }
 
-void reduce(Stack* stack, Symbol s) {
+bool reduce(Stack* stack, Symbol s, Token token, Expression** exp) {
     StackItem* temp = top(stack);
-    if(temp == NULL) return;
+    if(temp == NULL) return false;
 
     Symbol buffer[3]; 
+    // loads symbols until symbol SFT(<) from stack
     for(int i=0; i < 3; ++i) {
         if(temp->symbol != SYM_SHIFT) {
             buffer[i] = temp->symbol;
@@ -165,62 +176,88 @@ void reduce(Stack* stack, Symbol s) {
         }
     }
 
+    // selects rule based on symbols in buffer
     ExpRules rule = rule_select(buffer[0], buffer[1], buffer[2]);
+    if(rule == RL_ERROR) return false;
   
-    // create nodes in ast
+    // creates nodes in ast
 
+    // TODOOOO
+
+    //Expression__BinaryOperator * operator = Expression__BinaryOperator__init();
+    //operator->operator = token.type;
+    //*exp = (Expression*)operator; 
+
+    //switch(rule) {
+        //case RL_IDENTIFIER:      // E = i
+        //case RL_CURLY_BRACKETS:  // E = ( E )
+        //case RL_MULIPLY:         // E = E * E
+        //case RL_DIVIDE:          // E = E / E
+        //case RL_PLUS:            // E = E + E
+        //case RL_MINUS:           // E = E - E
+        //case RL_CONCATENATE:     // E = E . E
+        //case RL_LESS:            // E = E < E
+        //case RL_GREATER:         // E = E > E
+        //case RL_LESS_OR_EQUALS:  // E = E <= E
+        //case RL_GREAT_OR_EQUALS: // E = E >= E
+        //case RL_EQUALS:          // E = E === E
+        //case RL_NOT_EQUALS:      // E = E !== E
+        //case RL_ERROR:            // error
+    //}
+
+    // changes expression for non-terminal on top of the stack
     while(stack->top->symbol != SYM_START_DOLLAR && stack->top->symbol != SYM_SHIFT) {
         pop(stack);
     } 
-
     push(stack, SYM_NON_TERMINAL);
+
+    return true;
 }
 
 void equal(Stack* stack, Symbol s) {
     if(is_empty(stack)) return;
     push(stack, s);
-    reduce(stack, s);
 }
 
-bool parse_expression() {
+bool parse_exp(Expression** exp) {
     Stack stack;
     init_stack(&stack);
     push(&stack, SYM_START_DOLLAR);
-    //push(&stack, SYM_OPEN_CURLY_BRACKET);
-    //push(&stack, SYM_NON_TERMINAL);
 
-    //Token token = getNextToken();
+    Token token = getNextToken();
     Symbol input_symbol;
-    //while(is_operator(token)) {
-        //input_symbol = token_to_symbol(token);
-        //input_symbol = SYM_CLOSE_CURLY_BRACKET;
-        input_symbol = SYM_IDENTIFIER;
+    while(is_operator(token)) {
+        input_symbol = token_to_symbol(token);
 
-        int op = get_prec_operator(top_term(&stack), input_symbol);
-        if(op == -1) return false;
-        //printf("op: %s\n", prec_tb_op_to_char(op));
+        int prec_tb_op = get_prec_operator(top_term(&stack), input_symbol);
+        if(prec_tb_op == -1) return false;
 
-        switch(op) {
+        switch(prec_tb_op) {
         case SFT:
             shift(&stack, input_symbol); break;
         case RED:
-            reduce(&stack, input_symbol); break;
+            if(!reduce(&stack, input_symbol, token, exp)) {
+                fprintf(stderr, "Expression error"); // temporary
+                pop_all(&stack);
+                return false;
+            }
+            break;
         case EQU:
-            equal(&stack, input_symbol); break;
+            equal(&stack, input_symbol);
+            if(!reduce(&stack, input_symbol, token, exp)) {
+                fprintf(stderr, "Expression error"); // temporary
+                pop_all(&stack);
+                return false;
+            }
+            break;
         case ERR:
-            fprintf(stderr, "Expression error");
+            fprintf(stderr, "Expression error"); // temporary
             pop_all(&stack);
             return false;
         }
-        //token = getNextToken();
-    //}
-    //puts("-------------");
-    //print_stack(&stack);
+        token = getNextToken();
+    }
 
     pop_all(&stack);
     return true;
-}
-
-int main(void) {
-    parse_expression();
 }
