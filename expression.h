@@ -22,8 +22,8 @@ typedef enum {
 
 typedef enum {
     INDX_IDENTIFIER,    // i
-    INDX_LEFT_CURLY,    // (
-    INDX_RIGHT_CURLY,   // )
+    INDX_LEFT_BRACKET,  // (
+    INDX_RIGHT_BRACKET, // )
     INDX_MULDIV,        // * /
     INDX_ADDSUB,        // + -
     INDX_CONCATENATE,   // .
@@ -33,8 +33,8 @@ typedef enum {
 } PrecTbIndex;
 
 typedef enum {
-    RL_IDENTIFIER,      // E = i
-    RL_CURLY_BRACKETS,  // E = ( E )
+    RL_VARIABLE,        // E = i
+    RL_BRACKETS,        // E = ( E )
     RL_MULIPLY,         // E = E * E
     RL_DIVIDE,          // E = E / E
     RL_PLUS,            // E = E + E
@@ -49,15 +49,14 @@ typedef enum {
     RL_ERROR            // error
 } ExpRules;
 
-Symbol token_to_symbol(Token token);
-ExpRules rule_select(Symbol s1, Symbol s2, Symbol s3);
-int get_prec_operator(StackItem* top_term, Symbol s);
+ExpRules rule_select(TokenType type1,TokenType type2, TokenType type3);
+int get_prec_operator(StackItem* top_term, Token token);
 char* prec_tb_op_to_char(PrecTbOperators op);
-void shift(Stack* stack, Symbol s);
-bool reduce(Stack* stack, Symbol s, Token token, Expression** exp);
-void equal(Stack* stack, Symbol s);
-bool parse_exp(Expression** exp);
-
-bool is_operator(Token token);
+void shift(Stack* stack, Token token);
+bool reduce(Stack* stack, Token token, Expression** exp, Expression** lSide, Expression** rSide, bool* var);
+void reduce_expression(Stack* stack, Expression** exp);
+void equal(Stack* stack, Token token);
+bool parse_exp(Expression** exp, Token token);
+bool is_valid_token(Token token);
 
 #endif // __EXPRESSION_H__
