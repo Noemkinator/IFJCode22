@@ -53,7 +53,10 @@ typedef enum {
     TOKEN_VOID,
     TOKEN_WHILE,
     TOKEN_FLOAT,
-    TOKEN_VARIABLE
+    TOKEN_VARIABLE,
+    TOKEN_STACK_DOLLAR,
+    TOKEN_NON_TERMINAL,
+    TOKEN_SHIFT
 } TokenType;
 
 /**
