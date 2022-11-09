@@ -25,6 +25,8 @@ Token init_dollar();
 Token init_non_term();
 Token init_shift();
 bool push(Stack* stack, Token token);
+bool push_exp(Stack* stack, Token token, Expression* exp);
+bool push_after_non_term(Stack* stack, Token token);
 void pop(Stack* stack);
 void pop_all(Stack* stack);
 StackItem* top(Stack* stack);

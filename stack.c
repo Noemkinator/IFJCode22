@@ -31,6 +31,14 @@ Token init_shift() {
     return t;
 }
 
+bool push(Stack* stack, Token token) {
+    StackItem* new_item = malloc(sizeof(StackItem));
+    if(new_item == NULL) return false;
+    new_item->token = token;
+    new_item->next = stack->top;
+    stack->top = new_item;
+    return true;
+}
 /**
  * @brief Push symbol to stack
  * 
@@ -39,11 +47,12 @@ Token init_shift() {
  * @return true if push was successful
  * @return false if push failed
  */
-bool push(Stack* stack, Token token) {
+bool push_exp(Stack* stack, Token token, Expression* exp) {
     StackItem* new_item = malloc(sizeof(StackItem));
     if(new_item == NULL) return false;
     new_item->token = token;
     new_item->next = stack->top;
+    new_item->exp = exp;
     stack->top = new_item;
     return true;
 }
@@ -92,18 +101,22 @@ StackItem* top(Stack* stack) {
     } else return NULL;
 }
 
-StackItem* second_non_term(Stack* stack) {
+bool push_after_non_term(Stack* stack, Token token) {
+    StackItem* new_item = malloc(sizeof(StackItem));
     StackItem* temp = stack->top;
-    int cnt = 0;
     while(temp != NULL) {
         if(!is_terminal(temp->token)) {
-            cnt++;
-            if(cnt == 2) return temp;
+            new_item->token = token;
+            new_item->exp = NULL;
+            new_item->next = temp->next;
+            temp->next = new_item;
+            return true;
+        } else {
+            temp = temp->next;
         }
-        temp = temp->next;
 
     }
-    return temp;
+    return false;
 }
 
 /**
@@ -121,6 +134,19 @@ StackItem* top_term(Stack* stack) {
         } else {
             temp = temp->next;
         }
+    }
+    return temp;
+}
+
+StackItem* second_non_term(Stack* stack) {
+    StackItem* temp = stack->top;
+    int cnt = 0;
+    while(temp != NULL) {
+        if(!is_terminal(temp->token)) {
+            cnt++;
+            if(cnt == 2) return temp;
+        }
+        temp = temp->next;
     }
     return temp;
 }
