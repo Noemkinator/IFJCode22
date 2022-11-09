@@ -8,7 +8,7 @@ all: ifj22
 test: all run_test
 
 ifj22: Makefile *.c *.h
-	$(CC) $(CFLAGS) main.c emitter.c lexer.c lexer_processor.c parser.c stack.c expression.c symtable.c ast.c string_builder.c optimizer.c -o ifj22
+	$(CC) $(CFLAGS) main.c emitter.c lexer.c lexer_processor.c parser.c symtable.c ast.c string_builder.c optimizer.c -o ifj22
 
 tester: ifj22 ./* tests/*
 	g++ -std=c++17 tests/test.cpp -o tester

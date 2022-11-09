@@ -54,9 +54,7 @@ typedef enum {
     TOKEN_WHILE,
     TOKEN_FLOAT,
     TOKEN_VARIABLE,
-    TOKEN_STACK_DOLLAR,
-    TOKEN_NON_TERMINAL,
-    TOKEN_SHIFT
+    TOKEN_ERROR
 } TokenType;
 
 /**

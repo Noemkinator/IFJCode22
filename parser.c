@@ -2,13 +2,6 @@
 // Authors: Jiří Gallo (xgallo04)
 
 #include "parser.h"
-#include "lexer_processor.h"
-#include "ast.h"
-#include "expression.h"
-#include "symtable.h"
-#include <stdio.h>
-#include <stdint.h>
-#include <ctype.h>
 
 Token nextToken;
 
@@ -17,12 +10,47 @@ void printParserError(Token token, char * message) {
     fprintf(stderr, "PARSER ERROR: %s on line %d, column %d\n", message, token.line, token.column);
 }
 
+bool precedence_tb[PREC_TB_SIZE][PREC_TB_SIZE] = {
+//  */      +-     .      <>     !=     =    empty
+  {false, false, false, false, false, false, false},   // */ 
+  {true , false, false, false, false, false, false},   // +- 
+  {true , false, false, false, false, false, false},   // .  
+  {true , true , true , false, false, false, false},   // <> 
+  {true , true , true , true , false, false, false},   // != 
+  {true , true , true , true , true , false, false},   // = 
+  {true , true , true , true , true , true , false},   // empty
+};  
+
+int get_prec_tb_indx(TokenType type) {
+  switch (type) {
+    case TOKEN_MULTIPLY:
+    case TOKEN_DIVIDE:
+        return 0;
+    case TOKEN_PLUS:
+    case TOKEN_MINUS:
+        return 1;
+    case TOKEN_CONCATENATE:
+        return 2;
+    case TOKEN_LESS:
+    case TOKEN_LESS_OR_EQUALS:
+    case TOKEN_GREATER:
+    case TOKEN_GREATER_OR_EQUALS:
+        return 3;
+    case TOKEN_EQUALS:
+    case TOKEN_NOT_EQUALS:
+        return 4;
+    case TOKEN_ASSIGN:
+        return 5;
+    case TOKEN_ERROR:
+        return 6;
+    default:
+        return -1;
+    }
+} 
+
 bool is_operator(Token token) {
     return token.type == TOKEN_PLUS || token.type == TOKEN_MINUS || token.type == TOKEN_MULTIPLY || token.type == TOKEN_DIVIDE || token.type == TOKEN_CONCATENATE || token.type == TOKEN_LESS || token.type == TOKEN_LESS_OR_EQUALS || token.type == TOKEN_GREATER || token.type == TOKEN_GREATER_OR_EQUALS || token.type == TOKEN_EQUALS || token.type == TOKEN_NOT_EQUALS || token.type == TOKEN_ASSIGN;
 }
-
-extern bool parse_function_call();
-extern bool parse_expression(Expression ** expression, int previousPrecedence);
 
 char * decodeString(char * text) {
     int len = strlen(text);
@@ -99,8 +127,7 @@ bool parse_terminal_expression(Expression ** expression) {
     *expression = NULL;
     if(nextToken.type == TOKEN_OPEN_BRACKET) {
         nextToken = getNextToken();
-        if(!parse_expression(expression, 0)) return false;
-        //if(!parse_exp(expression, nextToken)) return false;
+        if(!parse_expression(expression, TOKEN_ERROR)) return false;
         if(nextToken.type != TOKEN_CLOSE_BRACKET) {
             printParserError(nextToken, "Expected closing bracket");
             return false;
@@ -155,18 +182,22 @@ int getOperatorPrecedence(Token token) {
     return 0;
 }
 
-bool parse_expression(Expression ** expression, int previousPrecedence) {
+bool parse_expression(Expression ** expression, TokenType previousToken) {
     if(!parse_terminal_expression(expression)) return false;
     while(is_operator(nextToken)) {
         Token operatorToken = nextToken;
-        int currentPrecedence = getOperatorPrecedence(operatorToken);
-        if(previousPrecedence < currentPrecedence || (previousPrecedence == 1 && currentPrecedence == 1)) { // hack because = is right associative unlike rest of operators
+        int j = get_prec_tb_indx(operatorToken.type);
+        int i = get_prec_tb_indx(previousToken);
+        //if(i == -1 || j == -1) would happen error but it shouldn't be possible
+        bool precedence = precedence_tb[i][j];
+
+        if(precedence) {
             Expression__BinaryOperator * operator = Expression__BinaryOperator__init();
             operator->operator = operatorToken.type;
             operator->lSide = *expression;
             *expression = (Expression*)operator;
             nextToken = getNextToken();
-            if(!parse_expression(&operator->rSide, currentPrecedence)) return false;
+            if(!parse_expression(&operator->rSide, operatorToken.type)) return false;
         } else {
             break;
         }
@@ -197,8 +228,7 @@ bool parse_if(StatementIf ** statementIfRet) {
         return false;
     }
     nextToken = getNextToken(&statementIf->condition);
-    //if(!parse_exp(&statementIf->condition, nextToken)) return false;
-    if(!parse_expression(&statementIf->condition, 0)) return false;
+    if(!parse_expression(&statementIf->condition, TOKEN_ERROR)) return false;
     if(nextToken.type != TOKEN_CLOSE_BRACKET) {
         printParserError(nextToken, "Missing ) if");
         return false;
@@ -243,7 +273,7 @@ bool parse_while(StatementWhile ** statementWhileRet) {
         return false;
     }
     nextToken = getNextToken();
-    if(!parse_expression(&statementWhile->condition, 0)) return false;
+    if(!parse_expression(&statementWhile->condition, TOKEN_ERROR)) return false;
     if(nextToken.type != TOKEN_CLOSE_BRACKET) {
         printParserError(nextToken, "Missing ) after while");
         return false;
@@ -266,12 +296,12 @@ bool parse_while(StatementWhile ** statementWhileRet) {
 bool parse_function_arguments(Expression__FunctionCall * functionCall) {
     if(nextToken.type == TOKEN_CLOSE_BRACKET) return true;
     Expression * expression;
-    bool success = parse_expression(&expression, 0);
+    bool success = parse_expression(&expression, TOKEN_ERROR);
     Expression__FunctionCall__addArgument(functionCall, expression);
     if(!success) return false;
     while(nextToken.type == TOKEN_COMMA) {
         nextToken = getNextToken();
-        success = parse_expression(&expression,0);
+        success = parse_expression(&expression, TOKEN_ERROR);
         Expression__FunctionCall__addArgument(functionCall, expression);
         if(!success) return false;
     }
@@ -303,7 +333,7 @@ bool parse_return(StatementReturn ** statementReturnRet) {
     nextToken = getNextToken();
     // expression after return is optional
     if(nextToken.type != TOKEN_SEMICOLON) {
-        if(!parse_expression(&statementReturn->expression, 0)) return false;
+        if(!parse_expression(&statementReturn->expression, TOKEN_ERROR)) return false;
     }
     if(nextToken.type != TOKEN_SEMICOLON) {
         printParserError(nextToken, "Missing ; after return");
@@ -323,7 +353,7 @@ bool parse_statement(Statement ** retStatement) {
             return parse_return((StatementReturn**)retStatement);
         default:
             if(nextToken.type == TOKEN_OPEN_BRACKET || nextToken.type == TOKEN_IDENTIFIER || nextToken.type == TOKEN_VARIABLE || nextToken.type == TOKEN_INTEGER || nextToken.type == TOKEN_FLOAT || nextToken.type == TOKEN_STRING || nextToken.type == TOKEN_NULL) {
-                if(!parse_expression((Expression**)retStatement, 0)) return false;
+                if(!parse_expression((Expression**)retStatement, TOKEN_ERROR)) return false;
                 if(nextToken.type != TOKEN_SEMICOLON) {
                     printParserError(nextToken, "Missing ; after expression");
                     return false;
@@ -514,6 +544,7 @@ bool parse() {
         }
     }
     // https://jsoncrack.com/editor
+    // https://vanya.jp.net/vtree/
     StringBuilder stringBuilder;
     StringBuilder__init(&stringBuilder);
     program->super.serialize((Statement*)program, &stringBuilder);
