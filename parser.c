@@ -1,5 +1,5 @@
 // Implementace překladače imperativního jazyka IFJ22
-// Authors: Jiří Gallo (xgallo04)
+// Authors: Jiří Gallo (xgallo04), Jakub Kratochvíl (xkrato67)
 
 #include "parser.h"
 
@@ -17,7 +17,7 @@ bool precedence_tb[PREC_TB_SIZE][PREC_TB_SIZE] = {
   {true , false, false, false, false, false, false},   // .  
   {true , true , true , false, false, false, false},   // <> 
   {true , true , true , true , false, false, false},   // != 
-  {true , true , true , true , true , false, false},   // = 
+  {true , true , true , true , true , true , false},   // = 
   {true , true , true , true , true , true , false},   // empty
 };  
 
@@ -171,15 +171,6 @@ bool parse_terminal_expression(Expression ** expression) {
     }
     nextToken = getNextToken();
     return true;
-}
-
-int getOperatorPrecedence(Token token) {
-    if(token.type == TOKEN_ASSIGN) return 1;
-    if(token.type == TOKEN_EQUALS || token.type == TOKEN_NOT_EQUALS) return 2;
-    if(token.type == TOKEN_LESS || token.type == TOKEN_LESS_OR_EQUALS || token.type == TOKEN_GREATER || token.type == TOKEN_GREATER_OR_EQUALS) return 3;
-    if(token.type == TOKEN_PLUS || token.type == TOKEN_MINUS || token.type == TOKEN_CONCATENATE) return 4;
-    if(token.type == TOKEN_MULTIPLY || token.type == TOKEN_DIVIDE) return 5;
-    return 0;
 }
 
 bool parse_expression(Expression ** expression, TokenType previousToken) {

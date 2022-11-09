@@ -1,5 +1,5 @@
 // Implementace překladače imperativního jazyka IFJ22
-// Authors: Jiří Gallo (xgallo04)
+// Authors: Jiří Gallo (xgallo04), Jakub Kratochvíl (xkrato67)
 
 #ifndef PARSER_H
 #define PARSER_H
