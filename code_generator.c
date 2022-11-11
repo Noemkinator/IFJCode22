@@ -710,6 +710,9 @@ void generateStatement(Statement * statement, Context ctx) {
         case STATEMENT_RETURN:
             generateReturn((StatementReturn*)statement, ctx);
             break;
+        case STATEMENT_EXIT:
+            emit_EXIT((Symb){.type=Type_int, .value.i=((StatementExit*)statement)->exitCode});
+            break;
         case STATEMENT_FUNCTION:
             fprintf(stderr, "OFF, ignoring function...\n");
             break;

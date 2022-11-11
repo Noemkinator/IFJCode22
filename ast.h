@@ -23,6 +23,7 @@ typedef enum {
     STATEMENT_IF,
     STATEMENT_WHILE,
     STATEMENT_RETURN,
+    STATEMENT_EXIT,
     STATEMENT_FUNCTION
 } StatementType;
 
@@ -170,6 +171,14 @@ typedef struct {
 } StatementReturn;
 
 StatementReturn* StatementReturn__init();
+
+typedef struct {
+    Statement super; /*<Superclass>*/
+
+    int exitCode; /*<Exit code of the program>*/
+} StatementExit;
+
+StatementExit* StatementExit__init();
 
 typedef struct Function {
     Statement super; /*<Superclass>*/

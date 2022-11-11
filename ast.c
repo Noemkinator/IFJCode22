@@ -957,6 +957,44 @@ StatementReturn* StatementReturn__init() {
 }
 
 /**
+ * @brief <exit> statement serializer
+ * 
+ * @param type 
+ */
+void StatementExit__serialize(StatementExit *this, StringBuilder * stringBuilder) {
+    StringBuilder__appendString(stringBuilder, "{\"statementType\": \"STATEMENT_EXIT\", \"exitCode\": ");
+    StringBuilder__appendInt(stringBuilder, this->exitCode);
+    StringBuilder__appendString(stringBuilder, "}");
+}
+
+/**
+ * @brief Get <exit> statement children
+ * 
+ * @param type 
+ * @return Statement*** 
+ */
+Statement *** StatementExit__getChildren(StatementExit *this, int * childrenCount) {
+    *childrenCount = 0;
+    Statement *** children = malloc(*childrenCount * sizeof(Statement**));
+    return children;
+}
+
+/**
+ * @brief <exit> statement constructor
+ * 
+ * @param type 
+ * @return StatementExit* 
+ */
+StatementExit* StatementExit__init() {
+    StatementExit *this = malloc(sizeof(StatementExit));
+    this->super.statementType = STATEMENT_EXIT;
+    this->super.serialize = (void (*)(struct Statement *, StringBuilder *))StatementExit__serialize;
+    this->super.getChildren = (struct Statement *** (*)(struct Statement *, int *))StatementExit__getChildren;
+    this->exitCode = 0;
+    return this;
+}
+
+/**
  * @brief Function serializer
  * 
  * @param type 
