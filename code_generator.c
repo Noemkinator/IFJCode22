@@ -30,6 +30,7 @@ typedef struct {
     Table * functionTable;
     bool isGlobal;
     Function * currentFunction;
+    StatementList * program;
 } Context;
 
 
@@ -85,7 +86,7 @@ Statement *** getAllStatements(Statement * parent, size_t * count) {
 }
 
 Symb generateSymbType(Expression * expression, Symb symb, Context ctx) {
-    Type type = expression->getType(expression, ctx.functionTable);
+    Type type = unionTypeToType(expression->getType(expression, ctx.functionTable, ctx.program, ctx.currentFunction));
     if(type.isRequired == true) {
         switch (type.type) {
             case TYPE_INT:
@@ -114,7 +115,7 @@ Symb generateSymbType(Expression * expression, Symb symb, Context ctx) {
 }
 
 Symb generateCastToBool(Expression * expression, Symb symb, Context ctx) {
-    Type type = expression->getType(expression, ctx.functionTable);
+    Type type = unionTypeToType(expression->getType(expression, ctx.functionTable, ctx.program, ctx.currentFunction));
     if(type.type == TYPE_BOOL && type.isRequired == true) {
         return symb;
     }
@@ -218,7 +219,7 @@ Symb generateFunctionCall(Expression__FunctionCall * expression, Context ctx, Va
             return (Symb){.type=Type_int, .value.i=0};
         } else if(strcmp(function->name, "strval") == 0) {
             if(expression->arity == 1) {
-                Type type = expression->arguments[0]->getType(expression->arguments[0], ctx.functionTable);
+                Type type = unionTypeToType(expression->arguments[0]->getType(expression->arguments[0], ctx.functionTable, ctx.program, ctx.currentFunction));
                 if(type.type == TYPE_STRING && type.isRequired == true) {
                     return generateExpression(expression->arguments[0], ctx, false, NULL);
                 } else if(type.type == TYPE_NULL) {
@@ -734,6 +735,7 @@ void generateFunction(Function* function, Table * functionTable) {
     ctx.functionTable = functionTable;
     ctx.isGlobal = false;
     ctx.currentFunction = function;
+    ctx.program = NULL;
     generateStatement(function->body, ctx);
     if(function->body->statementType != STATEMENT_LIST || ((StatementList*)function->body)->listSize == 0 || ((StatementList*)function->body)->statements[((StatementList*)function->body)->listSize-1]->statementType != STATEMENT_RETURN) {
         if(function->returnType.type != TYPE_VOID) {
@@ -819,6 +821,7 @@ void generateCode(StatementList * program, Table * functionTable) {
     ctx.functionTable = functionTable;
     ctx.isGlobal = true;
     ctx.currentFunction = NULL;
+    ctx.program = program;
     generateStatementList(program, ctx);
     if(program->listSize == 0 || program->statements[program->listSize-1]->statementType != STATEMENT_RETURN) {
         emit_EXIT((Symb){.type=TYPE_INT, .value.i=0});

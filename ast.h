@@ -64,7 +64,19 @@ typedef struct {
     } type; /*<Type of the parameter>*/
 } Type;
 
+typedef struct {
+    bool isAlive; // isn't type, but check if variable is usefull
+    bool isInt;
+    bool isFloat;
+    bool isString;
+    bool isBool;
+    bool isNull;
+    bool isUndefined;
+} UnionType;
+
 Type tokenToType(Token token);
+UnionType typeToUnionType(Type type);
+Type unionTypeToType(UnionType unionType);
 
 /**
  * @brief Expression type enumeration
@@ -76,13 +88,15 @@ typedef enum {
     EXPRESSION_BINARY_OPERATOR
 } ExpressionType;
 
+struct Function;
+
 /**
  * @brief Expression structure
  */
 typedef struct Expression {
     Statement super;/*<Superclass>*/
     ExpressionType expressionType;/*<Expression type>*/
-    Type (*getType)(struct Expression * expression, Table * functionTable);/*<Get type function pointer>*/
+    UnionType (*getType)(struct Expression * expression, Table * functionTable, StatementList * program, struct Function * currentFunction);/*<Get type function pointer>*/
 } Expression;
 
 typedef struct {
@@ -157,13 +171,14 @@ typedef struct {
 
 StatementReturn* StatementReturn__init();
 
-typedef struct {
+typedef struct Function {
     Statement super; /*<Superclass>*/
     char * name; /*<Name of the function>*/
     Type returnType; /*<Return type of the function>*/
     int arity; /*<Arity of the function>*/
     Type * parameterTypes; /*<Types of the parameters>*/
     char ** parameterNames; /*<Names of the parameters>*/
+    Table * globalVariables; /*<Global variables of the function>*/
     Statement * body; /*<Body of the function>*/
 } Function;
 

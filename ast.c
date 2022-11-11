@@ -195,14 +195,52 @@ Statement *** Expression__Constant__getChildren(Expression__Constant *this, int 
     return NULL;
 }
 
+UnionType typeToUnionType(Type type) {
+    return (UnionType) {
+        .isBool = type.type == TYPE_BOOL || type.type == TYPE_UNKNOWN,
+        .isFloat = type.type == TYPE_FLOAT || type.type == TYPE_UNKNOWN,
+        .isInt = type.type == TYPE_INT || type.type == TYPE_UNKNOWN,
+        .isNull = type.type == TYPE_NULL || type.type == TYPE_UNKNOWN || !type.isRequired,
+        .isString = type.type == TYPE_STRING || type.type == TYPE_UNKNOWN,
+        .isUndefined = type.type == TYPE_UNKNOWN
+    };
+}
+
+Type unionTypeToType(UnionType unionType) {
+    Type type;
+    type.isRequired = !unionType.isNull;
+    if(unionType.isUndefined) {
+        type.type = TYPE_UNKNOWN;
+        return type;
+    }
+    if(unionType.isBool && !unionType.isFloat && !unionType.isInt && !unionType.isString) {
+        type.type = TYPE_BOOL;
+        return type;
+    } else if(!unionType.isBool && unionType.isFloat && !unionType.isInt && !unionType.isString) {
+        type.type = TYPE_FLOAT;
+        return type;
+    } else if(!unionType.isBool && !unionType.isFloat && unionType.isInt && !unionType.isString) {
+        type.type = TYPE_INT;
+        return type;
+    } else if(!unionType.isBool && !unionType.isFloat && !unionType.isInt && unionType.isString) {
+        type.type = TYPE_STRING;
+        return type;
+    } else if(!unionType.isBool && !unionType.isFloat && !unionType.isInt && !unionType.isString && unionType.isNull) {
+        type.type = TYPE_NULL;
+        return type;
+    }
+    type.type = TYPE_UNKNOWN;
+    return type;
+}
+
 /**
  * @brief Get constant expression type
  * 
  * @param this 
  * @return Type 
  */
-Type Expression__Constant__getType(Expression__Constant *this, Table * functionTable) {
-    return this->type;
+UnionType Expression__Constant__getType(Expression__Constant *this, Table * functionTable, StatementList * program, Function * currentFunction) {
+    return typeToUnionType(this->type);
 }
 
 /**
@@ -216,7 +254,7 @@ Expression__Constant* Expression__Constant__init() {
     this->super.expressionType = EXPRESSION_CONSTANT;
     this->super.super.serialize = (void (*)(struct Statement *, StringBuilder *))Expression__Constant__serialize;
     this->super.super.getChildren = (struct Statement *** (*)(struct Statement *, int *))Expression__Constant__getChildren;
-    this->super.getType = (Type (*)(struct Expression *, Table *))Expression__Constant__getType;
+    this->super.getType = (UnionType (*)(struct Expression *, Table *, StatementList *, Function *))Expression__Constant__getType;
     this->type.isRequired = false;
     this->type.type = TYPE_UNKNOWN;
     return this;
@@ -244,17 +282,243 @@ Statement *** Expression__Variable__getChildren(Expression__Variable *this, int 
     return NULL;
 }
 
+Table * dublicateVarTypeTable(Table * table) {
+    Table * new_table = table_init();
+    for (int i = 0; i < TB_SIZE; i++) {
+        TableItem * item = table->tb[i];
+        while (item != NULL) {
+            UnionType type = *(UnionType *)item->data;
+            UnionType * new_type = malloc(sizeof(UnionType));
+            *new_type = type;
+            table_insert(new_table, item->name, new_type);
+            item = item->next;
+        }
+    }
+    return new_table;
+}
+
+UnionType orUnionType(UnionType type1, UnionType type2) {
+    UnionType ret;
+    ret.isAlive = type1.isAlive || type2.isAlive;
+    ret.isBool = type1.isBool || type2.isBool;
+    ret.isFloat = type1.isFloat || type2.isFloat;
+    ret.isInt = type1.isInt || type2.isInt;
+    ret.isNull = type1.isNull || type2.isNull;
+    ret.isString = type1.isString || type2.isString;
+    ret.isUndefined = type1.isUndefined || type2.isUndefined;
+    return ret;
+}
+
+UnionType getExpressionVarType(Expression__Variable * variable, Table * functionTable, Expression * expression, Table * variableTable, UnionType * exprTypeRet) {
+    switch (expression->expressionType) {
+        case EXPRESSION_CONSTANT:
+            if(exprTypeRet != NULL) {
+                Expression__Constant* constant = (Expression__Constant*)expression;
+                *exprTypeRet = (UnionType) {
+                    .isAlive = false,
+                    .isBool = constant->type.type == TYPE_BOOL,
+                    .isFloat = constant->type.type == TYPE_FLOAT,
+                    .isInt = constant->type.type == TYPE_INT,
+                    .isNull = constant->type.type == TYPE_NULL,
+                    .isString = constant->type.type == TYPE_STRING,
+                    .isUndefined = constant->type.type == TYPE_UNKNOWN,
+                };
+            }
+            return (UnionType){0};
+        case EXPRESSION_VARIABLE:
+            if(exprTypeRet != NULL) {
+                Expression__Variable* var = (Expression__Variable*)expression;
+                UnionType * type = (UnionType*)table_find(variableTable, var->name)->data;
+                *exprTypeRet = *type;
+            }
+            return (UnionType){0};
+        case EXPRESSION_FUNCTION_CALL:
+            if(exprTypeRet != NULL) {
+                Expression__FunctionCall* func = (Expression__FunctionCall*)expression;
+                Function * function = (Function*)table_find(functionTable, func->name)->data;
+                *exprTypeRet = (UnionType) {
+                    .isAlive = false,
+                    .isBool = function->returnType.type == TYPE_BOOL,
+                    .isFloat = function->returnType.type == TYPE_FLOAT,
+                    .isInt = function->returnType.type == TYPE_INT,
+                    .isNull = function->returnType.type == TYPE_NULL,
+                    .isString = function->returnType.type == TYPE_STRING,
+                    .isUndefined = function->returnType.type == TYPE_UNKNOWN,
+                };
+            }
+            return (UnionType){0};
+        case EXPRESSION_BINARY_OPERATOR: {
+            Expression__BinaryOperator* binOp = (Expression__BinaryOperator*)expression;
+            UnionType type = {0};
+            UnionType lType;
+            UnionType rType;
+            UnionType type1 = getExpressionVarType(variable, functionTable, binOp->lSide, variableTable, &lType);
+            UnionType type2 = getExpressionVarType(variable, functionTable, binOp->rSide, variableTable, &rType);
+            *exprTypeRet = (UnionType){0};
+            switch (binOp->operator) {
+                case TOKEN_PLUS:
+                case TOKEN_MINUS:
+                case TOKEN_MULTIPLY: {
+                    exprTypeRet->isInt = lType.isInt && rType.isInt;
+                    exprTypeRet->isFloat = lType.isFloat || rType.isFloat;
+                    break;
+                }
+                case TOKEN_CONCATENATE:
+                    exprTypeRet->isString = true;
+                    break;
+                case TOKEN_DIVIDE:
+                    exprTypeRet->isFloat = true;
+                    break;
+                case TOKEN_ASSIGN:
+                    *exprTypeRet = rType;
+                    break;
+                case TOKEN_EQUALS:
+                case TOKEN_NOT_EQUALS:
+                case TOKEN_LESS:
+                case TOKEN_GREATER:
+                case TOKEN_LESS_OR_EQUALS:
+                case TOKEN_GREATER_OR_EQUALS:
+                    exprTypeRet->isBool = true;
+                    if((Expression__Variable*)binOp->lSide == variable) {
+                        type = type2;
+                    }
+                    break;
+                default:
+                    break;
+            }
+            return orUnionType(type1, orUnionType(type2, type));
+            break;
+        }
+    }
+    return (UnionType){0};
+}
+
+UnionType getStatementListVarType(Expression__Variable * variable, Table * functionTable, StatementList * statementList, Table * variableTable);
+
+UnionType getStatementVarType(Expression__Variable * variable, Table * functionTable, Statement * statement, Table * variableTable) {
+    switch(statement->statementType) {
+        case STATEMENT_EXPRESSION:
+            return getExpressionVarType(variable, functionTable, (Expression*)statement, variableTable, NULL);
+        case STATEMENT_RETURN:
+            return getExpressionVarType(variable, functionTable, ((StatementReturn*)statement)->expression, variableTable, NULL);
+        // TODO: execute condition of if and while
+        case STATEMENT_IF: {
+            Table * duplTable = dublicateVarTypeTable(variableTable);
+            UnionType type1 = getStatementVarType(variable, functionTable, ((StatementIf*)statement)->ifBody, duplTable);
+            UnionType type2 = getStatementVarType(variable, functionTable, ((StatementIf*)statement)->elseBody, duplTable);
+            // or the tables
+            for(int j=0; j<TB_SIZE; j++) {
+                TableItem * item1 = duplTable->tb[j];
+                TableItem * item2 = variableTable->tb[j];
+                while(item1 != NULL && item2 != NULL) {
+                    if(strcmp(item1->name, item2->name) != 0) {
+                        fprintf(stderr, "Error: merging of variable tables failed");
+                        exit(99);
+                    }
+                    UnionType * type1 = (UnionType*)item1->data;
+                    UnionType * type2 = (UnionType*)item2->data;
+                    *type1 = orUnionType(*type1, *type2);
+                    item1 = item1->next;
+                    item2 = item2->next;
+                }
+            }
+            //table_free(duplTable);
+            return orUnionType(type1, type2);
+        }
+        case STATEMENT_WHILE: {
+            Table * duplTable = dublicateVarTypeTable(variableTable);
+            UnionType type = getStatementVarType(variable, functionTable, ((StatementWhile*)statement)->body, duplTable);
+            // or the tables
+            for(int j=0; j<TB_SIZE; j++) {
+                TableItem * item1 = duplTable->tb[j];
+                TableItem * item2 = variableTable->tb[j];
+                while(item1 != NULL && item2 != NULL) {
+                    if(strcmp(item1->name, item2->name) != 0) {
+                        fprintf(stderr, "Error: merging of variable tables failed");
+                        exit(99);
+                    }
+                    UnionType * type1 = (UnionType*)item1->data;
+                    UnionType * type2 = (UnionType*)item2->data;
+                    *type1 = orUnionType(*type1, *type2);
+                    item1 = item1->next;
+                    item2 = item2->next;
+                }
+            }
+            //table_free(duplTable);
+            return type;
+            break;
+        }
+        case STATEMENT_LIST:
+            return getStatementListVarType(variable, functionTable, (StatementList*)statement, variableTable);
+        default:
+            break;
+    }
+    return (UnionType){0};
+}
+
+UnionType getStatementListVarType(Expression__Variable * variable, Table * functionTable, StatementList * statementList, Table * variableTable) {
+    UnionType type = {0};
+    for(int i=0; i<statementList->listSize; i++) {
+        type = orUnionType(type, getStatementVarType(variable, functionTable, statementList->statements[i], variableTable));
+    }
+    return (UnionType){0};
+}
+
+// TODO: move the function elsewhere...
+Statement *** getAllStatements(Statement*, size_t*);
+
 /**
  * @brief Get variable expression type
  * 
  * @param this 
  * @return Type 
  */
-Type Expression__Variable__getType(Expression__Variable *this, Table * functionTable) {
-    Type type;
-    type.isRequired = false;
-    type.type = TYPE_UNKNOWN;
-    return type;
+UnionType Expression__Variable__getType(Expression__Variable *this, Table * functionTable, StatementList * program, Function * currentFunction) {
+    UnionType returnType;
+    Table * variableTable = table_init();
+    if(currentFunction != NULL) {
+        for(int i=0; i<currentFunction->arity; i++) {
+            UnionType type = typeToUnionType(currentFunction->parameterTypes[i]);
+            UnionType * typePerm = malloc(sizeof(UnionType));
+            *typePerm = type;
+            table_insert(variableTable, currentFunction->parameterNames[i], &typePerm);
+        }
+        size_t statementCount;
+        Statement *** allStatements = getAllStatements((Statement*)program, &statementCount);
+        for(int i=0; i<statementCount; i++) {
+            Statement * statement = *allStatements[i];
+            if(statement == NULL) continue;
+            if(statement->statementType == STATEMENT_EXPRESSION && ((Expression*)statement)->expressionType == EXPRESSION_VARIABLE) {
+                Expression__Variable* variable = (Expression__Variable*) statement;
+                if(table_find(variableTable, variable->name) == NULL) {
+                    UnionType * type = malloc(sizeof(UnionType));
+                    *type = (UnionType){0};
+                    type->isUndefined = true;
+                    table_insert(variableTable, variable->name, type);
+                }
+            }
+        }
+        returnType = getStatementVarType(this, functionTable, currentFunction->body, variableTable);
+    } else {
+        size_t statementCount;
+        Statement *** allStatements = getAllStatements((Statement*)program, &statementCount);
+        for(int i=0; i<statementCount; i++) {
+            Statement * statement = *allStatements[i];
+            if(statement == NULL) continue;
+            if(statement->statementType == STATEMENT_EXPRESSION && ((Expression*)statement)->expressionType == EXPRESSION_VARIABLE) {
+                Expression__Variable* variable = (Expression__Variable*) statement;
+                if(table_find(variableTable, variable->name) == NULL) {
+                    UnionType * type = malloc(sizeof(UnionType));
+                    *type = (UnionType){0};
+                    type->isUndefined = true;
+                    table_insert(variableTable, variable->name, type);
+                }
+            }
+        }
+        returnType = getStatementListVarType(this, functionTable, program, variableTable);
+    }
+    //table_free(variableTable);
+    return returnType;
 }
 
 /**
@@ -268,7 +532,7 @@ Expression__Variable* Expression__Variable__init() {
     this->super.expressionType = EXPRESSION_VARIABLE;
     this->super.super.serialize = (void (*)(struct Statement *, StringBuilder *))Expression__Variable__serialize;
     this->super.super.getChildren = (struct Statement *** (*)(struct Statement *, int *))Expression__Variable__getChildren;
-    this->super.getType = (Type (*)(struct Expression *, Table *))Expression__Variable__getType;
+    this->super.getType = (UnionType (*)(struct Expression *, Table *, StatementList *, Function *))Expression__Variable__getType;
     this->name = NULL;
     return this;
 }
@@ -317,7 +581,7 @@ Statement *** Expression__FunctionCall__getChildren(Expression__FunctionCall *th
  * @param this 
  * @return Type 
  */
-Type Expression__FunctionCall__getType(Expression__FunctionCall *this, Table * functionTable) {
+UnionType Expression__FunctionCall__getType(Expression__FunctionCall *this, Table * functionTable, StatementList * program, Function * currentFunction) {
     Type type;
     TableItem * item = table_find(functionTable, this->name);
     if(item != NULL) {
@@ -326,7 +590,7 @@ Type Expression__FunctionCall__getType(Expression__FunctionCall *this, Table * f
         type.isRequired = false;
         type.type = TYPE_UNKNOWN;
     }
-    return type;
+    return typeToUnionType(type);
 }
 
 /**
@@ -338,7 +602,7 @@ Type Expression__FunctionCall__getType(Expression__FunctionCall *this, Table * f
 Expression__FunctionCall* Expression__FunctionCall__init() {
     Expression__FunctionCall *this = malloc(sizeof(Expression__FunctionCall));
     this->super.expressionType = EXPRESSION_FUNCTION_CALL;
-    this->super.getType = (Type (*)(struct Expression *, Table *))Expression__FunctionCall__getType;
+    this->super.getType = (UnionType (*)(struct Expression *, Table *, StatementList *, Function *))Expression__FunctionCall__getType;
     this->super.super.serialize = (void (*)(struct Statement *, StringBuilder *))Expression__FunctionCall__serialize;
     this->super.super.getChildren = (struct Statement *** (*)(struct Statement *, int *))Expression__FunctionCall__getChildren;
     this->name = NULL;
@@ -441,37 +705,30 @@ Statement *** Expression__BinaryOperator__getChildren(Expression__BinaryOperator
  * @param this 
  * @return Type 
  */
-Type Expression__BinaryOperation__getType(Expression__BinaryOperator *this, Table * functionTable) {
-    Type type;
-    type.isRequired = false;
-    type.type = TYPE_UNKNOWN;
+UnionType Expression__BinaryOperation__getType(Expression__BinaryOperator *this, Table * functionTable, StatementList * program, Function * currentFunction) {
+    UnionType type = {0};
     switch (this->operator) {
         case TOKEN_PLUS:
         case TOKEN_MINUS:
         case TOKEN_MULTIPLY: {
-            Type lType = this->lSide->getType(this->lSide, functionTable);
-            Type rType = this->rSide->getType(this->rSide, functionTable);
-            if(lType.type == TYPE_INT && rType.type == TYPE_INT) {
-                type.type = TYPE_INT;
-            } else if(lType.type == TYPE_FLOAT || rType.type == TYPE_FLOAT) {
-                type.type = TYPE_FLOAT;
-            } else {
-                type.type = TYPE_UNKNOWN;
+            UnionType lType = this->lSide->getType(this->lSide, functionTable, program, currentFunction);
+            UnionType rType = this->rSide->getType(this->rSide, functionTable, program, currentFunction);
+            if(lType.isInt && rType.isInt) {
+                type.isInt = true;
             }
-            type.isRequired = true;
+            if(lType.isFloat || rType.isFloat) {
+                type.isFloat = true;
+            }
             break;
         }
         case TOKEN_CONCATENATE:
-            type.type = TYPE_STRING;
-            type.isRequired = true;
-            type.isRequired = true;
+            type.isString = true;
             break;
         case TOKEN_DIVIDE:
-            type.type = TYPE_FLOAT;
-            type.isRequired = true;
+            type.isFloat = true;
             break;
         case TOKEN_ASSIGN:
-            type = this->rSide->getType(this->rSide, functionTable);
+            type = this->rSide->getType(this->rSide, functionTable, program, currentFunction);
             break;
         case TOKEN_EQUALS:
         case TOKEN_NOT_EQUALS:
@@ -479,10 +736,11 @@ Type Expression__BinaryOperation__getType(Expression__BinaryOperator *this, Tabl
         case TOKEN_GREATER:
         case TOKEN_LESS_OR_EQUALS:
         case TOKEN_GREATER_OR_EQUALS:
-            type.type = TYPE_BOOL;
-            type.isRequired = true;
+            type.isBool = true;
             break;
         default:
+            fprintf(stderr, "Unknown binary operator, unable to generate type\n");
+            exit(99);
             break;
     }
     return type;
@@ -499,7 +757,7 @@ Expression__BinaryOperator* Expression__BinaryOperator__init() {
     this->super.expressionType = EXPRESSION_BINARY_OPERATOR;
     this->super.super.serialize = (void (*)(struct Statement *, StringBuilder *))Expression__BinaryOperator__serialize;
     this->super.super.getChildren = (struct Statement *** (*)(struct Statement *, int *))Expression__BinaryOperator__getChildren;
-    this->super.getType = (Type (*)(struct Expression *, Table *))Expression__BinaryOperation__getType;
+    this->super.getType = (UnionType (*)(struct Expression *, Table *, StatementList *, Function *))Expression__BinaryOperation__getType;
     this->lSide = NULL;
     this->rSide = NULL;
     return this;
@@ -742,6 +1000,8 @@ Function* Function__init() {
     this->arity = 0;
     this->parameterTypes = NULL;
     this->parameterNames = NULL;
+    this->globalVariables = table_init();
+    this->body = NULL;
     return this;
 }
 
