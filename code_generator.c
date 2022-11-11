@@ -59,8 +59,40 @@ Symb generateConstant(Expression__Constant * constant) {
     }
 }
 
+void generateVarTypeComment(Expression__Variable * statement, Context ctx) {
+    StringBuilder sb;
+    StringBuilder__init(&sb);
+    StringBuilder__appendString(&sb, "Type of variable ");
+    StringBuilder__appendString(&sb, statement->name);
+    StringBuilder__appendString(&sb, " is ");
+    UnionType type = statement->super.getType((Expression *) statement, ctx.functionTable, ctx.program, ctx.currentFunction);
+    if(type.isBool) {
+        StringBuilder__appendString(&sb, "bool|");
+    }
+    if(type.isFloat) {
+        StringBuilder__appendString(&sb, "float|");
+    }
+    if(type.isInt) {
+        StringBuilder__appendString(&sb, "int|");
+    }
+    if(type.isString) {
+        StringBuilder__appendString(&sb, "string|");
+    }
+    if(type.isUndefined) {
+        StringBuilder__appendString(&sb, "undefined|");
+    }
+    if(type.isNull) {
+        StringBuilder__appendString(&sb, "null|");
+    }
+    StringBuilder__removeLastChar(&sb);
+    StringBuilder__appendString(&sb, ".");
+    emit_COMMENT(sb.text);
+    StringBuilder__free(&sb);
+}
+
 Symb generateVariable(Expression__Variable * statement, Context ctx) {
     // causes mem leak
+    generateVarTypeComment(statement, ctx);
     char * varId = join_strings("var&", statement->name);
     return (Symb){.type = Type_variable, .value.v.frameType = ((VariableInfo*)table_find(ctx.varTable, statement->name)->data)->isGlobal ? GF : LF, .value.v.name = varId};
 }

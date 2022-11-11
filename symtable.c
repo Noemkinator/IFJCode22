@@ -104,7 +104,7 @@ TableItem* table_remove(Table* b, char* str) {
  * @brief Frees the hash table and all it's items
  * @param b hash table
  */
-void free_table(Table* b) {
+void table_free(Table* b) {
     if(b == NULL) return;
     TableItem* temp = NULL;
 
