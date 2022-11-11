@@ -34,9 +34,6 @@ void item_free(TableItem* i);
 
 // DEBUG
 void debug_print(Table* b);
-TableItem* debug_insert(Table* b, char* str);
-void debug_lookup(Table* b, char* str);
-void debug_remove(Table* b, char* str);
 
 #endif // __SYMTABLE_H__
 
