@@ -252,6 +252,7 @@ UnionType Expression__Constant__getType(Expression__Constant *this, Table * func
 Expression__Constant* Expression__Constant__init() {
     Expression__Constant *this = malloc(sizeof(Expression__Constant));
     this->super.expressionType = EXPRESSION_CONSTANT;
+    this->super.super.statementType = STATEMENT_EXPRESSION;
     this->super.super.serialize = (void (*)(struct Statement *, StringBuilder *))Expression__Constant__serialize;
     this->super.super.getChildren = (struct Statement *** (*)(struct Statement *, int *))Expression__Constant__getChildren;
     this->super.getType = (UnionType (*)(struct Expression *, Table *, StatementList *, Function *))Expression__Constant__getType;
@@ -530,6 +531,7 @@ UnionType Expression__Variable__getType(Expression__Variable *this, Table * func
 Expression__Variable* Expression__Variable__init() {
     Expression__Variable *this = malloc(sizeof(Expression__Variable));
     this->super.expressionType = EXPRESSION_VARIABLE;
+    this->super.super.statementType = STATEMENT_EXPRESSION;
     this->super.super.serialize = (void (*)(struct Statement *, StringBuilder *))Expression__Variable__serialize;
     this->super.super.getChildren = (struct Statement *** (*)(struct Statement *, int *))Expression__Variable__getChildren;
     this->super.getType = (UnionType (*)(struct Expression *, Table *, StatementList *, Function *))Expression__Variable__getType;
@@ -603,6 +605,7 @@ Expression__FunctionCall* Expression__FunctionCall__init() {
     Expression__FunctionCall *this = malloc(sizeof(Expression__FunctionCall));
     this->super.expressionType = EXPRESSION_FUNCTION_CALL;
     this->super.getType = (UnionType (*)(struct Expression *, Table *, StatementList *, Function *))Expression__FunctionCall__getType;
+    this->super.super.statementType = STATEMENT_EXPRESSION;
     this->super.super.serialize = (void (*)(struct Statement *, StringBuilder *))Expression__FunctionCall__serialize;
     this->super.super.getChildren = (struct Statement *** (*)(struct Statement *, int *))Expression__FunctionCall__getChildren;
     this->name = NULL;
@@ -755,6 +758,7 @@ UnionType Expression__BinaryOperation__getType(Expression__BinaryOperator *this,
 Expression__BinaryOperator* Expression__BinaryOperator__init() {
     Expression__BinaryOperator *this = malloc(sizeof(Expression__BinaryOperator));
     this->super.expressionType = EXPRESSION_BINARY_OPERATOR;
+    this->super.super.statementType = STATEMENT_EXPRESSION;
     this->super.super.serialize = (void (*)(struct Statement *, StringBuilder *))Expression__BinaryOperator__serialize;
     this->super.super.getChildren = (struct Statement *** (*)(struct Statement *, int *))Expression__BinaryOperator__getChildren;
     this->super.getType = (UnionType (*)(struct Expression *, Table *, StatementList *, Function *))Expression__BinaryOperation__getType;
@@ -992,6 +996,7 @@ Statement *** Function__getChildren(Function *this, int * childrenCount) {
  */
 Function* Function__init() {
     Function *this = malloc(sizeof(Function));
+    this->super.statementType = STATEMENT_FUNCTION;
     this->super.serialize = (void (*)(struct Statement *, StringBuilder *))Function__serialize;
     this->super.getChildren = (struct Statement *** (*)(struct Statement *, int *))Function__getChildren;
     this->name = NULL;
