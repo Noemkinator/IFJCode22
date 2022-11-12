@@ -517,10 +517,10 @@ UnionType Expression__Variable__getType(Expression__Variable *this, Table * func
             UnionType type = typeToUnionType(currentFunction->parameterTypes[i]);
             UnionType * typePerm = malloc(sizeof(UnionType));
             *typePerm = type;
-            table_insert(variableTable, currentFunction->parameterNames[i], &typePerm);
+            table_insert(variableTable, currentFunction->parameterNames[i], typePerm);
         }
         size_t statementCount;
-        Statement *** allStatements = getAllStatements((Statement*)program, &statementCount);
+        Statement *** allStatements = getAllStatements((Statement*)currentFunction->body, &statementCount);
         for(int i=0; i<statementCount; i++) {
             Statement * statement = *allStatements[i];
             if(statement == NULL) continue;

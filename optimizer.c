@@ -276,9 +276,108 @@ Statement * performStatementFolding(Statement * in) {
 bool removeCodeAfterReturn(StatementList * in) {
     for(int i = 0; i < in->listSize-1; i++) {
         Statement * statement = in->statements[i];
-        if(statement->statementType == STATEMENT_RETURN) {
+        if(statement->statementType == STATEMENT_RETURN || statement->statementType == STATEMENT_EXIT) {
             in->listSize = i + 1;
             return true;
+        }
+    }
+    return false;
+}
+
+int getExpressionError(Expression * expression, Table * functionTable, StatementList * program, Function * currentFunction) {
+    if(expression == NULL) {
+        return -1;
+    }
+    switch(expression->expressionType) {
+        case EXPRESSION_CONSTANT: 
+            return 0;
+        case EXPRESSION_VARIABLE: {
+            UnionType type =  expression->getType(expression, functionTable, program, currentFunction);
+            if(!type.isBool && !type.isFloat && !type.isInt && !type.isNull && !type.isString && type.isUndefined) {
+                return 5;
+            }
+            if(!type.isUndefined) {
+                return 0;
+            } else {
+                return -1;
+            }
+        }
+        case EXPRESSION_FUNCTION_CALL: 
+            return -1;
+        case EXPRESSION_BINARY_OPERATOR: {
+            Expression__BinaryOperator * op = (Expression__BinaryOperator *) expression;
+            if(op->operator != TOKEN_ASSIGN) {
+                int leftError = getExpressionError(op->lSide, functionTable, program, currentFunction);
+                if(leftError != 0) {
+                    return leftError;
+                }
+            } else {
+                if(op->lSide->expressionType != EXPRESSION_VARIABLE) {
+                    return 2;
+                } else {
+                    return getExpressionError(op->rSide, functionTable, program, currentFunction);
+                }
+            }
+
+            int rightError = getExpressionError(op->rSide, functionTable, program, currentFunction);
+            if(rightError != 0) {
+                return rightError;
+            }
+            return -1;
+        }
+    }
+    return -1;
+}
+
+bool replaceErrorsWithExit(Statement ** statement, Table * functionTable, StatementList * program, Function * currentFunction) {
+    if((*statement)->statementType == STATEMENT_IF) {
+        StatementIf * ifStatement = (StatementIf *) *statement;
+        int error = getExpressionError(ifStatement->condition, functionTable, program, currentFunction);
+        if(error > 0) {
+            StatementExit * exitStatement = StatementExit__init();
+            exitStatement->exitCode = error;
+            *statement = (Statement*)exitStatement;
+            return true;
+        }
+        replaceErrorsWithExit(&ifStatement->ifBody, functionTable, program, currentFunction);
+        replaceErrorsWithExit(&ifStatement->elseBody, functionTable, program, currentFunction);
+    } else if((*statement)->statementType == STATEMENT_WHILE) {
+        StatementWhile * whileStatement = (StatementWhile *) *statement;
+        int error = getExpressionError(whileStatement->condition, functionTable, program, currentFunction);
+        if(error > 0) {
+            StatementExit * exitStatement = StatementExit__init();
+            exitStatement->exitCode = error;
+            *statement = (Statement*)exitStatement;
+            return true;
+        }
+        replaceErrorsWithExit(&whileStatement->body, functionTable, program, currentFunction);
+    } else if((*statement)->statementType == STATEMENT_RETURN) {
+        StatementReturn * returnStatement = (StatementReturn *) *statement;
+        int error = getExpressionError(returnStatement->expression, functionTable, program, currentFunction);
+        if(error > 0) {
+            StatementExit * exitStatement = StatementExit__init();
+            exitStatement->exitCode = error;
+            *statement = (Statement*)exitStatement;
+            return true;
+        }
+    } else if((*statement)->statementType == STATEMENT_EXPRESSION) {
+        Expression * expression = ((Expression *) *statement);
+        int error = getExpressionError(expression, functionTable, program, currentFunction);
+        if(error > 0) {
+            StatementExit * exitStatement = StatementExit__init();
+            exitStatement->exitCode = error;
+            *statement = (Statement*)exitStatement;
+            return true;
+        }
+    } else if((*statement)->statementType == STATEMENT_LIST) {
+        StatementList * list = (StatementList *) *statement;
+        for(int i = 0; i < list->listSize; i++) {
+            replaceErrorsWithExit(&list->statements[i], functionTable, program, currentFunction);
+        }
+    } else if((*statement)->statementType == STATEMENT_FUNCTION) {
+        Function * function = (Function *) *statement;
+        if(function->body != NULL) {
+            replaceErrorsWithExit(&function->body, functionTable, program, currentFunction);
         }
     }
     return false;
@@ -327,10 +426,12 @@ void optimize(StatementList * program, Table * functionTable) {
     while(continueOptimizing) {
         continueOptimizing = false;
         continueOptimizing |= optimizeNestedStatements((Statement**)&program);
+        continueOptimizing |= replaceErrorsWithExit((Statement**)&program, functionTable, program, NULL);
         for(int i = 0; i < TB_SIZE; i++) {
             TableItem* item = functionTable->tb[i];
             while(item != NULL) {
                 continueOptimizing |= optimizeNestedStatements((Statement**)&item->data);
+                continueOptimizing |= replaceErrorsWithExit((Statement**)&item->data, functionTable, program, (Function*)item->data);
                 item = item->next;
             }
         }

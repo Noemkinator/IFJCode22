@@ -99,6 +99,7 @@ Symb generateVariable(Expression__Variable * statement, Context ctx) {
 
 Statement *** getAllStatements(Statement * parent, size_t * count) {
     int childrenCount = 0;
+    *count = childrenCount;
     if(parent == NULL) return NULL;
     Statement *** children = parent->getChildren(parent, &childrenCount);
     *count = childrenCount;
@@ -475,11 +476,6 @@ Symb saveTempSymb(Symb symb, FrameType frameType) {
 Symb generateBinaryOperator(Expression__BinaryOperator * expression, Context ctx, bool throwaway, Var * outVarAlt) {
     Symb left = generateExpression(expression->lSide, ctx, false, NULL);
     if(expression->operator == TOKEN_ASSIGN) {
-        if(left.type != Type_variable) {
-            fprintf(stderr, "Left side of assigment needs to be variable\n");
-            // NOTE: not sure if right exit code
-            exit(2);
-        }
         Symb right;
         if(throwaway || outVarAlt != NULL) {
             right = generateExpression(expression->rSide, ctx, false, &left.value.v);
@@ -784,7 +780,35 @@ void generateFunction(Function* function, Table * functionTable) {
     emit_instruction_end();
 }
 
+void performPreoptimizationChecksOnStatement(Statement * statement, Table * functionTable) {
+    if(statement->statementType == STATEMENT_EXPRESSION) {
+    Expression* expression = (Expression*) statement;
+    if(expression->expressionType == EXPRESSION_BINARY_OPERATOR) {
+        if(((Expression__BinaryOperator*)expression)->operator == TOKEN_ASSIGN) {
+            Expression* left = ((Expression__BinaryOperator*)expression)->lSide;
+            if(left->expressionType != EXPRESSION_VARIABLE) {
+                fprintf(stderr, "Left side of assigment needs to be variable\n");
+                exit(2);
+            }
+        }
+    } else if(expression->expressionType == EXPRESSION_FUNCTION_CALL) {
+        Expression__FunctionCall* functionCall = (Expression__FunctionCall*) expression;
+        TableItem* calledFunction = table_find(functionTable, functionCall->name);
+        if(calledFunction == NULL) {
+            fprintf(stderr, "Function %s not defined\n", functionCall->name);
+            exit(3);
+        }
+    }
+}
+}
+
 void performPreoptimizationChecks(StatementList * program, Table * functionTable) {
+    size_t statementCount = 0;
+    Statement *** statements = getAllStatements((Statement*)program, &statementCount);
+    for(int i=0; i<statementCount; i++) {
+        if(*statements[i] == NULL) continue;
+        performPreoptimizationChecksOnStatement(*statements[i], functionTable);
+    }
     for(int i = 0; i < TB_SIZE; i++) {
         TableItem* item = functionTable->tb[i];
         while(item != NULL) {
@@ -794,17 +818,9 @@ void performPreoptimizationChecks(StatementList * program, Table * functionTable
             for(int j=0; j < statementCount; j++) {
                 if(statements[j] == NULL || *statements[j] == NULL) continue;
                 Statement* statement = *statements[j];
-                if(statement->statementType == STATEMENT_EXPRESSION) {
-                    Expression* expression = (Expression*) statement;
-                    if(expression->expressionType == EXPRESSION_FUNCTION_CALL) {
-                        Expression__FunctionCall* functionCall = (Expression__FunctionCall*) expression;
-                        TableItem* calledFunction = table_find(functionTable, functionCall->name);
-                        if(calledFunction == NULL) {
-                            fprintf(stderr, "Function %s not defined\n", functionCall->name);
-                            exit(3);
-                        }
-                    }
-                } else if(statement->statementType == STATEMENT_RETURN) {
+                if(statement == NULL) continue;
+                performPreoptimizationChecksOnStatement(statement, functionTable);
+                if(statement->statementType == STATEMENT_RETURN) {
                     StatementReturn* returnStatement = (StatementReturn*) statement;
                     if(returnStatement->expression != NULL) {
                         if(function->returnType.type == TYPE_VOID) {
@@ -827,6 +843,9 @@ void performPreoptimizationChecks(StatementList * program, Table * functionTable
 
 void generateCode(StatementList * program, Table * functionTable) {
     performPreoptimizationChecks(program, functionTable);
+    StatementExit * exit = StatementExit__init();
+    exit->exitCode = 0;
+    StatementList__addStatement(program, (Statement*)exit);
     optimize(program, functionTable);
     emit_header();
     emit_DEFVAR_start();
@@ -858,9 +877,6 @@ void generateCode(StatementList * program, Table * functionTable) {
     ctx.currentFunction = NULL;
     ctx.program = program;
     generateStatementList(program, ctx);
-    if(program->listSize == 0 || program->statements[program->listSize-1]->statementType != STATEMENT_RETURN) {
-        emit_EXIT((Symb){.type=TYPE_INT, .value.i=0});
-    }
     emit_DEFVAR_end();
     emit_instruction_end();
     for(int i = 0; i < TB_SIZE; i++) {
