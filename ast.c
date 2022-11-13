@@ -334,15 +334,7 @@ UnionType getExpressionVarType(Expression__Variable * variable, Table * function
         case EXPRESSION_CONSTANT:
             if(exprTypeRet != NULL) {
                 Expression__Constant* constant = (Expression__Constant*)expression;
-                *exprTypeRet = (UnionType) {
-                    .isAlive = false,
-                    .isBool = constant->type.type == TYPE_BOOL || constant->type.type == TYPE_UNKNOWN,
-                    .isFloat = constant->type.type == TYPE_FLOAT || constant->type.type == TYPE_UNKNOWN,
-                    .isInt = constant->type.type == TYPE_INT || constant->type.type == TYPE_UNKNOWN,
-                    .isNull = constant->type.type == TYPE_NULL || !constant->type.isRequired || constant->type.type == TYPE_UNKNOWN,
-                    .isString = constant->type.type == TYPE_STRING || constant->type.type == TYPE_UNKNOWN,
-                    .isUndefined = constant->type.type == TYPE_UNKNOWN,
-                };
+                *exprTypeRet = typeToUnionType(constant->type);
             }
             return (UnionType){0};
         case EXPRESSION_VARIABLE: {
@@ -364,15 +356,7 @@ UnionType getExpressionVarType(Expression__Variable * variable, Table * function
             }
             if(exprTypeRet != NULL) {
                 Function * function = (Function*)table_find(functionTable, func->name)->data;
-                *exprTypeRet = (UnionType) {
-                    .isAlive = false,
-                    .isBool = function->returnType.type == TYPE_BOOL,
-                    .isFloat = function->returnType.type == TYPE_FLOAT,
-                    .isInt = function->returnType.type == TYPE_INT,
-                    .isNull = function->returnType.type == TYPE_NULL,
-                    .isString = function->returnType.type == TYPE_STRING,
-                    .isUndefined = function->returnType.type == TYPE_UNKNOWN,
-                };
+                *exprTypeRet = typeToUnionType(function->returnType);
             }
             return ret;
         }

@@ -73,6 +73,9 @@ char * decodeString(char * text) {
                 case '\\':
                     *result = '\\';
                     break;
+                case '$':
+                    *result = '$';
+                    break;
                 case 'x':
                     if(isxdigit(text[1]) && isxdigit(text[2])) {
                         char hex[3];
@@ -113,6 +116,9 @@ char * decodeString(char * text) {
                     *result = *text;
                     break;
             }
+        } else if(*text == '$') {
+            fprintf(stderr, "Error: String interpolation is not allowed.\n");
+            exit(1);
         } else {
             *result = *text;
         }
