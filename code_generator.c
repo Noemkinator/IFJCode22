@@ -22,7 +22,8 @@ size_t getNextCodeGenUID() {
 typedef struct {
     char * name;
     bool isGlobal;
-    Type type;
+    bool isUsed;
+    bool isTemporary;
 } VariableInfo;
 
 typedef struct {
@@ -90,21 +91,61 @@ void generateVarTypeComment(Expression__Variable * statement, Context ctx) {
     StringBuilder__free(&sb);
 }
 
+Var generateTemporaryVariable(Context ctx) {
+    for(int i = 0; i < TB_SIZE; i++) {
+        TableItem * item = ctx.varTable->tb[i];
+        while(item != NULL) {
+            VariableInfo * info = item->data;
+            if(!info->isUsed && info->isTemporary && info->isGlobal == ctx.isGlobal) {
+                info->isUsed = true;
+                return (Var){.name = info->name, .frameType = ctx.isGlobal ? GF : LF};
+            }
+            item = item->next;
+        }
+    }
+    size_t tempVarUID = getNextCodeGenUID();
+    StringBuilder tempVarName;
+    StringBuilder__init(&tempVarName);
+    StringBuilder__appendString(&tempVarName, "tempVar&");
+    StringBuilder__appendInt(&tempVarName, tempVarUID);
+    Var tempVar = (Var){.name = tempVarName.text, .frameType = ctx.isGlobal ? GF : LF};
+    emit_DEFVAR(tempVar);
+    VariableInfo * tempVarInfo = malloc(sizeof(VariableInfo));
+    tempVarInfo->name = tempVarName.text;
+    tempVarInfo->isGlobal = ctx.isGlobal;
+    tempVarInfo->isUsed = true;
+    tempVarInfo->isTemporary = true;
+    table_insert(ctx.varTable, tempVarName.text, tempVarInfo);
+    return tempVar;
+}
+
+void freeTemporaryVariable(Var var, Context ctx) {
+    VariableInfo * info = table_find(ctx.varTable, var.name)->data;
+    if(info->isTemporary) {
+        if(info->isUsed) {
+            info->isUsed = false;
+        } else {
+            fprintf(stderr, "!!!!! Trying to free unused temporary variable %s!!!!!\n", var.name);
+        }
+    }
+}
+
+void freeTemporarySymbol(Symb symb, Context ctx) {
+    if(symb.type == Type_variable) {
+        freeTemporaryVariable(symb.value.v, ctx);
+    }
+}
+
 Symb generateVariable(Expression__Variable * statement, Context ctx) {
     // causes mem leak
     generateVarTypeComment(statement, ctx);
-    char * varId = join_strings("var&", statement->name);
+    char * varId = statement->name;
     Var variable = (Var){.name = varId, .frameType = ((VariableInfo*)table_find(ctx.varTable, statement->name)->data)->isGlobal ? GF : LF};
     Symb symb = (Symb){.type = Type_variable, .value.v = variable};
     UnionType type = statement->super.getType((Expression *) statement, ctx.functionTable, ctx.program, ctx.currentFunction);
     if(type.isUndefined) {
         size_t variableCheckUID = getNextCodeGenUID();
-        StringBuilder variableType;
-        StringBuilder__init(&variableType);
-        StringBuilder__appendString(&variableType, "varType");
-        StringBuilder__appendInt(&variableType, variableCheckUID);
-        Var var = (Var){.name = variableType.text, .frameType = ((VariableInfo*)table_find(ctx.varTable, statement->name)->data)->isGlobal ? GF : LF};
-        emit_DEFVAR(var);
+        Var var = generateTemporaryVariable(ctx);
         StringBuilder variableDefined;
         StringBuilder__init(&variableDefined);
         StringBuilder__appendString(&variableDefined, "variable_defined&");
@@ -119,9 +160,9 @@ Symb generateVariable(Expression__Variable * statement, Context ctx) {
         emit_DPRINT((Symb){.type = Type_string, .value.s = errorMessage.text});
         emit_EXIT((Symb){.type = Type_int, .value.i = 5});
         emit_LABEL(variableDefined.text);
-        StringBuilder__free(&variableType);
         StringBuilder__free(&variableDefined);
         StringBuilder__free(&errorMessage);
+        freeTemporaryVariable(var, ctx);
     }
     return symb;
 }
@@ -166,12 +207,7 @@ Symb generateSymbType(Expression * expression, Symb symb, Context ctx) {
     if(type.type == TYPE_NULL) {
         return (Symb){.type = Type_string, .value.s = "nil"};
     }
-    StringBuilder sb;
-    StringBuilder__init(&sb);
-    StringBuilder__appendString(&sb, "var&type_output&");
-    StringBuilder__appendInt(&sb, getNextCodeGenUID());
-    Var typeOut = (Var){.frameType=ctx.isGlobal ? GF : LF, .name=sb.text};
-    emit_DEFVAR(typeOut);
+    Var typeOut = generateTemporaryVariable(ctx);
     emit_TYPE(typeOut, symb);
     return (Symb){.type = Type_variable, .value.v = typeOut};
 }
@@ -193,16 +229,11 @@ Symb generateCastToBool(Expression * expression, Symb symb, Context ctx) {
     // TODO: do known type cast
     Symb symbType = generateSymbType(expression, symb, ctx);
     size_t castUID = getNextCodeGenUID();
-    StringBuilder castOutput;
-    StringBuilder__init(&castOutput);
-    StringBuilder__appendString(&castOutput, "var&cast_output&");
-    StringBuilder__appendInt(&castOutput, castUID);
     StringBuilder castEnd;
     StringBuilder__init(&castEnd);
     StringBuilder__appendString(&castEnd, "cast_end&");
     StringBuilder__appendInt(&castEnd, castUID);
-    Var result = (Var){.frameType=ctx.isGlobal ? GF : LF, .name=castOutput.text};
-    emit_DEFVAR(result);
+    Var result = generateTemporaryVariable(ctx);
     StringBuilder notBool;
     StringBuilder__init(&notBool);
     StringBuilder__appendString(&notBool, "not_bool&");
@@ -294,29 +325,29 @@ Symb generateFunctionCall(Expression__FunctionCall * expression, Context ctx, Va
         fprintf(stderr, "ERR: Function %s called with wrong number of arguments\n", expression->name);
         exit(4);
     }
-    StringBuilder sbRet;
-    StringBuilder__init(&sbRet);
-    StringBuilder__appendString(&sbRet, "var&returnValue&");
-    StringBuilder__appendInt(&sbRet, getNextCodeGenUID());
     if(strcmp(function->name, "reads") == 0) {
-        Var var = (Var){.frameType=ctx.isGlobal ? GF : LF, .name=sbRet.text};
+        Var var;
         if(outVarAlt != NULL) var = *outVarAlt;
-        if(outVarAlt == NULL) emit_DEFVAR(var);
+        else var = generateTemporaryVariable(ctx);
         emit_READ(var, Type_string);
         return (Symb){.type = Type_variable, .value.v=var};
     } else if(strcmp(function->name, "readi") == 0) {
-        Var var = (Var){.frameType=ctx.isGlobal ? GF : LF, .name=sbRet.text};
+        Var var;
         if(outVarAlt != NULL) var = *outVarAlt;
-        if(outVarAlt == NULL) emit_DEFVAR(var);
+        else var = generateTemporaryVariable(ctx);
         emit_READ(var, Type_int);
         return (Symb){.type = Type_variable, .value.v=var};
     } else if(strcmp(function->name, "readf") == 0) {
-        Var var = (Var){.frameType=ctx.isGlobal ? GF : LF, .name=sbRet.text};
+        Var var;
         if(outVarAlt != NULL) var = *outVarAlt;
-        if(outVarAlt == NULL) emit_DEFVAR(var);
+        else var = generateTemporaryVariable(ctx);
         emit_READ(var, Type_float);
         return (Symb){.type = Type_variable, .value.v=var};
     }
+    StringBuilder sbRet;
+    StringBuilder__init(&sbRet);
+    StringBuilder__appendString(&sbRet, "returnValue&");
+    StringBuilder__appendInt(&sbRet, getNextCodeGenUID());
     emit_CREATEFRAME();
     if(strcmp(function->name, "floatval") == 0) {
         Symb symb = generateExpression(expression->arguments[0], ctx, false, NULL);
@@ -369,16 +400,11 @@ Symb generateFunctionCall(Expression__FunctionCall * expression, Context ctx, Va
         Var returnValue = {.frameType = TF, .name = "returnValue"};
         emit_DEFVAR(returnValue);
         size_t substringUID = getNextCodeGenUID();
-        StringBuilder tempVarName;
-        StringBuilder__init(&tempVarName);
-        StringBuilder__appendString(&tempVarName, "tempVar&");
-        StringBuilder__appendInt(&tempVarName, substringUID);
         StringBuilder func_substring_end;
         StringBuilder__init(&func_substring_end);
         StringBuilder__appendString(&func_substring_end, "func_substring_end&");
         StringBuilder__appendInt(&func_substring_end, substringUID);
-        Var tempVar = (Var){.frameType=TF, .name=tempVarName.text};
-        emit_DEFVAR(tempVar);
+        Var tempVar = generateTemporaryVariable(ctx);
         emit_PUSHS(symb2);
         emit_PUSHS((Symb){.type = Type_int, .value.i = 0});
         emit_LTS();
@@ -405,12 +431,7 @@ Symb generateFunctionCall(Expression__FunctionCall * expression, Context ctx, Va
         StringBuilder__init(&func_substring_loop_start);
         StringBuilder__appendString(&func_substring_loop_start, "func_substring_loop_start&");
         StringBuilder__appendInt(&func_substring_loop_start, substringUID);
-        StringBuilder func_substring_loop_index;
-        StringBuilder__init(&func_substring_loop_index);
-        StringBuilder__appendString(&func_substring_loop_index, "var&func_substring_loop_index&");
-        StringBuilder__appendInt(&func_substring_loop_index, substringUID);
-        Var func_substring_loop_indexVar = (Var){.frameType=TF, .name=func_substring_loop_index.text};
-        emit_DEFVAR(func_substring_loop_indexVar);
+        Var func_substring_loop_indexVar = generateTemporaryVariable(ctx);
         emit_MOVE(func_substring_loop_indexVar, symb2);
         emit_MOVE(returnValue, (Symb){.type=Type_string, .value.s=""});
         emit_JUMPIFNEQS(func_substring_loop_start.text);
@@ -423,6 +444,8 @@ Symb generateFunctionCall(Expression__FunctionCall * expression, Context ctx, Va
         emit_ADD(func_substring_loop_indexVar, (Symb){.type=Type_variable, .value.v=func_substring_loop_indexVar}, (Symb){.type=Type_int, .value.i=1});
         emit_JUMP(func_substring_loop_start.text);
         emit_LABEL(func_substring_end.text);
+        freeTemporaryVariable(tempVar, ctx);
+        freeTemporaryVariable(func_substring_loop_indexVar, ctx);
         return (Symb){.type = Type_variable, .value.v=returnValue};
     } else if(strcmp(function->name, "ord") == 0) {
         size_t ordId = getNextCodeGenUID();
@@ -466,8 +489,8 @@ Symb generateFunctionCall(Expression__FunctionCall * expression, Context ctx, Va
     }
     if(!containsNestedFunctionCall) {
         for(int i=0; i<expression->arity; i++) {
-            emit_DEFVAR((Var){.frameType = TF, .name = join_strings("var&", function->parameterNames[i])});
-            emit_MOVE((Var){.frameType = TF, .name = join_strings("var&", function->parameterNames[i])}, generateExpression(expression->arguments[i], ctx, false, NULL));
+            emit_DEFVAR((Var){.frameType = TF, .name = function->parameterNames[i]});
+            emit_MOVE((Var){.frameType = TF, .name = function->parameterNames[i]}, generateExpression(expression->arguments[i], ctx, false, NULL));
         }
     } else {
         for(int i=0; i<expression->arity; i++) {
@@ -475,8 +498,8 @@ Symb generateFunctionCall(Expression__FunctionCall * expression, Context ctx, Va
         }
         emit_CREATEFRAME();
         for(int i=expression->arity-1; i>=0; i--) {
-            emit_DEFVAR((Var){.frameType = TF, .name = join_strings("var&", function->parameterNames[i])});
-            emit_POPS((Var){.frameType = TF, .name = join_strings("var&", function->parameterNames[i])});
+            emit_DEFVAR((Var){.frameType = TF, .name = function->parameterNames[i]});
+            emit_POPS((Var){.frameType = TF, .name = function->parameterNames[i]});
         }
     }
     
@@ -486,18 +509,11 @@ Symb generateFunctionCall(Expression__FunctionCall * expression, Context ctx, Va
     return (Symb){.type = Type_variable, .value.v=(Var){.frameType = TF, .name = "returnValue"}};
 }
 
-Symb saveTempSymb(Symb symb, FrameType frameType) {
+Symb saveTempSymb(Symb symb, Context ctx) {
     if(symb.type != Type_variable || symb.value.v.frameType != TF) {
         return symb;
     }
-    size_t saveId = getNextCodeGenUID();
-    // causes mem leak
-    StringBuilder sb;
-    StringBuilder__init(&sb);
-    StringBuilder__appendString(&sb, "var&temp_symb_save&");
-    StringBuilder__appendInt(&sb, saveId);
-    Var var = (Var){.frameType = frameType, .name = sb.text};
-    emit_DEFVAR(var);
+    Var var = generateTemporaryVariable(ctx);
     emit_MOVE(var, symb);
     return (Symb){.type = Type_variable, .value.v = var};
 }
@@ -509,7 +525,7 @@ Symb generateBinaryOperator(Expression__BinaryOperator * expression, Context ctx
             exit(1);
         }
         Expression__Variable * var = (Expression__Variable*)expression->lSide;
-        char * varId = join_strings("var&", var->name);
+        char * varId = var->name;
         Var left = (Var) {.frameType = ((VariableInfo*)table_find(ctx.varTable, var->name)->data)->isGlobal ? GF : LF, .name = varId};;
         Symb right;
         if(throwaway || outVarAlt != NULL) {
@@ -518,7 +534,9 @@ Symb generateBinaryOperator(Expression__BinaryOperator * expression, Context ctx
             right = generateExpression(expression->rSide, ctx, false, NULL);
         }
         if(!throwaway) {
-            right = saveTempSymb(right, ctx.isGlobal ? GF : LF);
+            right = saveTempSymb(right, ctx);
+        } else {
+            freeTemporarySymbol(right, ctx);
         }
         if((!throwaway && outVarAlt == NULL) || right.type != Type_variable || right.value.v.frameType != left.frameType || strcmp(right.value.v.name, left.name) != 0) {
             emit_MOVE(left, right);
@@ -527,16 +545,10 @@ Symb generateBinaryOperator(Expression__BinaryOperator * expression, Context ctx
     }
     Symb left = generateExpression(expression->lSide, ctx, false, NULL);
     Symb right = generateExpression(expression->rSide, ctx, false, NULL);
-    left = saveTempSymb(left, ctx.isGlobal ? GF : LF);
-    size_t outVarId = getNextCodeGenUID();
-    StringBuilder sb;
-    StringBuilder__init(&sb);
-    StringBuilder__appendString(&sb, "var&operator_output&");
-    StringBuilder__appendInt(&sb, outVarId);
+    left = saveTempSymb(left, ctx);
     Var outVar;
     if(outVarAlt == NULL) {
-        outVar = (Var){.frameType=ctx.isGlobal ? GF : LF, .name=sb.text};
-        emit_DEFVAR(outVar);
+        outVar = generateTemporaryVariable(ctx);
     } else {
         outVar = *outVarAlt;
     }
@@ -564,7 +576,7 @@ Symb generateBinaryOperator(Expression__BinaryOperator * expression, Context ctx
                 if(typeL.type == typeR.type || (typeL.type == TYPE_NULL && !typeR.isRequired) || (typeR.type == TYPE_NULL && !typeL.isRequired)) {
                     emit_EQ(outVar, left, right);
                 } else {
-                    return (Symb){.type = Type_bool, .value.b = false};
+                    outSymb = (Symb){.type = Type_bool, .value.b = false};
                 }
             } else {
                 Symb typeOut1 = generateSymbType(expression->lSide, left, ctx);
@@ -575,6 +587,8 @@ Symb generateBinaryOperator(Expression__BinaryOperator * expression, Context ctx
                 StringBuilder__appendString(&sb3, "type_check_ok&");
                 StringBuilder__appendInt(&sb3, operatorTypeCheckId);
                 emit_JUMPIFEQ(sb3.text, typeOut1, typeOut2);
+                freeTemporarySymbol(typeOut1, ctx);
+                freeTemporarySymbol(typeOut2, ctx);
                 emit_MOVE(outVar, (Symb){.type=Type_bool, .value.b=false});
                 StringBuilder sb4;
                 StringBuilder__init(&sb4);
@@ -595,7 +609,7 @@ Symb generateBinaryOperator(Expression__BinaryOperator * expression, Context ctx
                     emit_EQ(outVar, left, right);
                     emit_NOT(outVar, outSymb);
                 } else {
-                    return (Symb){.type = Type_bool, .value.b = true};
+                    outSymb = (Symb){.type = Type_bool, .value.b = true};
                 }
             } else {
                 Symb typeOut1 = generateSymbType(expression->lSide, left, ctx);
@@ -606,6 +620,8 @@ Symb generateBinaryOperator(Expression__BinaryOperator * expression, Context ctx
                 StringBuilder__appendString(&sb3, "type_check_ok&");
                 StringBuilder__appendInt(&sb3, operatorTypeCheckId);
                 emit_JUMPIFEQ(sb3.text, typeOut1, typeOut2);
+                freeTemporarySymbol(typeOut1, ctx);
+                freeTemporarySymbol(typeOut2, ctx);
                 emit_MOVE(outVar, (Symb){.type=Type_bool, .value.b=true});
                 StringBuilder sb4;
                 StringBuilder__init(&sb4);
@@ -637,6 +653,8 @@ Symb generateBinaryOperator(Expression__BinaryOperator * expression, Context ctx
             fprintf(stderr, "Unknown operator found while generating output code\n");
             exit(99);
     }
+    freeTemporarySymbol(left, ctx);
+    freeTemporarySymbol(right, ctx);
     return outSymb;
 }
 
@@ -679,7 +697,9 @@ void generateIf(StatementIf * statement, Context ctx) {
 
     bool isElseEmpty = statement->elseBody == NULL || (statement->elseBody->statementType == STATEMENT_LIST && ((StatementList*)statement->elseBody)->listSize == 0);
     Symb condition = generateExpression(statement->condition, ctx, false, NULL);
-    emit_JUMPIFNEQ(ifElseSb.text, generateCastToBool(statement->condition, condition, ctx), (Symb){.type=Type_bool, .value.b = true});
+    condition = generateCastToBool(statement->condition, condition, ctx);
+    emit_JUMPIFNEQ(ifElseSb.text, condition, (Symb){.type=Type_bool, .value.b = true});
+    freeTemporarySymbol(condition, ctx);
     generateStatement(statement->ifBody, ctx);
     if(!isElseEmpty) emit_JUMP(ifEndSb.text);
     emit_LABEL(ifElseSb.text);
@@ -704,7 +724,9 @@ void generateWhile(StatementWhile * statement, Context ctx) {
 
     emit_LABEL(whileStartSb.text);
     Symb condition = generateExpression(statement->condition, ctx, false, NULL);
-    emit_JUMPIFNEQ(whileEndSb.text, generateCastToBool(statement->condition, condition, ctx), (Symb){.type=Type_bool, .value.b = true});
+    condition = generateCastToBool(statement->condition, condition, ctx);
+    emit_JUMPIFNEQ(whileEndSb.text, condition, (Symb){.type=Type_bool, .value.b = true});
+    freeTemporarySymbol(condition, ctx);
     generateStatement(statement->body, ctx);
     emit_JUMP(whileStartSb.text);
     emit_LABEL(whileEndSb.text);
@@ -779,8 +801,8 @@ void generateFunction(Function* function, Table * functionTable) {
                 VariableInfo * variableInfo = malloc(sizeof(VariableInfo));
                 variableInfo->name = variable->name;
                 variableInfo->isGlobal = false;
-                variableInfo->type.type = TYPE_UNKNOWN;
-                variableInfo->type.isRequired = false;
+                variableInfo->isUsed = true;
+                variableInfo->isTemporary = false;
                 table_insert(localTable, variable->name, variableInfo);
                 bool isParameter = false;
                 for(int j=0; j<function->arity; j++) {
@@ -790,7 +812,7 @@ void generateFunction(Function* function, Table * functionTable) {
                     }
                 }
                 if(!isParameter) {
-                    emit_DEFVAR((Var){.frameType=TF, .name=join_strings("var&", variable->name)});
+                    emit_DEFVAR((Var){.frameType=TF, .name=variable->name});
                 }
             }
         }
@@ -901,10 +923,10 @@ void generateCode(StatementList * program, Table * functionTable) {
                 VariableInfo * variableInfo = malloc(sizeof(VariableInfo));
                 variableInfo->name = variable->name;
                 variableInfo->isGlobal = true;
-                variableInfo->type.type = TYPE_UNKNOWN;
-                variableInfo->type.isRequired = false;
+                variableInfo->isUsed = true;
+                variableInfo->isTemporary = false;
                 table_insert(globalTable, variable->name, variableInfo);
-                emit_DEFVAR((Var){.frameType=GF, .name=join_strings("var&", variable->name)});
+                emit_DEFVAR((Var){.frameType=GF, .name=variable->name});
             }
         }
     }
