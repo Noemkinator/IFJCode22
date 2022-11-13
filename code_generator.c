@@ -522,15 +522,19 @@ Symb generateBinaryOperator(Expression__BinaryOperator * expression, Context ctx
             emit_DIV(outVar, left, right);
             break;
         case TOKEN_EQUALS: {
-            Symb typeOut1 = generateSymbType(expression->lSide, left, ctx);
-            Symb typeOut2 = generateSymbType(expression->rSide, right, ctx);
-            if(typeOut1.type == Type_string && typeOut2.type == Type_string) {
-                if(strcmp(typeOut1.value.s, typeOut2.value.s) == 0) {
+            UnionType unionTypeL = expression->lSide->getType(expression->lSide, ctx.functionTable, ctx.program, ctx.currentFunction);
+            UnionType unionTypeR = expression->rSide->getType(expression->rSide, ctx.functionTable, ctx.program, ctx.currentFunction);
+            Type typeL = unionTypeToType(unionTypeL);
+            Type typeR = unionTypeToType(unionTypeR);
+            if(typeL.type != TYPE_UNKNOWN) {
+                if(typeL.type == typeR.type || (typeL.type == TYPE_NULL && !typeR.isRequired) || (typeR.type == TYPE_NULL && !typeL.isRequired)) {
                     emit_EQ(outVar, left, right);
                 } else {
                     return (Symb){.type = Type_bool, .value.b = false};
                 }
             } else {
+                Symb typeOut1 = generateSymbType(expression->lSide, left, ctx);
+                Symb typeOut2 = generateSymbType(expression->rSide, right, ctx);
                 size_t operatorTypeCheckId = getNextCodeGenUID();
                 StringBuilder sb3;
                 StringBuilder__init(&sb3);
