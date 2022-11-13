@@ -94,7 +94,36 @@ Symb generateVariable(Expression__Variable * statement, Context ctx) {
     // causes mem leak
     generateVarTypeComment(statement, ctx);
     char * varId = join_strings("var&", statement->name);
-    return (Symb){.type = Type_variable, .value.v.frameType = ((VariableInfo*)table_find(ctx.varTable, statement->name)->data)->isGlobal ? GF : LF, .value.v.name = varId};
+    Var variable = (Var){.name = varId, .frameType = ((VariableInfo*)table_find(ctx.varTable, statement->name)->data)->isGlobal ? GF : LF};
+    Symb symb = (Symb){.type = Type_variable, .value.v = variable};
+    UnionType type = statement->super.getType((Expression *) statement, ctx.functionTable, ctx.program, ctx.currentFunction);
+    if(type.isUndefined) {
+        size_t variableCheckUID = getNextCodeGenUID();
+        StringBuilder variableType;
+        StringBuilder__init(&variableType);
+        StringBuilder__appendString(&variableType, "varType");
+        StringBuilder__appendInt(&variableType, variableCheckUID);
+        Var var = (Var){.name = variableType.text, .frameType = ((VariableInfo*)table_find(ctx.varTable, statement->name)->data)->isGlobal ? GF : LF};
+        emit_DEFVAR(var);
+        StringBuilder variableDefined;
+        StringBuilder__init(&variableDefined);
+        StringBuilder__appendString(&variableDefined, "variable_defined&");
+        StringBuilder__appendInt(&variableDefined, variableCheckUID);
+        StringBuilder errorMessage;
+        StringBuilder__init(&errorMessage);
+        StringBuilder__appendString(&errorMessage, "Variable ");
+        StringBuilder__appendString(&errorMessage, statement->name);
+        StringBuilder__appendString(&errorMessage, " is not defined.");
+        emit_TYPE(var, symb);
+        emit_JUMPIFNEQ(variableDefined.text, (Symb){.type = Type_variable, .value.v = var}, (Symb){.type = Type_string, .value.s = ""});
+        emit_DPRINT((Symb){.type = Type_string, .value.s = errorMessage.text});
+        emit_EXIT((Symb){.type = Type_int, .value.i = 5});
+        emit_LABEL(variableDefined.text);
+        StringBuilder__free(&variableType);
+        StringBuilder__free(&variableDefined);
+        StringBuilder__free(&errorMessage);
+    }
+    return symb;
 }
 
 Statement *** getAllStatements(Statement * parent, size_t * count) {
@@ -474,22 +503,29 @@ Symb saveTempSymb(Symb symb, FrameType frameType) {
 }
 
 Symb generateBinaryOperator(Expression__BinaryOperator * expression, Context ctx, bool throwaway, Var * outVarAlt) {
-    Symb left = generateExpression(expression->lSide, ctx, false, NULL);
     if(expression->operator == TOKEN_ASSIGN) {
+        if(expression->lSide->expressionType != EXPRESSION_VARIABLE) {
+            fprintf(stderr, "Assigment to something else than variable found, but it should be checked elsewhere???\n");
+            exit(1);
+        }
+        Expression__Variable * var = (Expression__Variable*)expression->lSide;
+        char * varId = join_strings("var&", var->name);
+        Var left = (Var) {.frameType = ((VariableInfo*)table_find(ctx.varTable, var->name)->data)->isGlobal ? GF : LF, .name = varId};;
         Symb right;
         if(throwaway || outVarAlt != NULL) {
-            right = generateExpression(expression->rSide, ctx, false, &left.value.v);
+            right = generateExpression(expression->rSide, ctx, false, &left);
         } else {
             right = generateExpression(expression->rSide, ctx, false, NULL);
         }
         if(!throwaway) {
             right = saveTempSymb(right, ctx.isGlobal ? GF : LF);
         }
-        if((!throwaway && outVarAlt == NULL) || right.type != left.type || right.value.v.frameType != left.value.v.frameType || strcmp(right.value.v.name, left.value.v.name) != 0) {
-            emit_MOVE(left.value.v, right);
+        if((!throwaway && outVarAlt == NULL) || right.type != Type_variable || right.value.v.frameType != left.frameType || strcmp(right.value.v.name, left.name) != 0) {
+            emit_MOVE(left, right);
         }
         return right;
     }
+    Symb left = generateExpression(expression->lSide, ctx, false, NULL);
     Symb right = generateExpression(expression->rSide, ctx, false, NULL);
     left = saveTempSymb(left, ctx.isGlobal ? GF : LF);
     size_t outVarId = getNextCodeGenUID();
