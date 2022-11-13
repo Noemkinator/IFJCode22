@@ -310,15 +310,6 @@ Symb generateFunctionCall(Expression__FunctionCall * expression, Context ctx, Va
             }
             // TODO add return void
             return (Symb){.type=Type_int, .value.i=0};
-        } else if(strcmp(function->name, "strval") == 0) {
-            if(expression->arity == 1) {
-                Type type = unionTypeToType(expression->arguments[0]->getType(expression->arguments[0], ctx.functionTable, ctx.program, ctx.currentFunction));
-                if(type.type == TYPE_STRING && type.isRequired == true) {
-                    return generateExpression(expression->arguments[0], ctx, false, NULL);
-                } else if(type.type == TYPE_NULL) {
-                    return (Symb){.type = Type_string, .value.s = ""};
-                }
-            }
         }
     }
     if(function->arity != expression->arity) {
@@ -343,25 +334,19 @@ Symb generateFunctionCall(Expression__FunctionCall * expression, Context ctx, Va
         else var = generateTemporaryVariable(ctx);
         emit_READ(var, Type_float);
         return (Symb){.type = Type_variable, .value.v=var};
-    }
-    StringBuilder sbRet;
-    StringBuilder__init(&sbRet);
-    StringBuilder__appendString(&sbRet, "returnValue&");
-    StringBuilder__appendInt(&sbRet, getNextCodeGenUID());
-    emit_CREATEFRAME();
-    if(strcmp(function->name, "floatval") == 0) {
+    } else if(strcmp(function->name, "floatval") == 0) {
         Symb symb = generateExpression(expression->arguments[0], ctx, false, NULL);
-        emit_DEFVAR((Var){.frameType=TF, .name="returnValue"});
-        emit_INT2FLOAT((Var){.frameType=TF, .name="returnValue"}, symb);
-        return (Symb){.type = Type_variable, .value.v=(Var){.frameType = TF, .name = "returnValue"}};
+        Var retVar = generateTemporaryVariable(ctx);
+        emit_INT2FLOAT(retVar, symb);
+        return (Symb){.type = Type_variable, .value.v=retVar};
     } else if(strcmp(function->name, "intval") == 0) {
         Symb symb = generateExpression(expression->arguments[0], ctx, false, NULL);
-        emit_DEFVAR((Var){.frameType=TF, .name="returnValue"});
-        emit_FLOAT2INT((Var){.frameType=TF, .name="returnValue"}, symb);
-        return (Symb){.type = Type_variable, .value.v=(Var){.frameType = TF, .name = "returnValue"}};
+        Var retVar = generateTemporaryVariable(ctx);
+        emit_FLOAT2INT(retVar, symb);
+        return (Symb){.type = Type_variable, .value.v=retVar};
     } else if(strcmp(function->name, "strval") == 0) {
         Symb symb = generateExpression(expression->arguments[0], ctx, false, NULL);
-        emit_DEFVAR((Var){.frameType=TF, .name="returnValue"});
+        Var retVar = generateTemporaryVariable(ctx);
         size_t strvalUID = getNextCodeGenUID();
         Symb type = generateSymbType(expression->arguments[0], symb, ctx);
         StringBuilder strval_end;
@@ -373,7 +358,7 @@ Symb generateFunctionCall(Expression__FunctionCall * expression, Context ctx, Va
         StringBuilder__appendString(&strval_not_string, "strval_not_string&");
         StringBuilder__appendInt(&strval_not_string, strvalUID);
         emit_JUMPIFNEQ(strval_not_string.text, type, (Symb){.type=Type_string, .value.s="string"});
-        emit_MOVE((Var){.frameType=TF, .name="returnValue"}, symb);
+        emit_MOVE(retVar, symb);
         emit_JUMP(strval_end.text);
         emit_LABEL(strval_not_string.text);
         StringBuilder strval_not_null;
@@ -381,24 +366,26 @@ Symb generateFunctionCall(Expression__FunctionCall * expression, Context ctx, Va
         StringBuilder__appendString(&strval_not_null, "strval_not_null&");
         StringBuilder__appendInt(&strval_not_null, strvalUID);
         emit_JUMPIFNEQ(strval_not_null.text, type, (Symb){.type=Type_string, .value.s="nil"});
-        emit_MOVE((Var){.frameType=TF, .name="returnValue"}, (Symb){.type=Type_string, .value.s=""});
+        emit_MOVE(retVar, (Symb){.type=Type_string, .value.s=""});
         emit_JUMP(strval_end.text);
         emit_LABEL(strval_not_null.text);
         emit_DPRINT((Symb){.type=Type_string, .value.s="Unsupported argument type of strval\n"});
         emit_EXIT((Symb){.type=Type_int, .value.i=4});
         emit_LABEL(strval_end.text);
-        return (Symb){.type = Type_variable, .value.v=(Var){.frameType = TF, .name = "returnValue"}};
-    } else if(strcmp(function->name, "strlen") == 0) {
+        return (Symb){.type = Type_variable, .value.v=retVar};
+    }
+    // TODO arg type check
+    if(strcmp(function->name, "strlen") == 0) {
         Symb symb = generateExpression(expression->arguments[0], ctx, false, NULL);
-        emit_DEFVAR((Var){.frameType=TF, .name="returnValue"});
-        emit_STRLEN((Var){.frameType=TF, .name="returnValue"}, symb);
-        return (Symb){.type = Type_variable, .value.v=(Var){.frameType = TF, .name = "returnValue"}};
+        Var retVar = generateTemporaryVariable(ctx);
+        emit_STRLEN(retVar, symb);
+        return (Symb){.type = Type_variable, .value.v=retVar};
     } else if(strcmp(function->name, "substring") == 0) {
         Symb symb1 = generateExpression(expression->arguments[0], ctx, false, NULL);
         Symb symb2 = generateExpression(expression->arguments[1], ctx, false, NULL);
         Symb symb3 = generateExpression(expression->arguments[2], ctx, false, NULL);
-        Var returnValue = {.frameType = TF, .name = "returnValue"};
-        emit_DEFVAR(returnValue);
+        Var retVar = generateTemporaryVariable(ctx);
+        emit_DEFVAR(retVar);
         size_t substringUID = getNextCodeGenUID();
         StringBuilder func_substring_end;
         StringBuilder__init(&func_substring_end);
@@ -433,20 +420,20 @@ Symb generateFunctionCall(Expression__FunctionCall * expression, Context ctx, Va
         StringBuilder__appendInt(&func_substring_loop_start, substringUID);
         Var func_substring_loop_indexVar = generateTemporaryVariable(ctx);
         emit_MOVE(func_substring_loop_indexVar, symb2);
-        emit_MOVE(returnValue, (Symb){.type=Type_string, .value.s=""});
+        emit_MOVE(retVar, (Symb){.type=Type_string, .value.s=""});
         emit_JUMPIFNEQS(func_substring_loop_start.text);
-        emit_MOVE(returnValue, (Symb){.type=Type_null});
+        emit_MOVE(retVar, (Symb){.type=Type_null});
         emit_JUMP(func_substring_end.text);
         emit_LABEL(func_substring_loop_start.text);
         emit_JUMPIFEQ(func_substring_end.text, (Symb){.type=Type_variable, .value.v=func_substring_loop_indexVar}, symb3);
         emit_GETCHAR(tempVar, symb1, (Symb){.type=Type_variable, .value.v=func_substring_loop_indexVar});
-        emit_CONCAT(returnValue, (Symb){.type=Type_variable, .value.v=returnValue}, (Symb){.type=Type_variable, .value.v=tempVar});
+        emit_CONCAT(retVar, (Symb){.type=Type_variable, .value.v=retVar}, (Symb){.type=Type_variable, .value.v=tempVar});
         emit_ADD(func_substring_loop_indexVar, (Symb){.type=Type_variable, .value.v=func_substring_loop_indexVar}, (Symb){.type=Type_int, .value.i=1});
         emit_JUMP(func_substring_loop_start.text);
         emit_LABEL(func_substring_end.text);
         freeTemporaryVariable(tempVar, ctx);
         freeTemporaryVariable(func_substring_loop_indexVar, ctx);
-        return (Symb){.type = Type_variable, .value.v=returnValue};
+        return (Symb){.type = Type_variable, .value.v=retVar};
     } else if(strcmp(function->name, "ord") == 0) {
         size_t ordId = getNextCodeGenUID();
         StringBuilder sb;
@@ -454,19 +441,20 @@ Symb generateFunctionCall(Expression__FunctionCall * expression, Context ctx, Va
         StringBuilder__appendString(&sb, "ord_end&");
         StringBuilder__appendInt(&sb, ordId);
         Symb symb = generateExpression(expression->arguments[0], ctx, false, NULL);
-        emit_DEFVAR((Var){.frameType=TF, .name="returnValue"});
-        emit_STRLEN((Var){.frameType=TF, .name="returnValue"}, symb);
-        emit_JUMPIFEQ(sb.text, (Symb){.type = Type_variable, .value.v = (Var){.frameType=TF, .name="returnValue"}}, (Symb){.type=Type_int, .value.i=0});
-        emit_STRI2INT((Var){.frameType=TF, .name="returnValue"}, symb, (Symb){.type=Type_int, .value.i=0});
+        Var retVar = generateTemporaryVariable(ctx);
+        emit_STRLEN(retVar, symb);
+        emit_JUMPIFEQ(sb.text, (Symb){.type = Type_variable, .value.v = retVar}, (Symb){.type=Type_int, .value.i=0});
+        emit_STRI2INT(retVar, symb, (Symb){.type=Type_int, .value.i=0});
         emit_LABEL(sb.text);
         StringBuilder__free(&sb);
-        return (Symb){.type = Type_variable, .value.v=(Var){.frameType = TF, .name = "returnValue"}};
+        return (Symb){.type = Type_variable, .value.v=retVar};
     } else if(strcmp(function->name, "chr") == 0) {
         Symb symb1 = generateExpression(expression->arguments[0], ctx, false, NULL);
-        emit_DEFVAR((Var){.frameType=TF, .name="returnValue"});
-        emit_INT2CHAR((Var){.frameType=TF, .name="returnValue"}, symb1);
-        return (Symb){.type = Type_variable, .value.v=(Var){.frameType = TF, .name = "returnValue"}};
+        Var retVar = generateTemporaryVariable(ctx);
+        emit_INT2CHAR(retVar, symb1);
+        return (Symb){.type = Type_variable, .value.v=retVar};
     }
+    emit_CREATEFRAME();
     bool containsNestedFunctionCall = false;
     for(int i = 0; i < expression->arity; i++) {
         size_t count;
