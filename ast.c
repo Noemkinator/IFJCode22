@@ -367,7 +367,9 @@ UnionType getExpressionVarType(Expression__Variable * variable, Table * function
             UnionType type1 = getExpressionVarType(variable, functionTable, binOp->lSide, variableTable, &lType);
             UnionType type2 = getExpressionVarType(variable, functionTable, binOp->rSide, variableTable, &rType);
             if(binOp->operator == TOKEN_ASSIGN && binOp->lSide->expressionType == EXPRESSION_VARIABLE) {
-                *(UnionType*)table_find(variableTable, ((Expression__Variable*)binOp->lSide)->name)->data = rType;
+                UnionType assignedType = rType;
+                assignedType.isUndefined = false;
+                *(UnionType*)table_find(variableTable, ((Expression__Variable*)binOp->lSide)->name)->data = assignedType;
             }
             if(exprTypeRet == NULL) {
                 return orUnionType(type1, type2);
