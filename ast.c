@@ -1,6 +1,6 @@
 /**
  * @file ast.c
- * @author Jiří Gallo (xgallo04)
+ * @author Jiří Gallo (xgallo04), Jakub Kratochvíl (xkrato67)
  * @brief Abstract syntax tree
  * @date 2022-10-26
  */
@@ -244,6 +244,19 @@ UnionType Expression__Constant__getType(Expression__Constant *this, Table * func
 }
 
 /**
+ * @brief Duplicates Expression__Constant
+ * 
+ * @param this 
+ * @return Expression__Constant* 
+ */
+Expression__Constant* Expression__Constant__duplicate(Expression__Constant* this) {
+    Expression__Constant* duplicate = Expression__Constant__init();
+    duplicate->type = this->type;
+    duplicate->value = this->value;
+    return duplicate;
+}
+
+/**
  * @brief Constant expression constructor
  * 
  * @param type 
@@ -255,6 +268,7 @@ Expression__Constant* Expression__Constant__init() {
     this->super.super.statementType = STATEMENT_EXPRESSION;
     this->super.super.serialize = (void (*)(struct Statement *, StringBuilder *))Expression__Constant__serialize;
     this->super.super.getChildren = (struct Statement *** (*)(struct Statement *, int *))Expression__Constant__getChildren;
+    this->super.super.duplicate = (struct Statement * (*)(struct Statement *))Expression__Constant__duplicate;
     this->super.getType = (UnionType (*)(struct Expression *, Table *, StatementList *, Function *))Expression__Constant__getType;
     this->type.isRequired = false;
     this->type.type = TYPE_UNKNOWN;
@@ -559,6 +573,18 @@ UnionType Expression__Variable__getType(Expression__Variable *this, Table * func
 }
 
 /**
+ * @brief Duplicates Expression__Variable
+ * 
+ * @param this 
+ * @return Expression__Variable* 
+ */
+Expression__Variable* Expression__Variable__duplicate(Expression__Variable* this) {
+    Expression__Variable* duplicate = Expression__Variable__init();
+    duplicate->name = (this->name != NULL ? this->name : NULL);
+    return duplicate;
+}
+
+/**
  * @brief Variable expression constructor
  * 
  * @param type 
@@ -570,6 +596,7 @@ Expression__Variable* Expression__Variable__init() {
     this->super.super.statementType = STATEMENT_EXPRESSION;
     this->super.super.serialize = (void (*)(struct Statement *, StringBuilder *))Expression__Variable__serialize;
     this->super.super.getChildren = (struct Statement *** (*)(struct Statement *, int *))Expression__Variable__getChildren;
+    this->super.super.duplicate = (struct Statement * (*)(struct Statement *))Expression__Variable__duplicate;
     this->super.getType = (UnionType (*)(struct Expression *, Table *, StatementList *, Function *))Expression__Variable__getType;
     this->name = NULL;
     return this;
@@ -632,6 +659,24 @@ UnionType Expression__FunctionCall__getType(Expression__FunctionCall *this, Tabl
 }
 
 /**
+ * @brief Duplicates Expression__FunctionCall
+ * 
+ * @param this 
+ * @return Expression__FunctionCall* 
+ */
+Expression__FunctionCall* Expression__FunctionCall__duplicate(Expression__FunctionCall* this) {
+    Expression__FunctionCall* duplicate = Expression__FunctionCall__init();
+    duplicate->arity = this->arity;
+    duplicate->name = (this->name != NULL ? this->name : NULL);
+
+    for(int i=0; i < this->arity; ++i) {
+        Expression__FunctionCall__addArgument(duplicate, (Expression*)this->arguments[i]->super.duplicate((Statement*)this->arguments[i]));
+    }
+    return duplicate;
+}
+
+
+/**
  * @brief Function call expression constructor
  * 
  * @param type 
@@ -644,6 +689,7 @@ Expression__FunctionCall* Expression__FunctionCall__init() {
     this->super.super.statementType = STATEMENT_EXPRESSION;
     this->super.super.serialize = (void (*)(struct Statement *, StringBuilder *))Expression__FunctionCall__serialize;
     this->super.super.getChildren = (struct Statement *** (*)(struct Statement *, int *))Expression__FunctionCall__getChildren;
+    this->super.super.duplicate = (struct Statement * (*)(struct Statement *))Expression__FunctionCall__duplicate;
     this->name = NULL;
     this->arity = 0;
     this->arguments = NULL;
@@ -786,6 +832,20 @@ UnionType Expression__BinaryOperation__getType(Expression__BinaryOperator *this,
 }
 
 /**
+ * @brief Duplicates Expression__BinaryOperator
+ * 
+ * @param this 
+ * @return Expression__BinaryOperator* 
+ */
+Expression__BinaryOperator* Expression__BinaryOperator__duplicate(Expression__BinaryOperator* this) {
+    Expression__BinaryOperator* duplicate = Expression__BinaryOperator__init();
+    duplicate->lSide = (this->lSide != NULL ? (Expression*)this->lSide->super.duplicate((Statement*)this) : NULL);
+    duplicate->rSide = (this->rSide != NULL ? (Expression*)this->rSide->super.duplicate((Statement*)this) : NULL);
+    duplicate->operator = this->operator;
+    return duplicate;
+}
+
+/**
  * @brief Binary operator expression constructor
  * 
  * @param type 
@@ -797,6 +857,7 @@ Expression__BinaryOperator* Expression__BinaryOperator__init() {
     this->super.super.statementType = STATEMENT_EXPRESSION;
     this->super.super.serialize = (void (*)(struct Statement *, StringBuilder *))Expression__BinaryOperator__serialize;
     this->super.super.getChildren = (struct Statement *** (*)(struct Statement *, int *))Expression__BinaryOperator__getChildren;
+    this->super.super.duplicate = (struct Statement * (*)(struct Statement *))Expression__BinaryOperator__duplicate;
     this->super.getType = (UnionType (*)(struct Expression *, Table *, StatementList *, Function *))Expression__BinaryOperation__getType;
     this->lSide = NULL;
     this->rSide = NULL;
@@ -846,6 +907,20 @@ Statement *** StatementIf__getChildren(StatementIf *this, int * childrenCount) {
 }
 
 /**
+ * @brief Duplicates <if> statement
+ * 
+ * @param type 
+ * @return StatementIf* 
+ */
+StatementIf* StatementIf__duplicate(StatementIf* this) {
+    StatementIf* duplicate = StatementIf__init();
+    duplicate->condition = (this->condition != NULL ? (Expression*)this->condition : NULL);
+    duplicate->elseBody = (this->elseBody != NULL ? this->elseBody : NULL);
+    duplicate->ifBody = (this->ifBody != NULL ? this->ifBody : NULL);
+    return duplicate;
+}
+
+/**
  * @brief <if> statement constructor
  * 
  * @param type 
@@ -856,6 +931,7 @@ StatementIf* StatementIf__init() {
     this->super.statementType = STATEMENT_IF;
     this->super.serialize = (void (*)(struct Statement *, StringBuilder *))StatementIf__serialize;
     this->super.getChildren = (struct Statement *** (*)(struct Statement *, int *))StatementIf__getChildren;
+    this->super.duplicate = (struct Statement * (*)(struct Statement *))StatementIf__duplicate;
     this->condition = NULL;
     this->ifBody = NULL;
     this->elseBody = NULL;
@@ -898,6 +974,19 @@ Statement *** StatementWhile__getChildren(StatementWhile *this, int * childrenCo
 }
 
 /**
+ * @brief Duplicates <while> statement
+ * 
+ * @param type 
+ * @return StatementWhile* 
+ */
+StatementWhile* StatementWhile__duplicate(StatementWhile* this) {
+    StatementWhile* duplicate = StatementWhile__init();
+    duplicate->body = (this->body != NULL ? this->body : NULL);
+    duplicate->condition = (this->condition != NULL ? (Expression*)this->condition : NULL);
+    return duplicate;
+}
+
+/**
  * @brief <while> statement constructor
  * 
  * @param type 
@@ -907,7 +996,8 @@ StatementWhile* StatementWhile__init() {
     StatementWhile *this = malloc(sizeof(StatementWhile));
     this->super.statementType = STATEMENT_WHILE;
     this->super.serialize = (void (*)(struct Statement *, StringBuilder *))StatementWhile__serialize;
-    this->super.getChildren = (struct Statement *** (*)(struct Statement *, int *))StatementWhile__getChildren;
+    this->super.getChildren = (struct Statement *** (*)(struct Statement *, int *))StatementWhile__getChildren;    
+    this->super.duplicate = (struct Statement * (*)(struct Statement *))StatementWhile__duplicate;
     this->condition = NULL;
     this->body = NULL;
     return this;
@@ -942,6 +1032,18 @@ Statement *** StatementReturn__getChildren(StatementReturn *this, int * children
 }
 
 /**
+ * @brief Duplicates <return> statement
+ * 
+ * @param type 
+ * @return StatementReturn* 
+ */
+StatementReturn* StatementReturn__duplicate(StatementReturn* this) {
+    StatementReturn* duplicate = StatementReturn__init();
+    duplicate->expression = (this->expression != NULL ? (Expression*)this->expression : NULL);
+    return duplicate;
+}
+
+/**
  * @brief <return> statement constructor
  * 
  * @param type 
@@ -952,6 +1054,7 @@ StatementReturn* StatementReturn__init() {
     this->super.statementType = STATEMENT_RETURN;
     this->super.serialize = (void (*)(struct Statement *, StringBuilder *))StatementReturn__serialize;
     this->super.getChildren = (struct Statement *** (*)(struct Statement *, int *))StatementReturn__getChildren;
+    this->super.duplicate = (struct Statement * (*)(struct Statement *))StatementReturn__duplicate;
     this->expression = NULL;
     return this;
 }
@@ -977,6 +1080,18 @@ Statement *** StatementExit__getChildren(StatementExit *this, int * childrenCoun
     *childrenCount = 0;
     Statement *** children = malloc(*childrenCount * sizeof(Statement**));
     return children;
+}
+
+/**
+ * @brief Duplicates <exit> statement
+ * 
+ * @param type 
+ * @return StatementExit* 
+ */
+StatementExit* StatementExit__duplicate(StatementExit* this) {
+    StatementExit* duplicate = StatementExit__init();
+    duplicate->exitCode = this->exitCode;
+    return duplicate;
 }
 
 /**

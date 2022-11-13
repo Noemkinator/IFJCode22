@@ -1,6 +1,6 @@
 /**
  * @file ast.h
- * @author Jiří Gallo (xgallo04)
+ * @author Jiří Gallo (xgallo04), Jakub Kratochvíl (xkrato67)
  * @brief Abstract syntax tree library
  * @date 2022-10-26
  */
@@ -34,6 +34,7 @@ typedef struct Statement {
     StatementType statementType;/*<Statement type>*/
     void (*serialize)(struct Statement *this, StringBuilder * stringBuilder);/*<Serialize function pointer>*/
     struct Statement *** (*getChildren)(struct Statement *this, int * childrenCount); /*<Get children function pointer>*/
+    struct Statement * (*duplicate)(struct Statement *this);
 } Statement;
 
 /**
@@ -114,6 +115,7 @@ typedef struct {
 } Expression__Constant;
 
 Expression__Constant* Expression__Constant__init();
+Expression__Constant* Expression__Constant__duplicate(Expression__Constant* this);
 
 typedef struct {
     Expression super; /*<Superclass>*/
@@ -122,6 +124,7 @@ typedef struct {
 } Expression__Variable;
 
 Expression__Variable* Expression__Variable__init();
+Expression__Variable* Expression__Variable__duplicate(Expression__Variable* this);
 
 typedef struct {
     Expression super; /*<Superclass>*/
@@ -132,7 +135,7 @@ typedef struct {
 } Expression__FunctionCall;
 
 Expression__FunctionCall* Expression__FunctionCall__init();
-
+Expression__FunctionCall* Expression__FunctionCall__duplicate(Expression__FunctionCall* this);
 Expression__FunctionCall* Expression__FunctionCall__addArgument(Expression__FunctionCall *this, Expression *argument);
 
 typedef struct {
@@ -144,6 +147,7 @@ typedef struct {
 } Expression__BinaryOperator;
 
 Expression__BinaryOperator* Expression__BinaryOperator__init();
+Expression__BinaryOperator* Expression__BinaryOperator__duplicate(Expression__BinaryOperator* this);
 
 typedef struct {
     Statement super; /*<Superclass>*/
@@ -154,6 +158,7 @@ typedef struct {
 } StatementIf;
 
 StatementIf* StatementIf__init();
+StatementIf* StatementIf__duplicate(StatementIf* this);
 
 typedef struct {
     Statement super; /*<Superclass>*/
@@ -163,6 +168,7 @@ typedef struct {
 } StatementWhile;
 
 StatementWhile* StatementWhile__init();
+StatementWhile* StatementWhile__duplicate(StatementWhile* this);
 
 typedef struct {
     Statement super; /*<Superclass>*/
@@ -171,6 +177,7 @@ typedef struct {
 } StatementReturn;
 
 StatementReturn* StatementReturn__init();
+StatementReturn* StatementReturn__duplicate(StatementReturn* this);
 
 typedef struct {
     Statement super; /*<Superclass>*/
@@ -179,6 +186,7 @@ typedef struct {
 } StatementExit;
 
 StatementExit* StatementExit__init();
+StatementExit* StatementExit__duplicate(StatementExit* this);
 
 typedef struct Function {
     Statement super; /*<Superclass>*/
