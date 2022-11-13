@@ -532,8 +532,8 @@ Symb generateBinaryOperator(Expression__BinaryOperator * expression, Context ctx
         return right;
     }
     Symb left = generateExpression(expression->lSide, ctx, false, NULL);
-    Symb right = generateExpression(expression->rSide, ctx, false, NULL);
     left = saveTempSymb(left, ctx);
+    Symb right = generateExpression(expression->rSide, ctx, false, NULL);
     Var outVar;
     if(outVarAlt == NULL) {
         outVar = generateTemporaryVariable(ctx);
