@@ -488,30 +488,30 @@ void loadBuiltinFunctions(Table * functionTable) {
     strlen->name = "strlen";
     strlen->returnType.isRequired = true;
     strlen->returnType.type = TYPE_INT;
-    Function__addParameter(strlen, (Type){.isRequired = false, .type = TYPE_UNKNOWN}, "s");
+    Function__addParameter(strlen, (Type){.isRequired = true, .type = TYPE_STRING}, "s");
     table_insert(functionTable, "strlen", strlen);
 
     Function * substring = Function__init();
     substring->name = "substring";
     substring->returnType.isRequired = false;
     substring->returnType.type = TYPE_STRING;
-    Function__addParameter(substring, (Type){.isRequired = false, .type = TYPE_UNKNOWN}, "s");
-    Function__addParameter(substring, (Type){.isRequired = false, .type = TYPE_UNKNOWN}, "i");
-    Function__addParameter(substring, (Type){.isRequired = false, .type = TYPE_UNKNOWN}, "j");
+    Function__addParameter(substring, (Type){.isRequired = true, .type = TYPE_STRING}, "s");
+    Function__addParameter(substring, (Type){.isRequired = true, .type = TYPE_INT}, "i");
+    Function__addParameter(substring, (Type){.isRequired = true, .type = TYPE_INT}, "j");
     table_insert(functionTable, "substring", substring);
 
     Function * ord = Function__init();
     ord->name = "ord";
     ord->returnType.isRequired = true;
     ord->returnType.type = TYPE_INT;
-    Function__addParameter(ord, (Type){.isRequired = false, .type = TYPE_UNKNOWN}, "c");
+    Function__addParameter(ord, (Type){.isRequired = true, .type = TYPE_STRING}, "c");
     table_insert(functionTable, "ord", ord);
 
     Function * chr = Function__init();
     chr->name = "chr";
     chr->returnType.isRequired = true;
     chr->returnType.type = TYPE_STRING;
-    Function__addParameter(chr, (Type){.isRequired = false, .type = TYPE_UNKNOWN}, "i");
+    Function__addParameter(chr, (Type){.isRequired = true, .type = TYPE_INT}, "i");
     table_insert(functionTable, "chr", chr);
 }
 

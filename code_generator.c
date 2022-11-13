@@ -292,6 +292,15 @@ Symb generateCastToBool(Expression * expression, Symb symb, Context ctx) {
     return symb;
 }
 
+Symb saveTempSymb(Symb symb, Context ctx) {
+    if(symb.type != Type_variable || symb.value.v.frameType != TF) {
+        return symb;
+    }
+    Var var = generateTemporaryVariable(ctx);
+    emit_MOVE(var, symb);
+    return (Symb){.type = Type_variable, .value.v = var};
+}
+
 Symb generateExpression(Expression * expression, Context ctx, bool throwaway, Var * outVar);
 
 Symb generateFunctionCall(Expression__FunctionCall * expression, Context ctx, Var * outVarAlt) {
@@ -374,18 +383,65 @@ Symb generateFunctionCall(Expression__FunctionCall * expression, Context ctx, Va
         emit_LABEL(strval_end.text);
         return (Symb){.type = Type_variable, .value.v=retVar};
     }
-    // TODO arg type check
+    Symb * arguments = malloc(sizeof(Symb) * expression->arity);
+    for(int i=0; i<expression->arity; i++) {
+        arguments[i] = saveTempSymb(generateExpression(expression->arguments[i], ctx, false, NULL), ctx);
+    }
+    for(int i=0; i<expression->arity; i++) {
+        UnionType unionType = expression->arguments[i]->getType(expression->arguments[i], ctx.functionTable, ctx.program, ctx.currentFunction);
+        Type type = unionTypeToType(unionType);
+        Type expectedType = function->parameterTypes[i];
+        if(type.type == expectedType.type && (type.isRequired == expectedType.isRequired || expectedType.isRequired == false)) {
+            continue;
+        }
+        StringBuilder typeCheckPassed;
+        StringBuilder__init(&typeCheckPassed);
+        StringBuilder__appendString(&typeCheckPassed, "type_check_passed&");
+        StringBuilder__appendInt(&typeCheckPassed, getNextCodeGenUID());
+        Symb realType = generateSymbType(expression->arguments[i], arguments[i], ctx);
+        char * expectedTypeStr = NULL;
+        if(expectedType.type == TYPE_INT) {
+            expectedTypeStr = "int";
+        } else if(expectedType.type == TYPE_FLOAT) {
+            expectedTypeStr = "float";
+        } else if(expectedType.type == TYPE_STRING) {
+            expectedTypeStr = "string";
+        } else if(expectedType.type == TYPE_BOOL) {
+            expectedTypeStr = "bool";
+        } else if(expectedType.type == TYPE_NULL) {
+            expectedTypeStr = "nil";
+        } else {
+            fprintf(stderr, "ERR: Unexpected type of func parameter\n");
+            exit(99);
+        }
+        emit_JUMPIFEQ(typeCheckPassed.text, realType, (Symb){.type=Type_string, .value.s=expectedTypeStr});
+        if(!expectedType.isRequired && type.type != TYPE_NULL) {
+            emit_JUMPIFEQ(typeCheckPassed.text, realType, (Symb){.type=Type_string, .value.s="nil"});
+        }
+        StringBuilder typeCheckFailMsg;
+        StringBuilder__init(&typeCheckFailMsg);
+        StringBuilder__appendString(&typeCheckFailMsg, "Type check failed for argument ");
+        StringBuilder__appendInt(&typeCheckFailMsg, i);
+        StringBuilder__appendString(&typeCheckFailMsg, " of function ");
+        StringBuilder__appendString(&typeCheckFailMsg, function->name);
+        StringBuilder__appendString(&typeCheckFailMsg, "\n");
+        emit_DPRINT((Symb){.type=Type_string, .value.s=typeCheckFailMsg.text});
+        emit_EXIT((Symb){.type=Type_int, .value.i=4});
+        emit_LABEL(typeCheckPassed.text);
+        freeTemporarySymbol(realType, ctx);
+        StringBuilder__free(&typeCheckPassed);
+        StringBuilder__free(&typeCheckFailMsg);
+    }
     if(strcmp(function->name, "strlen") == 0) {
-        Symb symb = generateExpression(expression->arguments[0], ctx, false, NULL);
+        Symb symb = arguments[0];
         Var retVar = generateTemporaryVariable(ctx);
         emit_STRLEN(retVar, symb);
         return (Symb){.type = Type_variable, .value.v=retVar};
     } else if(strcmp(function->name, "substring") == 0) {
-        Symb symb1 = generateExpression(expression->arguments[0], ctx, false, NULL);
-        Symb symb2 = generateExpression(expression->arguments[1], ctx, false, NULL);
-        Symb symb3 = generateExpression(expression->arguments[2], ctx, false, NULL);
+        Symb symb1 = arguments[0];
+        Symb symb2 = arguments[1];
+        Symb symb3 = arguments[2];
         Var retVar = generateTemporaryVariable(ctx);
-        emit_DEFVAR(retVar);
         size_t substringUID = getNextCodeGenUID();
         StringBuilder func_substring_end;
         StringBuilder__init(&func_substring_end);
@@ -440,7 +496,7 @@ Symb generateFunctionCall(Expression__FunctionCall * expression, Context ctx, Va
         StringBuilder__init(&sb);
         StringBuilder__appendString(&sb, "ord_end&");
         StringBuilder__appendInt(&sb, ordId);
-        Symb symb = generateExpression(expression->arguments[0], ctx, false, NULL);
+        Symb symb = arguments[0];
         Var retVar = generateTemporaryVariable(ctx);
         emit_STRLEN(retVar, symb);
         emit_JUMPIFEQ(sb.text, (Symb){.type = Type_variable, .value.v = retVar}, (Symb){.type=Type_int, .value.i=0});
@@ -449,61 +505,21 @@ Symb generateFunctionCall(Expression__FunctionCall * expression, Context ctx, Va
         StringBuilder__free(&sb);
         return (Symb){.type = Type_variable, .value.v=retVar};
     } else if(strcmp(function->name, "chr") == 0) {
-        Symb symb1 = generateExpression(expression->arguments[0], ctx, false, NULL);
+        Symb symb1 = arguments[0];
         Var retVar = generateTemporaryVariable(ctx);
         emit_INT2CHAR(retVar, symb1);
         return (Symb){.type = Type_variable, .value.v=retVar};
     }
     emit_CREATEFRAME();
-    bool containsNestedFunctionCall = false;
-    for(int i = 0; i < expression->arity; i++) {
-        size_t count;
-        if(expression->arguments[i]->expressionType == EXPRESSION_FUNCTION_CALL) {
-            containsNestedFunctionCall = true;
-            break;
-        }
-        Statement *** statements = getAllStatements((Statement*)expression->arguments[i], &count);
-        for(int j = 0; j < count; j++) {
-            if((*statements[j])->statementType == STATEMENT_EXPRESSION) {
-                Expression * expr = (Expression*)*statements[j];
-                if(expr->expressionType == EXPRESSION_FUNCTION_CALL) {
-                    containsNestedFunctionCall = true;
-                    break;
-                }
-            }
-        }
-        free(statements);
-        if(containsNestedFunctionCall) break;
-    }
-    if(!containsNestedFunctionCall) {
-        for(int i=0; i<expression->arity; i++) {
-            emit_DEFVAR((Var){.frameType = TF, .name = function->parameterNames[i]});
-            emit_MOVE((Var){.frameType = TF, .name = function->parameterNames[i]}, generateExpression(expression->arguments[i], ctx, false, NULL));
-        }
-    } else {
-        for(int i=0; i<expression->arity; i++) {
-            emit_PUSHS(generateExpression(expression->arguments[i], ctx, true, NULL));
-        }
-        emit_CREATEFRAME();
-        for(int i=expression->arity-1; i>=0; i--) {
-            emit_DEFVAR((Var){.frameType = TF, .name = function->parameterNames[i]});
-            emit_POPS((Var){.frameType = TF, .name = function->parameterNames[i]});
-        }
+    for(int i=0; i<expression->arity; i++) {
+        emit_DEFVAR((Var){.frameType = TF, .name = function->parameterNames[i]});
+        emit_MOVE((Var){.frameType = TF, .name = function->parameterNames[i]}, arguments[i]);
     }
     
     char * functionLabel = join_strings("function&", expression->name);
     emit_CALL(functionLabel);
     free(functionLabel);
     return (Symb){.type = Type_variable, .value.v=(Var){.frameType = TF, .name = "returnValue"}};
-}
-
-Symb saveTempSymb(Symb symb, Context ctx) {
-    if(symb.type != Type_variable || symb.value.v.frameType != TF) {
-        return symb;
-    }
-    Var var = generateTemporaryVariable(ctx);
-    emit_MOVE(var, symb);
-    return (Symb){.type = Type_variable, .value.v = var};
 }
 
 Symb generateBinaryOperator(Expression__BinaryOperator * expression, Context ctx, bool throwaway, Var * outVarAlt) {
