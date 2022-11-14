@@ -4,6 +4,13 @@
 #include "string_builder.h"
 #include "optimizer.h"
 
+/**
+ * @brief Join two strings together
+ * 
+ * @param str1 
+ * @param str2 
+ * @return char* 
+ */
 char * join_strings(char * str1, char * str2) {
     int len1 = strlen(str1);
     int len2 = strlen(str2);
@@ -13,7 +20,11 @@ char * join_strings(char * str1, char * str2) {
     return result;
 }
 
-
+/**
+ * @brief Get the Next Code Gen U I D object
+ * 
+ * @return size_t 
+ */
 size_t getNextCodeGenUID() {
     static size_t codeGenUID = 0;
     return codeGenUID++;
@@ -34,9 +45,14 @@ typedef struct {
     StatementList * program;
 } Context;
 
-
 void generateStatement(Statement * statement, Context ctx);
 
+/**
+ * @brief Generate code for a constant
+ * 
+ * @param constant 
+ * @return Symb 
+ */
 Symb generateConstant(Expression__Constant * constant) {
     switch (constant->type.type) {
         case TYPE_INT:
@@ -60,6 +76,12 @@ Symb generateConstant(Expression__Constant * constant) {
     }
 }
 
+/**
+ * @brief Generate code for a variable type comment
+ * 
+ * @param variable
+ * @param context
+ */
 void generateVarTypeComment(Expression__Variable * statement, Context ctx) {
     StringBuilder sb;
     StringBuilder__init(&sb);
@@ -91,6 +113,12 @@ void generateVarTypeComment(Expression__Variable * statement, Context ctx) {
     StringBuilder__free(&sb);
 }
 
+/**
+ * @brief Generate code for temporarz variable
+ * 
+ * @param context
+ * @return Var
+ */
 Var generateTemporaryVariable(Context ctx) {
     for(int i = 0; i < TB_SIZE; i++) {
         TableItem * item = ctx.varTable->tb[i];
@@ -119,6 +147,12 @@ Var generateTemporaryVariable(Context ctx) {
     return tempVar;
 }
 
+/**
+ * @brief Destroy temporary variable
+ * 
+ * @param variable 
+ * @param context
+ */
 void freeTemporaryVariable(Var var, Context ctx) {
     VariableInfo * info = table_find(ctx.varTable, var.name)->data;
     if(info->isTemporary) {
@@ -130,12 +164,26 @@ void freeTemporaryVariable(Var var, Context ctx) {
     }
 }
 
+/**
+ * @brief Generate code for a variable
+ * 
+ * @param variable 
+ * @param context
+ * @return Var
+ */
 void freeTemporarySymbol(Symb symb, Context ctx) {
     if(symb.type == Type_variable) {
         freeTemporaryVariable(symb.value.v, ctx);
     }
 }
 
+/**
+ * @brief Generate code for a variable
+ * 
+ * @param statement
+ * @param context
+ * @return Symb
+ */
 Symb generateVariable(Expression__Variable * statement, Context ctx) {
     // causes mem leak
     generateVarTypeComment(statement, ctx);
@@ -167,6 +215,13 @@ Symb generateVariable(Expression__Variable * statement, Context ctx) {
     return symb;
 }
 
+/**
+ * @brief Get all statements in a block
+ * 
+ * @param statement
+ * @param count
+ * @return Statement**
+ */
 Statement *** getAllStatements(Statement * parent, size_t * count) {
     int childrenCount = 0;
     *count = childrenCount;
@@ -188,6 +243,14 @@ Statement *** getAllStatements(Statement * parent, size_t * count) {
     return children;
 }
 
+/**
+ * @brief Generate symbol type value
+ * 
+ * @param expression
+ * @param symbol
+ * @param context
+ * @return Symb
+ */
 Symb generateSymbType(Expression * expression, Symb symb, Context ctx) {
     Type type = unionTypeToType(expression->getType(expression, ctx.functionTable, ctx.program, ctx.currentFunction));
     if(type.isRequired == true) {
@@ -212,6 +275,14 @@ Symb generateSymbType(Expression * expression, Symb symb, Context ctx) {
     return (Symb){.type = Type_variable, .value.v = typeOut};
 }
 
+/**
+ * @brief Generate code for a bool type cast
+ * 
+ * @param expression
+ * @param symbol
+ * @param context
+ * @return Symb
+ */
 Symb generateCastToBool(Expression * expression, Symb symb, Context ctx) {
     Type type = unionTypeToType(expression->getType(expression, ctx.functionTable, ctx.program, ctx.currentFunction));
     if(type.type == TYPE_BOOL && type.isRequired == true) {
@@ -292,6 +363,13 @@ Symb generateCastToBool(Expression * expression, Symb symb, Context ctx) {
     return symb;
 }
 
+/**
+ * @brief Save temporary symbol to variable
+ * 
+ * @param symbol
+ * @param context
+ * @return Symb
+ */
 Symb saveTempSymb(Symb symb, Context ctx) {
     if(symb.type != Type_variable || symb.value.v.frameType != TF) {
         return symb;
@@ -301,8 +379,24 @@ Symb saveTempSymb(Symb symb, Context ctx) {
     return (Symb){.type = Type_variable, .value.v = var};
 }
 
+/**
+ * @brief Generate expression
+ * 
+ * @param expression
+ * @param context
+ * @param bool
+ * @param variable
+ * @return Symb
+ */
 Symb generateExpression(Expression * expression, Context ctx, bool throwaway, Var * outVar);
-
+/**
+ * @brief Generate code for a function call
+ * 
+ * @param expression
+ * @param context
+ * @param variable
+ * @return Symb
+ */
 Symb generateFunctionCall(Expression__FunctionCall * expression, Context ctx, Var * outVarAlt) {
     TableItem * tableItem = table_find(ctx.functionTable, expression->name);
     if(tableItem == NULL) {
@@ -317,6 +411,7 @@ Symb generateFunctionCall(Expression__FunctionCall * expression, Context ctx, Va
                 Symb symb = generateExpression(expression->arguments[i], ctx, false, NULL);
                 emit_WRITE(symb);
             }
+
             // TODO add return void
             return (Symb){.type=Type_int, .value.i=0};
         }
@@ -522,6 +617,13 @@ Symb generateFunctionCall(Expression__FunctionCall * expression, Context ctx, Va
     return (Symb){.type = Type_variable, .value.v=(Var){.frameType = TF, .name = "returnValue"}};
 }
 
+/**
+ * @brief Generates binary operator code
+ * 
+ * @param expression Expression to generate
+ * @param ctx Context
+ * @return Symb
+ */
 Symb generateBinaryOperator(Expression__BinaryOperator * expression, Context ctx, bool throwaway, Var * outVarAlt) {
     if(expression->operator == TOKEN_ASSIGN) {
         if(expression->lSide->expressionType != EXPRESSION_VARIABLE) {
@@ -662,6 +764,15 @@ Symb generateBinaryOperator(Expression__BinaryOperator * expression, Context ctx
     return outSymb;
 }
 
+/**
+ * @brief Generates code for expression
+ * 
+ * @param expression 
+ * @param ctx 
+ * @param away 
+ * @param outVar 
+ * @return Symb 
+ */
 Symb generateExpression(Expression * expression, Context ctx, bool throwaway, Var * outVar) {
     switch(expression->expressionType) {
         case EXPRESSION_CONSTANT:
@@ -682,12 +793,24 @@ Symb generateExpression(Expression * expression, Context ctx, bool throwaway, Va
     }
 }
 
+/**
+ * @brief Generates code for statement list
+ * 
+ * @param statement 
+ * @param ctx 
+ */
 void generateStatementList(StatementList* statementList, Context ctx) {
     for(int i = 0; i < statementList->listSize; i++) {
         generateStatement(statementList->statements[i], ctx);
     }
 }
 
+/**
+ * @brief Generates code for if statement
+ * 
+ * @param statement 
+ * @param ctx 
+ */
 void generateIf(StatementIf * statement, Context ctx) {
     size_t ifUID = getNextCodeGenUID();
     StringBuilder ifElseSb;
@@ -715,6 +838,12 @@ void generateIf(StatementIf * statement, Context ctx) {
     StringBuilder__free(&ifEndSb);
 }
 
+/**
+ * @brief Generates code for while statement
+ * 
+ * @param statement 
+ * @param ctx 
+ */
 void generateWhile(StatementWhile * statement, Context ctx) {
     size_t whileUID = getNextCodeGenUID();
     StringBuilder whileStartSb;
@@ -739,6 +868,12 @@ void generateWhile(StatementWhile * statement, Context ctx) {
     StringBuilder__free(&whileEndSb);
 }
 
+/**
+ * @brief Generates code for return statement
+ * 
+ * @param statement 
+ * @param ctx 
+ */
 void generateReturn(StatementReturn * statement, Context ctx) {
     if(statement != NULL && statement->expression != NULL) {
         Symb expr = generateExpression(statement->expression, ctx, ctx.isGlobal, NULL);
@@ -754,6 +889,12 @@ void generateReturn(StatementReturn * statement, Context ctx) {
     }
 }
 
+/**
+ * @brief Generates code for statement
+ * 
+ * @param statement 
+ * @param ctx 
+ */
 void generateStatement(Statement * statement, Context ctx) {
     if(statement == NULL) return;
     switch(statement->statementType) {
@@ -781,6 +922,12 @@ void generateStatement(Statement * statement, Context ctx) {
     }
 }
 
+/**
+ * @brief Generates code for function
+ * 
+ * @param function 
+ * @param ctx 
+ */
 void generateFunction(Function* function, Table * functionTable) {
     if(function->body == NULL) return;
     Table* localTable = table_init();
@@ -846,6 +993,7 @@ void generateFunction(Function* function, Table * functionTable) {
     emit_instruction_end();
 }
 
+
 void performPreoptimizationChecksOnStatement(Statement * statement, Table * functionTable) {
     if(statement->statementType == STATEMENT_EXPRESSION) {
     Expression* expression = (Expression*) statement;
@@ -907,6 +1055,12 @@ void performPreoptimizationChecks(StatementList * program, Table * functionTable
     }
 }
 
+/**
+ * @brief Generates code for program
+ * 
+ * @param program 
+ * @param functionTable 
+ */
 void generateCode(StatementList * program, Table * functionTable) {
     performPreoptimizationChecks(program, functionTable);
     StatementExit * exit = StatementExit__init();

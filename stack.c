@@ -16,21 +16,43 @@ void init_stack(Stack* stack) {
     stack->top = NULL;
 }
 
+/**
+ * @brief Initialize dollar token
+ * 
+ * @return Token 
+ */
 Token init_dollar() {
     Token t = {.column = 0, .length=0, .line=0, .sourcePosition=0, .type=TOKEN_STACK_DOLLAR};
     return t;
 }
-
+/**
+ * @brief Initialize non-terminal token
+ * 
+ * @return Token 
+ */
 Token init_non_term() {
     Token t = {.column = 0, .length=0, .line=0, .sourcePosition=0, .type=TOKEN_NON_TERMINAL};
     return t;
 }
 
+/**
+ * @brief Initialize shift token
+ * 
+ * @return Token 
+ */
 Token init_shift() {
     Token t = {.column = 0, .length=0, .line=0, .sourcePosition=0, .type=TOKEN_SHIFT};
     return t;
 }
 
+/**
+ * @brief Push token to stack
+ * 
+ * @param stack 
+ * @param token 
+ * @return true 
+ * @return false 
+ */
 bool push(Stack* stack, Token token) {
     StackItem* new_item = malloc(sizeof(StackItem));
     if(new_item == NULL) return false;

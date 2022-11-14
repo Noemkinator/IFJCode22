@@ -10,6 +10,9 @@
 
 #include "lexer.h"
 
+/**
+ * @brief Shifts token to the next one
+ */
 Token getNextToken();
 
 #endif

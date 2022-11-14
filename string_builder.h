@@ -21,13 +21,66 @@ typedef struct {
     size_t capacity;/*<Capacity of the string>*/
 } StringBuilder;
 
+/**
+ * @brief Initialize string builder object
+ * 
+ * @param builder 
+ * @return StringBuilder* 
+ */
 StringBuilder* StringBuilder__init(StringBuilder *this);
+/**
+ * @brief String builder destructor
+ * 
+ * @param this 
+ */
 void StringBuilder__free(StringBuilder *this);
+/**
+ * @brief Append string to string builder
+ * 
+ * @param builder 
+ * @param string 
+ * @return true if append was successful
+ * @return false if append failed
+ */
 StringBuilder* StringBuilder__appendString(StringBuilder *this, const char *str);
+/**
+ * @brief Append char to string builder
+ * 
+ * @param this 
+ * @param c 
+ * @return StringBuilder* 
+ */
 StringBuilder* StringBuilder__appendChar(StringBuilder *this, char c);
+/**
+ * @brief Append escaped string to string builder
+ * 
+ * @param this 
+ * @param str 
+ * @return StringBuilder* 
+ */
 StringBuilder* StringBuilder__appendEscapedStr(StringBuilder *this, const char *str);
+/**
+ * @brief Append int to string builder
+ * 
+ * @param this 
+ * @param i 
+ * @return StringBuilder* 
+ */
 StringBuilder* StringBuilder__appendInt(StringBuilder *this, long long int i);
+/**
+ * @brief Append double to string builder
+ * 
+ * @param this 
+ * @param d 
+ * @return StringBuilder* 
+ */
 StringBuilder* StringBuilder__appendFloat(StringBuilder *this, double f);
+/**
+ * @brief Remove last character from string builder
+ * 
+ * @param this 
+ * @return StringBuilder* 
+ */
 StringBuilder* StringBuilder__removeLastChar(StringBuilder* this);
 
 #endif // __STRING_BUILDER_H__
