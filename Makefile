@@ -24,3 +24,6 @@ clean:
 
 pack: clean
 	zip -r xlogin99.zip . -x "ifj2022.pdf" -x "tests/*" -x ".git/*"
+
+docs:
+	@doxygen ./Doxyfile
