@@ -652,13 +652,15 @@ UnionType Expression__FunctionCall__getType(Expression__FunctionCall *this, Tabl
  */
 Expression__FunctionCall* Expression__FunctionCall__duplicate(Expression__FunctionCall* this) {
     Expression__FunctionCall* duplicate = Expression__FunctionCall__init();
-    duplicate->arity = this->arity;
-    duplicate->name = (this->name != NULL ? this->name : NULL);
+    if(this != NULL) {
+        duplicate->arity = this->arity;
+        duplicate->name = (this->name != NULL ? this->name : NULL);
 
-    for(int i=0; i < this->arity; ++i) {
-        Expression__FunctionCall__addArgument(duplicate, (Expression*)this->arguments[i]->super.duplicate((Statement*)this->arguments[i]));
-    }
-    return duplicate;
+        for(int i=0; i < this->arity; ++i) {
+            Expression__FunctionCall__addArgument(duplicate, (Expression*)this->arguments[i]->super.duplicate((Statement*)this->arguments[i]));
+        }
+        return duplicate;
+    } return NULL;
 }
 
 
@@ -825,10 +827,13 @@ UnionType Expression__BinaryOperation__getType(Expression__BinaryOperator *this,
  */
 Expression__BinaryOperator* Expression__BinaryOperator__duplicate(Expression__BinaryOperator* this) {
     Expression__BinaryOperator* duplicate = Expression__BinaryOperator__init();
-    duplicate->lSide = (this->lSide != NULL ? (Expression*)this->lSide->super.duplicate((Statement*)this) : NULL);
-    duplicate->rSide = (this->rSide != NULL ? (Expression*)this->rSide->super.duplicate((Statement*)this) : NULL);
-    duplicate->operator = this->operator;
-    return duplicate;
+    if(this != NULL) {
+        duplicate->operator = this->operator;
+        duplicate->lSide = (this->rSide != NULL ? (Expression*)this->rSide->super.duplicate((Statement*)this->rSide) : NULL);
+        duplicate->rSide = (this->rSide != NULL ? (Expression*)this->rSide->super.duplicate((Statement*)this->rSide) : NULL);
+        return duplicate;
+    }
+    else return NULL;
 }
 
 /**
@@ -900,10 +905,13 @@ Statement *** StatementIf__getChildren(StatementIf *this, int * childrenCount) {
  */
 StatementIf* StatementIf__duplicate(StatementIf* this) {
     StatementIf* duplicate = StatementIf__init();
-    duplicate->condition = (this->condition != NULL ? (Expression*)this->condition : NULL);
-    duplicate->elseBody = (this->elseBody != NULL ? this->elseBody : NULL);
-    duplicate->ifBody = (this->ifBody != NULL ? this->ifBody : NULL);
-    return duplicate;
+    if(this != NULL) {
+        // TODO - recursive for statement
+        duplicate->elseBody = (this->elseBody != NULL ? this->elseBody : NULL);
+        duplicate->ifBody = (this->ifBody != NULL ? this->ifBody : NULL);
+        duplicate->condition = (this->condition != NULL ? (Expression*)this->condition->super.duplicate((Statement*)this->condition) : NULL);
+        return duplicate;
+    } else return NULL;
 }
 
 /**
@@ -967,9 +975,12 @@ Statement *** StatementWhile__getChildren(StatementWhile *this, int * childrenCo
  */
 StatementWhile* StatementWhile__duplicate(StatementWhile* this) {
     StatementWhile* duplicate = StatementWhile__init();
-    duplicate->body = (this->body != NULL ? this->body : NULL);
-    duplicate->condition = (this->condition != NULL ? (Expression*)this->condition : NULL);
-    return duplicate;
+    if(this != NULL) {
+        // TODO - recursive for statement
+        duplicate->body = (this->body != NULL ? this->body : NULL);
+        duplicate->condition = (this->condition != NULL ? (Expression*)this->condition->super.duplicate((Statement*)this->condition) : NULL);
+        return duplicate;
+    } else return NULL;
 }
 
 /**
@@ -1025,8 +1036,10 @@ Statement *** StatementReturn__getChildren(StatementReturn *this, int * children
  */
 StatementReturn* StatementReturn__duplicate(StatementReturn* this) {
     StatementReturn* duplicate = StatementReturn__init();
-    duplicate->expression = (this->expression != NULL ? (Expression*)this->expression : NULL);
-    return duplicate;
+    if(this != NULL) {
+        duplicate->expression = (this->expression != NULL ? (Expression*)this->expression->super.duplicate((Statement*)this->expression) : NULL);
+        return duplicate;
+    } return NULL;
 }
 
 /**
