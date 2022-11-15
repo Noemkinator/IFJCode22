@@ -154,7 +154,9 @@ Var generateTemporaryVariable(Context ctx) {
  * @param context
  */
 void freeTemporaryVariable(Var var, Context ctx) {
-    VariableInfo * info = table_find(ctx.varTable, var.name)->data;
+    TableItem * item = table_find(ctx.varTable, var.name);
+    if(item == NULL) return;
+    VariableInfo * info = item->data;
     if(info->isTemporary) {
         if(info->isUsed) {
             info->isUsed = false;
