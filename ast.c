@@ -911,7 +911,7 @@ StatementIf* StatementIf__duplicate(StatementIf* this) {
     StatementIf* duplicate = StatementIf__init();
     duplicate->elseBody = (this->elseBody != NULL ? this->elseBody->duplicate(this->elseBody) : NULL);
     duplicate->ifBody = (this->ifBody != NULL ? this->ifBody->duplicate(this->ifBody) : NULL);
-    duplicate->condition = (this->condition != NULL ? (Expression*)this->condition : NULL);
+    duplicate->condition = (this->condition != NULL ? (Expression*)this->condition->super.duplicate((Statement*)this->condition) : NULL);
     return duplicate;
 }
 
