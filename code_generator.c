@@ -415,7 +415,7 @@ Symb generateFunctionCall(Expression__FunctionCall * expression, Context ctx, Va
             }
 
             // TODO add return void
-            return (Symb){.type=Type_int, .value.i=0};
+            return (Symb){.type=Type_null};
         }
     }
     if(function->arity != expression->arity) {
@@ -616,7 +616,11 @@ Symb generateFunctionCall(Expression__FunctionCall * expression, Context ctx, Va
     char * functionLabel = join_strings("function&", expression->name);
     emit_CALL(functionLabel);
     free(functionLabel);
-    return (Symb){.type = Type_variable, .value.v=(Var){.frameType = TF, .name = "returnValue"}};
+    if(function->returnType.type != TYPE_VOID) {
+        return (Symb){.type = Type_variable, .value.v=(Var){.frameType = TF, .name = "returnValue"}};
+    } else {
+        return (Symb){.type = Type_null};
+    }
 }
 
 /**
