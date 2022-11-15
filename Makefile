@@ -21,6 +21,7 @@ clean:
 	rm -f ./ifj22
 	rm -f ./tester
 	rm -f ./*.zip
+	rm -frd ./doc/Doxygen
 
 pack: clean
 	zip -r xlogin99.zip . -x "ifj2022.pdf" -x "tests/*" -x ".git/*"
