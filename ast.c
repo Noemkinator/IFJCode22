@@ -54,6 +54,15 @@ StatementList* StatementList__duplicate(StatementList* this) {
     return duplicate;
 }
 
+void StatementList__free(StatementList* this) {
+    if(this == NULL) return;
+    for(int i=0; i < this->listSize; ++i) {
+        this->statements[i]->free(this->statements[i]);
+    }
+    free(this->statements);
+    free(this);
+}
+
 /**
  * @brief Statement list constructor
  * 
@@ -65,6 +74,7 @@ StatementList* StatementList__init() {
     this->super.getChildren = (struct Statement *** (*)(struct Statement *, int *))StatementList__getChildren;
     this->super.statementType = STATEMENT_LIST;
     this->super.duplicate = (struct Statement* (*)(struct Statement *))StatementList__duplicate;
+    this->super.free = (void (*)(struct Statement *))StatementList__free;
     this->listSize = 0;
     this->statements = NULL;
     return this;
@@ -266,6 +276,11 @@ Expression__Constant* Expression__Constant__duplicate(Expression__Constant* this
     return duplicate;
 }
 
+void Expression__Constant__free(Expression__Constant* this) {
+    //free(this->value.string);
+    free(this);
+}
+
 /**
  * @brief Constant expression constructor
  * 
@@ -279,6 +294,7 @@ Expression__Constant* Expression__Constant__init() {
     this->super.super.serialize = (void (*)(struct Statement *, StringBuilder *))Expression__Constant__serialize;
     this->super.super.getChildren = (struct Statement *** (*)(struct Statement *, int *))Expression__Constant__getChildren;
     this->super.super.duplicate = (struct Statement * (*)(struct Statement *))Expression__Constant__duplicate;
+    this->super.super.free = (void (*)(struct Statement *))Expression__Constant__free;
     this->super.getType = (UnionType (*)(struct Expression *, Table *, StatementList *, Function *))Expression__Constant__getType;
     this->type.isRequired = false;
     this->type.type = TYPE_UNKNOWN;
@@ -580,6 +596,11 @@ Expression__Variable* Expression__Variable__duplicate(Expression__Variable* this
     return duplicate;
 }
 
+void Expression__Variable__free(Expression__Variable* this) {
+    //free(this->name);
+    free(this);
+}
+
 /**
  * @brief Variable expression constructor
  * 
@@ -593,6 +614,7 @@ Expression__Variable* Expression__Variable__init() {
     this->super.super.serialize = (void (*)(struct Statement *, StringBuilder *))Expression__Variable__serialize;
     this->super.super.getChildren = (struct Statement *** (*)(struct Statement *, int *))Expression__Variable__getChildren;
     this->super.super.duplicate = (struct Statement * (*)(struct Statement *))Expression__Variable__duplicate;
+    this->super.super.free = (void (*)(struct Statement *))Expression__Variable__free;
     this->super.getType = (UnionType (*)(struct Expression *, Table *, StatementList *, Function *))Expression__Variable__getType;
     this->name = NULL;
     return this;
@@ -670,6 +692,15 @@ Expression__FunctionCall* Expression__FunctionCall__duplicate(Expression__Functi
     return duplicate;
 }
 
+void Expression__FunctionCall__free(Expression__FunctionCall* this) {
+    if(this == NULL) return;
+    for(int i=0; i < this->arity; ++i) {
+        this->arguments[i]->super.free((Statement*)this->arguments[i]);
+    }
+    free(this->arguments);
+    free(this);
+}
+
 
 /**
  * @brief Function call expression constructor
@@ -685,6 +716,7 @@ Expression__FunctionCall* Expression__FunctionCall__init() {
     this->super.super.serialize = (void (*)(struct Statement *, StringBuilder *))Expression__FunctionCall__serialize;
     this->super.super.getChildren = (struct Statement *** (*)(struct Statement *, int *))Expression__FunctionCall__getChildren;
     this->super.super.duplicate = (struct Statement * (*)(struct Statement *))Expression__FunctionCall__duplicate;
+    this->super.super.free = (void (*)(struct Statement *))Expression__FunctionCall__free;
     this->name = NULL;
     this->arity = 0;
     this->arguments = NULL;
@@ -840,6 +872,13 @@ Expression__BinaryOperator* Expression__BinaryOperator__duplicate(Expression__Bi
     return duplicate;
 }
 
+void Expression__BinaryOperator__free(Expression__BinaryOperator* this) {
+    if(this == NULL) return;
+    this->lSide->super.free((Statement*)this->lSide);
+    this->rSide->super.free((Statement*)this->rSide);
+    free(this);
+}
+
 /**
  * @brief Binary operator expression constructor
  * 
@@ -853,6 +892,7 @@ Expression__BinaryOperator* Expression__BinaryOperator__init() {
     this->super.super.serialize = (void (*)(struct Statement *, StringBuilder *))Expression__BinaryOperator__serialize;
     this->super.super.getChildren = (struct Statement *** (*)(struct Statement *, int *))Expression__BinaryOperator__getChildren;
     this->super.super.duplicate = (struct Statement * (*)(struct Statement *))Expression__BinaryOperator__duplicate;
+    this->super.super.free = (void (*)(struct Statement *))Expression__BinaryOperator__free;
     this->super.getType = (UnionType (*)(struct Expression *, Table *, StatementList *, Function *))Expression__BinaryOperation__getType;
     this->lSide = NULL;
     this->rSide = NULL;
@@ -915,6 +955,14 @@ StatementIf* StatementIf__duplicate(StatementIf* this) {
     return duplicate;
 }
 
+void StatementIf__free(StatementIf* this) {
+    if(this == NULL) return;
+    this->elseBody->free(this->elseBody);
+    this->ifBody->free(this->ifBody);
+    this->condition->super.free((Statement*)this->condition);
+    free(this);
+}
+
 /**
  * @brief <if> statement constructor
  * 
@@ -927,6 +975,7 @@ StatementIf* StatementIf__init() {
     this->super.serialize = (void (*)(struct Statement *, StringBuilder *))StatementIf__serialize;
     this->super.getChildren = (struct Statement *** (*)(struct Statement *, int *))StatementIf__getChildren;
     this->super.duplicate = (struct Statement * (*)(struct Statement *))StatementIf__duplicate;
+    this->super.free = (void (*)(struct Statement *))StatementIf__free;
     this->condition = NULL;
     this->ifBody = NULL;
     this->elseBody = NULL;
@@ -981,6 +1030,12 @@ StatementWhile* StatementWhile__duplicate(StatementWhile* this) {
     return duplicate;
 }
 
+void StatementWhile__free(StatementWhile* this) {
+    if(this == NULL) return;
+    this->condition->super.free((Statement*)this->condition);
+    free(this);
+}
+
 /**
  * @brief <while> statement constructor
  * 
@@ -993,6 +1048,7 @@ StatementWhile* StatementWhile__init() {
     this->super.serialize = (void (*)(struct Statement *, StringBuilder *))StatementWhile__serialize;
     this->super.getChildren = (struct Statement *** (*)(struct Statement *, int *))StatementWhile__getChildren;    
     this->super.duplicate = (struct Statement * (*)(struct Statement *))StatementWhile__duplicate;
+    this->super.free = (void (*)(struct Statement *))StatementWhile__free;
     this->condition = NULL;
     this->body = NULL;
     return this;
@@ -1038,6 +1094,12 @@ StatementReturn* StatementReturn__duplicate(StatementReturn* this) {
     return duplicate;
 }
 
+void StatementReturn__free(StatementReturn* this) {
+    if(this == NULL) return;
+    this->expression->super.free((Statement*)this->expression);
+    free(this);
+}
+
 /**
  * @brief <return> statement constructor
  * 
@@ -1050,6 +1112,7 @@ StatementReturn* StatementReturn__init() {
     this->super.serialize = (void (*)(struct Statement *, StringBuilder *))StatementReturn__serialize;
     this->super.getChildren = (struct Statement *** (*)(struct Statement *, int *))StatementReturn__getChildren;
     this->super.duplicate = (struct Statement * (*)(struct Statement *))StatementReturn__duplicate;
+    this->super.free = (void (*)(struct Statement *))StatementReturn__free;
     this->expression = NULL;
     return this;
 }
@@ -1089,6 +1152,10 @@ StatementExit* StatementExit__duplicate(StatementExit* this) {
     return duplicate;
 }
 
+void StatementExit__free(StatementExit* this) {
+    free(this);
+}
+
 /**
  * @brief <exit> statement constructor
  * 
@@ -1100,6 +1167,8 @@ StatementExit* StatementExit__init() {
     this->super.statementType = STATEMENT_EXIT;
     this->super.serialize = (void (*)(struct Statement *, StringBuilder *))StatementExit__serialize;
     this->super.getChildren = (struct Statement *** (*)(struct Statement *, int *))StatementExit__getChildren;
+    this->super.duplicate =(struct Statement* (*)(struct Statement *))StatementExit__duplicate;
+    this->super.free = (void (*)(struct Statement *))StatementExit__free;
     this->exitCode = 0;
     return this;
 }
