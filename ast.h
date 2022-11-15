@@ -52,7 +52,6 @@ StatementList* StatementList__addStatement(StatementList* this, Statement* state
 
 StatementList* StatementList__append(StatementList* this, StatementList* statementList);
 
-
 typedef struct {
     bool isRequired; /*<Is the parameter required>*/
     enum {

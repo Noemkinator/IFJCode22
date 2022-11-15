@@ -45,6 +45,15 @@ Statement *** StatementList__getChildren(StatementList * this, int * childrenCou
     return children;
 }
 
+StatementList* StatementList__duplicate(StatementList* this) {
+    StatementList* duplicate = StatementList__init();
+    for(int i=0; i < this->listSize; ++i) {
+        StatementList__addStatement(duplicate, this->statements[i]->duplicate(this->statements[i]));
+    }
+    duplicate->listSize = this->listSize;
+    return duplicate;
+}
+
 /**
  * @brief Statement list constructor
  * 
@@ -55,6 +64,7 @@ StatementList* StatementList__init() {
     this->super.serialize = (void (*)(struct Statement *, StringBuilder *))StatementList__serialize;
     this->super.getChildren = (struct Statement *** (*)(struct Statement *, int *))StatementList__getChildren;
     this->super.statementType = STATEMENT_LIST;
+    this->super.duplicate = (struct Statement* (*)(struct Statement *))StatementList__duplicate;
     this->listSize = 0;
     this->statements = NULL;
     return this;
@@ -89,7 +99,7 @@ StatementList* StatementList__append(StatementList* this, StatementList* stateme
     }
     return this;
 }
- 
+
 /**
  * @brief Convert token to type
  * 
@@ -652,12 +662,11 @@ UnionType Expression__FunctionCall__getType(Expression__FunctionCall *this, Tabl
  */
 Expression__FunctionCall* Expression__FunctionCall__duplicate(Expression__FunctionCall* this) {
     Expression__FunctionCall* duplicate = Expression__FunctionCall__init();
-    duplicate->arity = this->arity;
-    duplicate->name = (this->name != NULL ? this->name : NULL);
-
     for(int i=0; i < this->arity; ++i) {
         Expression__FunctionCall__addArgument(duplicate, (Expression*)this->arguments[i]->super.duplicate((Statement*)this->arguments[i]));
     }
+    duplicate->arity = this->arity;
+    duplicate->name = (this->name != NULL ? this->name : NULL);
     return duplicate;
 }
 
@@ -825,9 +834,9 @@ UnionType Expression__BinaryOperation__getType(Expression__BinaryOperator *this,
  */
 Expression__BinaryOperator* Expression__BinaryOperator__duplicate(Expression__BinaryOperator* this) {
     Expression__BinaryOperator* duplicate = Expression__BinaryOperator__init();
-    duplicate->lSide = (this->lSide != NULL ? (Expression*)this->lSide->super.duplicate((Statement*)this) : NULL);
-    duplicate->rSide = (this->rSide != NULL ? (Expression*)this->rSide->super.duplicate((Statement*)this) : NULL);
     duplicate->operator = this->operator;
+    duplicate->lSide = (this->lSide != NULL ? (Expression*)this->lSide->super.duplicate((Statement*)this->lSide) : NULL);
+    duplicate->rSide = (this->rSide != NULL ? (Expression*)this->rSide->super.duplicate((Statement*)this->rSide) : NULL);
     return duplicate;
 }
 
@@ -900,9 +909,9 @@ Statement *** StatementIf__getChildren(StatementIf *this, int * childrenCount) {
  */
 StatementIf* StatementIf__duplicate(StatementIf* this) {
     StatementIf* duplicate = StatementIf__init();
-    duplicate->condition = (this->condition != NULL ? (Expression*)this->condition : NULL);
-    duplicate->elseBody = (this->elseBody != NULL ? this->elseBody : NULL);
-    duplicate->ifBody = (this->ifBody != NULL ? this->ifBody : NULL);
+    duplicate->elseBody = (this->elseBody != NULL ? this->elseBody->duplicate(this->elseBody) : NULL);
+    duplicate->ifBody = (this->ifBody != NULL ? this->ifBody->duplicate(this->ifBody) : NULL);
+    duplicate->condition = (this->condition != NULL ? (Expression*)this->condition->super.duplicate((Statement*)this->condition) : NULL);
     return duplicate;
 }
 
@@ -967,8 +976,8 @@ Statement *** StatementWhile__getChildren(StatementWhile *this, int * childrenCo
  */
 StatementWhile* StatementWhile__duplicate(StatementWhile* this) {
     StatementWhile* duplicate = StatementWhile__init();
-    duplicate->body = (this->body != NULL ? this->body : NULL);
-    duplicate->condition = (this->condition != NULL ? (Expression*)this->condition : NULL);
+    duplicate->body = (this->body != NULL ? this->body->duplicate(this->body) : NULL);
+    duplicate->condition = (this->condition != NULL ? (Expression*)this->condition->super.duplicate((Statement*)this->condition) : NULL);
     return duplicate;
 }
 
@@ -1025,7 +1034,7 @@ Statement *** StatementReturn__getChildren(StatementReturn *this, int * children
  */
 StatementReturn* StatementReturn__duplicate(StatementReturn* this) {
     StatementReturn* duplicate = StatementReturn__init();
-    duplicate->expression = (this->expression != NULL ? (Expression*)this->expression : NULL);
+    duplicate->expression = (this->expression != NULL ? (Expression*)this->expression->super.duplicate((Statement*)this->expression) : NULL);
     return duplicate;
 }
 
