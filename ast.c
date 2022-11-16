@@ -220,7 +220,7 @@ UnionType typeToUnionType(Type type) {
         .isBool = type.type == TYPE_BOOL || type.type == TYPE_UNKNOWN,
         .isFloat = type.type == TYPE_FLOAT || type.type == TYPE_UNKNOWN,
         .isInt = type.type == TYPE_INT || type.type == TYPE_UNKNOWN,
-        .isNull = type.type == TYPE_NULL || type.type == TYPE_UNKNOWN || !type.isRequired,
+        .isNull = type.type == TYPE_NULL || type.type == TYPE_UNKNOWN || type.type == TYPE_VOID || !type.isRequired,
         .isString = type.type == TYPE_STRING || type.type == TYPE_UNKNOWN,
         .isUndefined = type.type == TYPE_UNKNOWN
     };

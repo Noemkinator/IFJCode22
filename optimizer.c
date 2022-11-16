@@ -31,6 +31,7 @@ Expression__Constant * performConstantCast(Expression__Constant * in, Type targe
                 case TYPE_BOOL:
                     result->value.integer = in->value.boolean;
                     break;
+                case TYPE_VOID:
                 case TYPE_NULL:
                     result->value.integer = 0;
                     break;
@@ -51,6 +52,7 @@ Expression__Constant * performConstantCast(Expression__Constant * in, Type targe
                 case TYPE_BOOL:
                     result->value.real = in->value.boolean;
                     break;
+                case TYPE_VOID:
                 case TYPE_NULL:
                     result->value.real = 0.0;
                     break;
@@ -74,6 +76,7 @@ Expression__Constant * performConstantCast(Expression__Constant * in, Type targe
                     result->value.string = malloc(6);
                     sprintf(result->value.string, "%s", in->value.boolean ? "1" : "");
                     break;
+                case TYPE_VOID:
                 case TYPE_NULL:
                     result->value.string = malloc(1);
                     result->value.string[0] = '\0';
@@ -95,6 +98,7 @@ Expression__Constant * performConstantCast(Expression__Constant * in, Type targe
                 case TYPE_STRING:
                     result->value.boolean = in->value.string[0] != '\0';
                     break;
+                case TYPE_VOID:
                 case TYPE_NULL:
                     result->value.boolean = false;
                     break;
