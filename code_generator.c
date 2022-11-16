@@ -362,7 +362,7 @@ Symb generateCastToBool(Expression * expression, Symb symb, Context ctx) {
     emit_DPRINT((Symb){.type = Type_string, .value.s = "ERR: Probably undefined variable while casting to bool"});
     emit_EXIT((Symb){.type = Type_int, .value.i = 5});
     emit_LABEL(castEnd.text);
-    return symb;
+    return (Symb){.type=Type_variable, .value.v=result};
 }
 
 /**
