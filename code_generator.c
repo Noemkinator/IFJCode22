@@ -882,9 +882,10 @@ void generateWhile(StatementWhile * statement, Context ctx) {
  */
 void generateReturn(StatementReturn * statement, Context ctx) {
     if(statement != NULL && statement->expression != NULL) {
-        Symb expr = generateExpression(statement->expression, ctx, ctx.isGlobal, NULL);
-        if(!ctx.isGlobal) {
-            emit_MOVE((Var){.frameType = LF, .name = "returnValue"}, expr);
+        Var returnValue = (Var){.frameType = LF, .name = "returnValue"};
+        Symb expr = generateExpression(statement->expression, ctx, ctx.isGlobal, ctx.isGlobal ? NULL : &returnValue);
+        if(!ctx.isGlobal && (expr.type != Type_variable || expr.value.v.frameType != LF || strcmp(expr.value.v.name, "returnValue") != 0)) {
+            emit_MOVE(returnValue, expr);
         }
     }
     if(!ctx.isGlobal) {
