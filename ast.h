@@ -67,13 +67,13 @@ typedef struct {
 } Type;
 
 typedef struct {
-    bool isAlive; // isn't type, but check if variable is usefull
     bool isInt;
     bool isFloat;
     bool isString;
     bool isBool;
     bool isNull;
     bool isUndefined;
+    struct Expression__Constant * constant;
 } UnionType;
 
 Type tokenToType(Token token);
@@ -101,7 +101,7 @@ typedef struct Expression {
     UnionType (*getType)(struct Expression * expression, Table * functionTable, StatementList * program, struct Function * currentFunction);/*<Get type function pointer>*/
 } Expression;
 
-typedef struct {
+typedef struct Expression__Constant {
     Expression super;/*<Superclass>*/
 
 

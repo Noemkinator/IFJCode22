@@ -119,6 +119,7 @@ Expression__Constant * performConstantFolding(Expression__BinaryOperator * in) {
         Expression__Constant * left = (Expression__Constant *) in->lSide;
         Expression__Constant * right = (Expression__Constant *) in->rSide;
         Expression__Constant * result = Expression__Constant__init();
+        result->type.isRequired = true;
         switch(in->operator) {
             case TOKEN_PLUS:
                 if(left->type.type == TYPE_INT && right->type.type == TYPE_INT) {
@@ -387,7 +388,7 @@ bool replaceErrorsWithExit(Statement ** statement, Table * functionTable, Statem
     return false;
 }
 
-bool optimizeStatement(Statement ** statement) {
+bool optimizeStatement(Statement ** statement, Table * functionTable, StatementList * program, Function * currentFunction) {
     if(statement == NULL) return false;
     if(*statement == NULL) return false;
     Statement * foldedStatement = performStatementFolding(*statement);
@@ -406,20 +407,27 @@ bool optimizeStatement(Statement ** statement) {
                 *statement = (Statement *) constant;
                 return true;
             }
+        } else if(expression->expressionType == EXPRESSION_VARIABLE) {
+            UnionType type = expression->getType(expression, functionTable, program, currentFunction);
+            if(type.constant != NULL) {
+                // TODO free
+                *statement = (Statement *) type.constant->super.super.duplicate((Statement*)type.constant);
+                return true;
+            }
         }
     }
     return false;
 }
 
-bool optimizeNestedStatements(Statement ** parent) {
+bool optimizeNestedStatements(Statement ** parent, Table * functionTable, StatementList * program, Function * currentFunction) {
     if(parent == NULL || *parent == NULL) return false;
     bool optimized = false;
-    optimized |= optimizeStatement(parent);
+    optimized |= optimizeStatement(parent, functionTable, program, currentFunction);
     int childrenCount = 0;
     Statement *** children = (*parent)->getChildren(*parent, &childrenCount);
     if(childrenCount == 0) return optimized;
     for(int i=0; i<childrenCount; i++) {
-        optimized |= optimizeNestedStatements(children[i]);
+        optimized |= optimizeNestedStatements(children[i], functionTable, program, currentFunction);
     }
     free(children);
     return optimized;
@@ -429,12 +437,12 @@ void optimize(StatementList * program, Table * functionTable) {
     bool continueOptimizing = true;
     while(continueOptimizing) {
         continueOptimizing = false;
-        continueOptimizing |= optimizeNestedStatements((Statement**)&program);
+        continueOptimizing |= optimizeNestedStatements((Statement**)&program, functionTable, program, NULL);
         continueOptimizing |= replaceErrorsWithExit((Statement**)&program, functionTable, program, NULL);
         for(int i = 0; i < TB_SIZE; i++) {
             TableItem* item = functionTable->tb[i];
             while(item != NULL) {
-                continueOptimizing |= optimizeNestedStatements((Statement**)&item->data);
+                continueOptimizing |= optimizeNestedStatements((Statement**)&item->data, functionTable, program, (Function*)item->data);
                 continueOptimizing |= replaceErrorsWithExit((Statement**)&item->data, functionTable, program, (Function*)item->data);
                 item = item->next;
             }
