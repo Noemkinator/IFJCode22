@@ -280,7 +280,9 @@ Expression__Constant* Expression__Constant__duplicate(Expression__Constant* this
 }
 
 void Expression__Constant__free(Expression__Constant* this) {
-    //free(this->value.string);
+    if(this->type.type == TYPE_STRING) {
+        //free(this->value.string);
+    }
     free(this);
 }
 
@@ -613,7 +615,7 @@ UnionType Expression__Variable__getType(Expression__Variable *this, Table * func
  */
 Expression__Variable* Expression__Variable__duplicate(Expression__Variable* this) {
     Expression__Variable* duplicate = Expression__Variable__init();
-    duplicate->name = (this->name != NULL ? this->name : NULL);
+    duplicate->name = (this->name != NULL ? strdup(this->name) : NULL);
     return duplicate;
 }
 
@@ -709,7 +711,7 @@ Expression__FunctionCall* Expression__FunctionCall__duplicate(Expression__Functi
         Expression__FunctionCall__addArgument(duplicate, (Expression*)this->arguments[i]->super.duplicate((Statement*)this->arguments[i]));
     }
     duplicate->arity = this->arity;
-    duplicate->name = (this->name != NULL ? this->name : NULL);
+    duplicate->name = (this->name != NULL ? strdup(this->name) : NULL);
     return duplicate;
 }
 
@@ -1053,6 +1055,7 @@ StatementWhile* StatementWhile__duplicate(StatementWhile* this) {
 
 void StatementWhile__free(StatementWhile* this) {
     if(this == NULL) return;
+    this->body->free(this->body);
     this->condition->super.free((Statement*)this->condition);
     free(this);
 }
@@ -1116,7 +1119,7 @@ StatementReturn* StatementReturn__duplicate(StatementReturn* this) {
 }
 
 void StatementReturn__free(StatementReturn* this) {
-    if(this == NULL) return;
+    if(this == NULL || this->expression == NULL) return;
     this->expression->super.free((Statement*)this->expression);
     free(this);
 }
