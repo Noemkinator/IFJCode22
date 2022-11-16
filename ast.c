@@ -494,7 +494,7 @@ UnionType getStatementVarType(Expression__Variable * variable, Table * functionT
             }
             // TODO: free also content
             table_free(duplTable);
-            return propagateUnionType(typeCond, orUnionType(type1, type2));
+            return propagateUnionType(typeCond, propagateUnionType(type1, type2));
         }
         case STATEMENT_WHILE: {
             StatementWhile* whileStatement = (StatementWhile*)statement;

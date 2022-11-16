@@ -388,7 +388,12 @@ bool replaceErrorsWithExit(Statement ** statement, Table * functionTable, Statem
     return false;
 }
 
-bool optimizeStatement(Statement ** statement, Table * functionTable, StatementList * program, Function * currentFunction) {
+typedef struct {
+    int assigments;
+    int uses;
+} OptimizerVarInfo;
+
+bool optimizeStatement(Statement ** statement, Table * functionTable, StatementList * program, Function * currentFunction, Table * optimizerVarInfo) {
     if(statement == NULL) return false;
     if(*statement == NULL) return false;
     Statement * foldedStatement = performStatementFolding(*statement);
@@ -402,10 +407,17 @@ bool optimizeStatement(Statement ** statement, Table * functionTable, StatementL
     if((*statement)->statementType == STATEMENT_EXPRESSION) {
         Expression * expression = (Expression *) *statement;
         if(expression->expressionType == EXPRESSION_BINARY_OPERATOR) {
-            Expression__Constant * constant = performConstantFolding((Expression__BinaryOperator *) expression);
+            Expression__BinaryOperator * op = (Expression__BinaryOperator *) expression;
+            Expression__Constant * constant = performConstantFolding(op);
             if(constant != NULL) {
                 *statement = (Statement *) constant;
                 return true;
+            }
+            if(op->operator == TOKEN_ASSIGN && op->lSide->expressionType == EXPRESSION_VARIABLE) {
+                OptimizerVarInfo * info = table_find(optimizerVarInfo, ((Expression__Variable*)op->lSide)->name)->data;
+                if(info->assigments == info->uses) {
+                    *statement = (Statement*)op->rSide;
+                }
             }
         } else if(expression->expressionType == EXPRESSION_VARIABLE) {
             UnionType type = expression->getType(expression, functionTable, program, currentFunction);
@@ -419,15 +431,62 @@ bool optimizeStatement(Statement ** statement, Table * functionTable, StatementL
     return false;
 }
 
-bool optimizeNestedStatements(Statement ** parent, Table * functionTable, StatementList * program, Function * currentFunction) {
+void buildStatementVarUsages(Statement * statement, Table * optimizerVarInfo) {
+    if(statement->statementType == STATEMENT_EXPRESSION) {
+        Expression * expression = (Expression *) statement;
+        if(expression->expressionType == EXPRESSION_BINARY_OPERATOR) {
+            Expression__BinaryOperator * op = (Expression__BinaryOperator *) expression;
+            if(op->operator == TOKEN_ASSIGN && op->lSide->expressionType == EXPRESSION_VARIABLE) {
+                Expression__Variable * variable = (Expression__Variable *) op->lSide;
+                TableItem * optInfo = table_find(optimizerVarInfo, variable->name);
+                OptimizerVarInfo * info = NULL;
+                if(optInfo == NULL) {
+                    info = (OptimizerVarInfo *) malloc(sizeof(OptimizerVarInfo));
+                    info->assigments = 0;
+                    info->uses = 0;
+                    table_insert(optimizerVarInfo, variable->name, info);
+                } else {
+                    info = (OptimizerVarInfo *) optInfo->data;
+                }
+                info->assigments++;
+            }
+        } else if(expression->expressionType == EXPRESSION_VARIABLE) {
+            TableItem * optInfo = table_find(optimizerVarInfo, ((Expression__Variable*)expression)->name);
+            OptimizerVarInfo * info = NULL;
+            if(optInfo == NULL) {
+                info = (OptimizerVarInfo *) malloc(sizeof(OptimizerVarInfo));
+                info->assigments = 0;
+                info->uses = 0;
+                table_insert(optimizerVarInfo, ((Expression__Variable*)expression)->name, info);
+            } else {
+                info = (OptimizerVarInfo *) optInfo->data;
+            }
+            info->uses++;
+        }
+    }
+}
+
+void buildNestedStatementVarUsages(Statement * parent, Table * optimizerVarInfo) {
+    if(parent == NULL) return;
+    buildStatementVarUsages(parent, optimizerVarInfo);
+    int childrenCount = 0;
+    Statement *** children = parent->getChildren(parent, &childrenCount);
+    if(childrenCount == 0) return;
+    for(int i=0; i<childrenCount; i++) {
+        if(children[i] != NULL) buildNestedStatementVarUsages(*children[i], optimizerVarInfo);
+    }
+    free(children);
+}
+
+bool optimizeNestedStatements(Statement ** parent, Table * functionTable, StatementList * program, Function * currentFunction, Table * optimizerVarInfo) {
     if(parent == NULL || *parent == NULL) return false;
     bool optimized = false;
-    optimized |= optimizeStatement(parent, functionTable, program, currentFunction);
+    optimized |= optimizeStatement(parent, functionTable, program, currentFunction, optimizerVarInfo);
     int childrenCount = 0;
     Statement *** children = (*parent)->getChildren(*parent, &childrenCount);
     if(childrenCount == 0) return optimized;
     for(int i=0; i<childrenCount; i++) {
-        optimized |= optimizeNestedStatements(children[i], functionTable, program, currentFunction);
+        optimized |= optimizeNestedStatements(children[i], functionTable, program, currentFunction, optimizerVarInfo);
     }
     free(children);
     return optimized;
@@ -437,12 +496,18 @@ void optimize(StatementList * program, Table * functionTable) {
     bool continueOptimizing = true;
     while(continueOptimizing) {
         continueOptimizing = false;
-        continueOptimizing |= optimizeNestedStatements((Statement**)&program, functionTable, program, NULL);
+        Table * optimizerVarInfo = table_init();
+        buildNestedStatementVarUsages((Statement*)program, optimizerVarInfo);
+        continueOptimizing |= optimizeNestedStatements((Statement**)&program, functionTable, program, NULL, optimizerVarInfo);
+        table_free(optimizerVarInfo);
         continueOptimizing |= replaceErrorsWithExit((Statement**)&program, functionTable, program, NULL);
         for(int i = 0; i < TB_SIZE; i++) {
             TableItem* item = functionTable->tb[i];
             while(item != NULL) {
-                continueOptimizing |= optimizeNestedStatements((Statement**)&item->data, functionTable, program, (Function*)item->data);
+                optimizerVarInfo = table_init();
+                buildNestedStatementVarUsages((Statement*)item->data, optimizerVarInfo);
+                continueOptimizing |= optimizeNestedStatements((Statement**)&item->data, functionTable, program, (Function*)item->data, optimizerVarInfo);
+                table_free(optimizerVarInfo);
                 continueOptimizing |= replaceErrorsWithExit((Statement**)&item->data, functionTable, program, (Function*)item->data);
                 item = item->next;
             }
