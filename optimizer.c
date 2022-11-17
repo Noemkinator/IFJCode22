@@ -416,6 +416,7 @@ bool optimizeStatement(Statement ** statement, Table * functionTable, StatementL
                 OptimizerVarInfo * info = table_find(optimizerVarInfo, ((Expression__Variable*)op->lSide)->name)->data;
                 if(info->assigments == info->uses) {
                     *statement = (Statement*)op->rSide;
+                    return true;
                 }
             }
         } else if(expression->expressionType == EXPRESSION_VARIABLE) {
