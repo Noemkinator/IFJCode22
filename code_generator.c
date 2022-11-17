@@ -391,6 +391,46 @@ Symb saveTempSymb(Symb symb, Context ctx) {
  * @return Symb
  */
 Symb generateExpression(Expression * expression, Context ctx, bool throwaway, Var * outVar);
+
+void emitTypeCheck(Type requiredType, Expression * subTypeExpression, Symb subTypeSymbol, Context ctx, char * typeCheckFailMsg) {
+    Type subType = unionTypeToType(subTypeExpression->getType(subTypeExpression, ctx.functionTable, ctx.program, ctx.currentFunction));
+    if(requiredType.type == subType.type && (requiredType.isRequired == subType.isRequired || subType.isRequired == false)) {
+        return;
+    }
+    if(!requiredType.isRequired && subType.type == TYPE_NULL) {
+        return;
+    }
+    StringBuilder typeCheckPassed;
+    StringBuilder__init(&typeCheckPassed);
+    StringBuilder__appendString(&typeCheckPassed, "type_check_passed&");
+    StringBuilder__appendInt(&typeCheckPassed, getNextCodeGenUID());
+    Symb realType = generateSymbType(subTypeExpression, subTypeSymbol, ctx);
+    char * requiredTypeStr = NULL;
+    if(requiredType.type == TYPE_INT) {
+        requiredTypeStr = "int";
+    } else if(requiredType.type == TYPE_FLOAT) {
+        requiredTypeStr = "float";
+    } else if(requiredType.type == TYPE_STRING) {
+        requiredTypeStr = "string";
+    } else if(requiredType.type == TYPE_BOOL) {
+        requiredTypeStr = "bool";
+    } else if(requiredType.type == TYPE_NULL) {
+        requiredTypeStr = "nil";
+    } else {
+        fprintf(stderr, "ERR: Unexpected type of func parameter\n");
+        exit(99);
+    }
+    emit_JUMPIFEQ(typeCheckPassed.text, realType, (Symb){.type=Type_string, .value.s=requiredTypeStr});
+    if(!requiredType.isRequired) {
+        emit_JUMPIFEQ(typeCheckPassed.text, realType, (Symb){.type=Type_string, .value.s="nil"});
+    }
+    emit_DPRINT((Symb){.type=Type_string, .value.s=typeCheckFailMsg});
+    emit_EXIT((Symb){.type=Type_int, .value.i=4});
+    emit_LABEL(typeCheckPassed.text);
+    freeTemporarySymbol(realType, ctx);
+    StringBuilder__free(&typeCheckPassed);
+}
+
 /**
  * @brief Generate code for a function call
  * 
@@ -485,36 +525,7 @@ Symb generateFunctionCall(Expression__FunctionCall * expression, Context ctx, Va
         arguments[i] = saveTempSymb(generateExpression(expression->arguments[i], ctx, false, NULL), ctx);
     }
     for(int i=0; i<expression->arity; i++) {
-        UnionType unionType = expression->arguments[i]->getType(expression->arguments[i], ctx.functionTable, ctx.program, ctx.currentFunction);
-        Type type = unionTypeToType(unionType);
         Type expectedType = function->parameterTypes[i];
-        if(type.type == expectedType.type && (type.isRequired == expectedType.isRequired || expectedType.isRequired == false)) {
-            continue;
-        }
-        StringBuilder typeCheckPassed;
-        StringBuilder__init(&typeCheckPassed);
-        StringBuilder__appendString(&typeCheckPassed, "type_check_passed&");
-        StringBuilder__appendInt(&typeCheckPassed, getNextCodeGenUID());
-        Symb realType = generateSymbType(expression->arguments[i], arguments[i], ctx);
-        char * expectedTypeStr = NULL;
-        if(expectedType.type == TYPE_INT) {
-            expectedTypeStr = "int";
-        } else if(expectedType.type == TYPE_FLOAT) {
-            expectedTypeStr = "float";
-        } else if(expectedType.type == TYPE_STRING) {
-            expectedTypeStr = "string";
-        } else if(expectedType.type == TYPE_BOOL) {
-            expectedTypeStr = "bool";
-        } else if(expectedType.type == TYPE_NULL) {
-            expectedTypeStr = "nil";
-        } else {
-            fprintf(stderr, "ERR: Unexpected type of func parameter\n");
-            exit(99);
-        }
-        emit_JUMPIFEQ(typeCheckPassed.text, realType, (Symb){.type=Type_string, .value.s=expectedTypeStr});
-        if(!expectedType.isRequired && type.type != TYPE_NULL) {
-            emit_JUMPIFEQ(typeCheckPassed.text, realType, (Symb){.type=Type_string, .value.s="nil"});
-        }
         StringBuilder typeCheckFailMsg;
         StringBuilder__init(&typeCheckFailMsg);
         StringBuilder__appendString(&typeCheckFailMsg, "Type check failed for argument ");
@@ -522,11 +533,7 @@ Symb generateFunctionCall(Expression__FunctionCall * expression, Context ctx, Va
         StringBuilder__appendString(&typeCheckFailMsg, " of function ");
         StringBuilder__appendString(&typeCheckFailMsg, function->name);
         StringBuilder__appendString(&typeCheckFailMsg, "\n");
-        emit_DPRINT((Symb){.type=Type_string, .value.s=typeCheckFailMsg.text});
-        emit_EXIT((Symb){.type=Type_int, .value.i=4});
-        emit_LABEL(typeCheckPassed.text);
-        freeTemporarySymbol(realType, ctx);
-        StringBuilder__free(&typeCheckPassed);
+        emitTypeCheck(expectedType, expression->arguments[i], arguments[i], ctx, typeCheckFailMsg.text);
         StringBuilder__free(&typeCheckFailMsg);
     }
     if(strcmp(function->name, "strlen") == 0) {
@@ -884,6 +891,20 @@ void generateReturn(StatementReturn * statement, Context ctx) {
     if(statement != NULL && statement->expression != NULL) {
         Var returnValue = (Var){.frameType = LF, .name = "returnValue"};
         Symb expr = generateExpression(statement->expression, ctx, ctx.isGlobal, ctx.isGlobal ? NULL : &returnValue);
+        if(!ctx.isGlobal) {
+            Type functionType = ctx.currentFunction->returnType;
+            UnionType returnUnionType = statement->expression->getType(statement->expression, ctx.functionTable, ctx.program, ctx.currentFunction);
+            Type returnType = unionTypeToType(returnUnionType);
+            if(returnType.type != functionType.type || (returnType.isRequired != functionType.isRequired && functionType.isRequired) ) {
+                StringBuilder typeCheckFailMsg;
+                StringBuilder__init(&typeCheckFailMsg);
+                StringBuilder__appendString(&typeCheckFailMsg, "Type check failed for return statement of function ");
+                StringBuilder__appendString(&typeCheckFailMsg, ctx.currentFunction->name);
+                StringBuilder__appendString(&typeCheckFailMsg, "\n");
+                emitTypeCheck(functionType, statement->expression, expr, ctx, typeCheckFailMsg.text);
+                StringBuilder__free(&typeCheckFailMsg);
+            }
+        }
         if(!ctx.isGlobal && (expr.type != Type_variable || expr.value.v.frameType != LF || strcmp(expr.value.v.name, "returnValue") != 0)) {
             emit_MOVE(returnValue, expr);
         }
