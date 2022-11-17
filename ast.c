@@ -356,7 +356,7 @@ UnionType orUnionType(UnionType type1, UnionType type2) {
     ret.isNull = type1.isNull || type2.isNull;
     ret.isString = type1.isString || type2.isString;
     ret.isUndefined = type1.isUndefined || type2.isUndefined;
-    ret.constant = NULL;
+    ret.constant = (type1.constant == type2.constant) ? type1.constant : NULL;
     return ret;
 }
 
