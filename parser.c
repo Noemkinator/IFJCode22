@@ -11,14 +11,17 @@ void printParserError(Token token, char * message) {
 }
 
 bool precedence_tb[PREC_TB_SIZE][PREC_TB_SIZE] = {
-//  */      +-     .      <>     !=     =    empty
-  {false, false, false, false, false, false, false},   // */ 
-  {true , false, false, false, false, false, false},   // +- 
-  {true , false, false, false, false, false, false},   // .  
-  {true , true , true , false, false, false, false},   // <> 
-  {true , true , true , true , false, false, false},   // != 
-  {true , true , true , true , true , true , false},   // = 
-  {true , true , true , true , true , true , false},   // empty
+//  */      +-     .      <>     !=     =    empty    !     &&     ||
+  {false, false, false, false, false, false, false, false, false, false},   // */ 
+  {true , false, false, false, false, false, false, false, false, false},   // +- 
+  {true , false, false, false, false, false, false, false, false, false},   // .  
+  {true , true , true , false, false, false, false, false, false, false},   // <> 
+  {true , true , true , true , false, false, false, false, false, false},   // != 
+  {true , true , true , true , true , true , false, false, false, false},   // = 
+  {true , true , true , true , true , true , false, true , true , true },   // empty
+  {true , true , true , true , true , true , true , false, false, false},   // !
+  {true , true , true , true , true , true , true , true , false, false},   // &&
+  {true , true , true , true , true , true , false, true , true , false},   // ||
 };  
 
 int get_prec_tb_indx(TokenType type) {
@@ -43,13 +46,19 @@ int get_prec_tb_indx(TokenType type) {
         return 5;
     case TOKEN_ERROR:
         return 6;
+    case TOKEN_NEGATE:
+        return 7;
+    case TOKEN_AND:
+        return 8;
+    case TOKEN_OR:
+        return 9;
     default:
         return -1;
     }
 } 
 
 bool is_operator(Token token) {
-    return token.type == TOKEN_PLUS || token.type == TOKEN_MINUS || token.type == TOKEN_MULTIPLY || token.type == TOKEN_DIVIDE || token.type == TOKEN_CONCATENATE || token.type == TOKEN_LESS || token.type == TOKEN_LESS_OR_EQUALS || token.type == TOKEN_GREATER || token.type == TOKEN_GREATER_OR_EQUALS || token.type == TOKEN_EQUALS || token.type == TOKEN_NOT_EQUALS || token.type == TOKEN_ASSIGN;
+    return token.type == TOKEN_PLUS || token.type == TOKEN_MINUS || token.type == TOKEN_MULTIPLY || token.type == TOKEN_DIVIDE || token.type == TOKEN_CONCATENATE || token.type == TOKEN_LESS || token.type == TOKEN_LESS_OR_EQUALS || token.type == TOKEN_GREATER || token.type == TOKEN_GREATER_OR_EQUALS || token.type == TOKEN_EQUALS || token.type == TOKEN_NOT_EQUALS || token.type == TOKEN_ASSIGN || token.type == TOKEN_AND || token.type == TOKEN_OR || token.type == TOKEN_NEGATE;
 }
 
 char * decodeString(char * text) {
@@ -145,7 +154,7 @@ bool parse_terminal_expression(Expression ** expression) {
         if(!parse_function_call(expression)) return false;
         return true;
     }
-    if(nextToken.type != TOKEN_VARIABLE && nextToken.type != TOKEN_INTEGER && nextToken.type != TOKEN_FLOAT && nextToken.type != TOKEN_STRING && nextToken.type != TOKEN_NULL) {
+    if(nextToken.type != TOKEN_VARIABLE && nextToken.type != TOKEN_INTEGER && nextToken.type != TOKEN_FLOAT && nextToken.type != TOKEN_STRING && nextToken.type != TOKEN_NULL && nextToken.type != TOKEN_BOOL && nextToken.type != TOKEN_NEGATE) {
         printParserError(nextToken, "Expected expression");
         return false;
     }
@@ -153,7 +162,7 @@ bool parse_terminal_expression(Expression ** expression) {
         Expression__Variable * variable = Expression__Variable__init();
         *expression = (Expression*)variable;
         variable->name = getTokenTextPermanent(nextToken);
-    } else if(nextToken.type == TOKEN_INTEGER || nextToken.type == TOKEN_FLOAT || nextToken.type == TOKEN_STRING || nextToken.type == TOKEN_NULL) {
+    } else if(nextToken.type == TOKEN_INTEGER || nextToken.type == TOKEN_FLOAT || nextToken.type == TOKEN_STRING || nextToken.type == TOKEN_BOOL || nextToken.type == TOKEN_NULL) {
         Expression__Constant * constant = Expression__Constant__init();
         *expression = (Expression*)constant;
         Type type;
@@ -170,6 +179,15 @@ bool parse_terminal_expression(Expression ** expression) {
             type.type = TYPE_STRING;
             constant->type = type;
             constant->value.string = decodeString(getTokenText(nextToken));
+        } else if(nextToken.type == TOKEN_BOOL) {
+            type.type = TYPE_BOOL;
+            constant->type = type;
+            char* tokenText = getTokenText(nextToken);
+            if(strcmp(tokenText, "true") == 0) {
+                constant->value.boolean = true;
+            } else {
+                constant->value.boolean = false;
+            }
         } else if(nextToken.type == TOKEN_NULL) {
             type.type = TYPE_NULL;
             constant->type = type;
@@ -187,7 +205,6 @@ bool parse_expression(Expression ** expression, TokenType previousToken) {
         int i = get_prec_tb_indx(previousToken);
         //if(i == -1 || j == -1) would happen error but it shouldn't be possible
         bool precedence = precedence_tb[i][j];
-
         if(precedence) {
             Expression__BinaryOperator * operator = Expression__BinaryOperator__init();
             operator->operator = operatorToken.type;
@@ -242,22 +259,24 @@ bool parse_if(StatementIf ** statementIfRet) {
         return false;
     }
     nextToken = getNextToken();
-    if(nextToken.type != TOKEN_ELSE) {
-        printParserError(nextToken, "Missing else after if");
-        return false;
+    if(nextToken.type == TOKEN_ELSE) {
+        nextToken = getNextToken();
+        if(nextToken.type != TOKEN_OPEN_CURLY_BRACKET) {
+            printParserError(nextToken, "Missing { after else");
+            return false;
+        }
+        nextToken = getNextToken();
+        if(!parse_statement_list((StatementList**)&statementIf->elseBody)) return false;
+        if(nextToken.type != TOKEN_CLOSE_CURLY_BRACKET) {
+            printParserError(nextToken, "Missing } after else");
+            return false;
+        }
+        nextToken = getNextToken();
+    } else if(nextToken.type == TOKEN_ELSEIF) { // Add if statement to the else branch
+        if(!parse_if((StatementIf**)&statementIf->elseBody)) return false;
+    } else {
+        statementIf->elseBody = (Statement*)StatementList__init();
     }
-    nextToken = getNextToken();
-    if(nextToken.type != TOKEN_OPEN_CURLY_BRACKET) {
-        printParserError(nextToken, "Missing { after else");
-        return false;
-    }
-    nextToken = getNextToken();
-    if(!parse_statement_list((StatementList**)&statementIf->elseBody)) return false;
-    if(nextToken.type != TOKEN_CLOSE_CURLY_BRACKET) {
-        printParserError(nextToken, "Missing } after else");
-        return false;
-    }
-    nextToken = getNextToken();
     return true;
 }
 
@@ -483,6 +502,13 @@ void loadBuiltinFunctions(Table * functionTable) {
     strval->returnType.type = TYPE_STRING;
     Function__addParameter(strval, (Type){.isRequired = false, .type = TYPE_UNKNOWN}, "term");
     table_insert(functionTable, "strval", strval);
+
+    Function * boolval = Function__init();
+    boolval->name = "boolval";
+    boolval->returnType.isRequired = true;
+    boolval->returnType.type = TYPE_BOOL;
+    Function__addParameter(boolval, (Type){.isRequired = false, .type = TYPE_UNKNOWN}, "term");
+    table_insert(functionTable, "boolval", boolval);
 
     Function * strlen = Function__init();
     strlen->name = "strlen";

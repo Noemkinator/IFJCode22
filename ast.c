@@ -440,11 +440,18 @@ UnionType getExpressionVarType(Expression__Variable * variable, Table * function
                 case TOKEN_ASSIGN:
                     *exprTypeRet = rType;
                     break;
+                case TOKEN_NEGATE:
+                    exprTypeRet->isBool = true;
                 case TOKEN_EQUALS:
+                    exprTypeRet->isBool = true;
                 case TOKEN_NOT_EQUALS:
+                    exprTypeRet->isBool = true;
                 case TOKEN_LESS:
+                    exprTypeRet->isBool = true;
                 case TOKEN_GREATER:
+                    exprTypeRet->isBool = true;
                 case TOKEN_LESS_OR_EQUALS:
+                    exprTypeRet->isBool = true;
                 case TOKEN_GREATER_OR_EQUALS:
                     exprTypeRet->isBool = true;
                     break;
@@ -802,6 +809,15 @@ void Expression__BinaryOperator__serialize(Expression__BinaryOperator *this, Str
         case TOKEN_GREATER_OR_EQUALS:
             StringBuilder__appendString(stringBuilder, ">=");
             break;
+        case TOKEN_AND:
+            StringBuilder__appendString(stringBuilder, "&&");
+            break;
+        case TOKEN_OR:
+            StringBuilder__appendString(stringBuilder, "||");
+            break;
+        case TOKEN_NEGATE:
+            StringBuilder__appendString(stringBuilder, "!");
+            break;
         default:
             StringBuilder__appendString(stringBuilder, "TODO");
     }
@@ -871,6 +887,9 @@ UnionType Expression__BinaryOperation__getType(Expression__BinaryOperator *this,
         case TOKEN_GREATER:
         case TOKEN_LESS_OR_EQUALS:
         case TOKEN_GREATER_OR_EQUALS:
+        case TOKEN_AND:
+        case TOKEN_OR:
+        case TOKEN_NEGATE:
             type.isBool = true;
             break;
         default:

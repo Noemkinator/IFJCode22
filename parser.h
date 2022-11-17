@@ -12,7 +12,7 @@
 #include <stdint.h>
 #include <ctype.h>
 
-#define PREC_TB_SIZE 7
+#define PREC_TB_SIZE 10
 
 extern bool parse_function_call();
 extern bool parse_expression(Expression ** expression, TokenType previousToken);

@@ -761,6 +761,15 @@ Symb generateBinaryOperator(Expression__BinaryOperator * expression, Context ctx
             emit_LT(outVar, left, right);
             emit_NOT(outVar, outSymb);
             break;
+        case TOKEN_AND:
+            emit_AND(outVar, left, right);
+            break;
+        case TOKEN_OR:
+            emit_OR(outVar, left, right);
+            break;
+        case TOKEN_NEGATE:
+            emit_NOT(outVar, outSymb);
+            break;
         default:
             fprintf(stderr, "Unknown operator found while generating output code\n");
             exit(99);

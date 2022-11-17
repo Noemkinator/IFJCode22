@@ -136,6 +136,26 @@ Token getNextUnprocessedToken() {
     else if(c == '*') TOKEN(MULTIPLY)
     else if(c == ',') TOKEN(COMMA)
     else if(c == ':') TOKEN(COLON)
+    else if(c == '|') {
+        char nextChar = getNextChar();
+        if(nextChar == '|') {
+            TOKEN(OR);
+        } else {
+            undoChar();
+            fprintf(stderr, "Found invalid token |, did you mean ||?\n");
+            lexerError(token);
+        }
+    }
+    else if(c == '&') {
+        char nextChar = getNextChar();
+        if(nextChar == '&') {
+            TOKEN(AND);
+        } else {
+            undoChar();
+            fprintf(stderr, "Found invalid token &, did you mean &&?\n");
+            lexerError(token);
+        }
+    }
     else if((c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || c == '_') {
         do {
             c = getNextChar();
@@ -248,9 +268,7 @@ Token getNextUnprocessedToken() {
                 lexerError(token);
             }
         } else {
-            undoChar();
-            fprintf(stderr, "Found invalid token !, negation isn't supported\n");
-            lexerError(token);
+            TOKEN(NEGATE);
         }
     }
     else if(c == '<') {
