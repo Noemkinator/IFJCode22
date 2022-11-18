@@ -364,6 +364,36 @@ void emit_STRI2INT(Var var, Symb symb1, Symb symb2) {
 	StringBuilder__appendChar(&instructionBuilder, '\n');
 }
 
+void emit_INT2BOOL(Var var, Symb symb1, Symb symb2) {
+	StringBuilder__appendString(&instructionBuilder, "INT2BOOL ");
+	emit_var(var);
+	StringBuilder__appendChar(&instructionBuilder, ' ');
+	emit_symb(symb1);
+	StringBuilder__appendChar(&instructionBuilder, ' ');
+	emit_symb(symb2);
+	StringBuilder__appendChar(&instructionBuilder, '\n');
+}
+
+void emit_FLOAT2BOOL(Var var, Symb symb1, Symb symb2) {
+	StringBuilder__appendString(&instructionBuilder, "FLOAT2BOOL ");
+	emit_var(var);
+	StringBuilder__appendChar(&instructionBuilder, ' ');
+	emit_symb(symb1);
+	StringBuilder__appendChar(&instructionBuilder, ' ');
+	emit_symb(symb2);
+	StringBuilder__appendChar(&instructionBuilder, '\n');
+}
+
+void emit_STRI2BOOL(Var var, Symb symb1, Symb symb2) {
+	StringBuilder__appendString(&instructionBuilder, "STRI2BOOL ");
+	emit_var(var);
+	StringBuilder__appendChar(&instructionBuilder, ' ');
+	emit_symb(symb1);
+	StringBuilder__appendChar(&instructionBuilder, ' ');
+	emit_symb(symb2);
+	StringBuilder__appendChar(&instructionBuilder, '\n');
+}
+
 void emit_INT2FLOATS() {
 	StringBuilder__appendString(&instructionBuilder, "INT2FLOATS\n");
 }

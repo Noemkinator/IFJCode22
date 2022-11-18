@@ -61,6 +61,10 @@ bool is_operator(Token token) {
     return token.type == TOKEN_PLUS || token.type == TOKEN_MINUS || token.type == TOKEN_MULTIPLY || token.type == TOKEN_DIVIDE || token.type == TOKEN_CONCATENATE || token.type == TOKEN_LESS || token.type == TOKEN_LESS_OR_EQUALS || token.type == TOKEN_GREATER || token.type == TOKEN_GREATER_OR_EQUALS || token.type == TOKEN_EQUALS || token.type == TOKEN_NOT_EQUALS || token.type == TOKEN_ASSIGN || token.type == TOKEN_AND || token.type == TOKEN_OR || token.type == TOKEN_NEGATE;
 }
 
+bool is_unary_operator(Token token) {
+    return token.type == TOKEN_NEGATE;
+}
+
 char * decodeString(char * text) {
     int len = strlen(text);
     char * result = malloc(len + 1);
@@ -154,7 +158,7 @@ bool parse_terminal_expression(Expression ** expression) {
         if(!parse_function_call(expression)) return false;
         return true;
     }
-    if(nextToken.type != TOKEN_VARIABLE && nextToken.type != TOKEN_INTEGER && nextToken.type != TOKEN_FLOAT && nextToken.type != TOKEN_STRING && nextToken.type != TOKEN_NULL && nextToken.type != TOKEN_BOOL && nextToken.type != TOKEN_NEGATE) {
+    if(nextToken.type != TOKEN_VARIABLE && nextToken.type != TOKEN_INTEGER && nextToken.type != TOKEN_FLOAT && nextToken.type != TOKEN_STRING && nextToken.type != TOKEN_NULL && nextToken.type != TOKEN_BOOL) {
         printParserError(nextToken, "Expected expression");
         return false;
     }
@@ -198,7 +202,9 @@ bool parse_terminal_expression(Expression ** expression) {
 }
 
 bool parse_expression(Expression ** expression, TokenType previousToken) {
-    if(!parse_terminal_expression(expression)) return false;
+    if(!is_unary_operator(nextToken)) {
+        if(!parse_terminal_expression(expression)) return false;
+    }
     while(is_operator(nextToken)) {
         Token operatorToken = nextToken;
         int j = get_prec_tb_indx(operatorToken.type);
@@ -206,12 +212,20 @@ bool parse_expression(Expression ** expression, TokenType previousToken) {
         //if(i == -1 || j == -1) would happen error but it shouldn't be possible
         bool precedence = precedence_tb[i][j];
         if(precedence) {
-            Expression__BinaryOperator * operator = Expression__BinaryOperator__init();
-            operator->operator = operatorToken.type;
-            operator->lSide = *expression;
-            *expression = (Expression*)operator;
-            nextToken = getNextToken();
-            if(!parse_expression(&operator->rSide, operatorToken.type)) return false;
+            if(!is_unary_operator(nextToken)) {
+                Expression__BinaryOperator * operator = Expression__BinaryOperator__init();
+                operator->operator = operatorToken.type;
+                operator->lSide = *expression;
+                *expression = (Expression*)operator;
+                nextToken = getNextToken();
+                if(!parse_expression(&operator->rSide, operatorToken.type)) return false;
+            } else {
+                Expression__UnaryOperator * operator = Expression__UnaryOperator__init();
+                operator->operator = operatorToken.type;
+                *expression = (Expression*)operator;
+                nextToken = getNextToken();
+                if(!parse_expression(&operator->rSide, operatorToken.type)) return false;
+            }
         } else {
             break;
         }

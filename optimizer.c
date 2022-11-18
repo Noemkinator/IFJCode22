@@ -96,7 +96,7 @@ Expression__Constant * performConstantCast(Expression__Constant * in, Type targe
                     result->value.boolean = in->value.real != 0.0;
                     break;
                 case TYPE_STRING:
-                    result->value.boolean = in->value.string[0] != '\0';
+                    result->value.boolean = strcmp(in->value.string, "1") == 0 ? true : false;
                     break;
                 case TYPE_VOID:
                 case TYPE_NULL:
@@ -324,6 +324,14 @@ int getExpressionError(Expression * expression, Table * functionTable, Statement
                 }
             }
 
+            int rightError = getExpressionError(op->rSide, functionTable, program, currentFunction);
+            if(rightError != 0) {
+                return rightError;
+            }
+            return -1;
+        }
+        case EXPRESSION_UNARY_OPERATOR: {
+            Expression__UnaryOperator * op = (Expression__UnaryOperator *) expression;
             int rightError = getExpressionError(op->rSide, functionTable, program, currentFunction);
             if(rightError != 0) {
                 return rightError;

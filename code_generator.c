@@ -767,6 +767,32 @@ Symb generateBinaryOperator(Expression__BinaryOperator * expression, Context ctx
         case TOKEN_OR:
             emit_OR(outVar, left, right);
             break;
+        default:
+            fprintf(stderr, "Unknown operator found while generating output code\n");
+            exit(99);
+    }
+    freeTemporarySymbol(left, ctx);
+    freeTemporarySymbol(right, ctx);
+    return outSymb;
+}
+
+/**
+ * @brief Generates unary operator code
+ * 
+ * @param expression Expression to generate
+ * @param ctx Context
+ * @return Symb
+ */
+Symb generateUnaryOperator(Expression__UnaryOperator * expression, Context ctx, bool throwaway, Var * outVarAlt) {
+    Symb right = generateExpression(expression->rSide, ctx, false, NULL);
+    Var outVar;
+    if(outVarAlt == NULL) {
+        outVar = generateTemporaryVariable(ctx);
+    } else {
+        outVar = *outVarAlt;
+    }
+    Symb outSymb = (Symb){.type=Type_variable, .value.v = outVar};
+    switch(expression->operator) {
         case TOKEN_NEGATE:
             emit_NOT(outVar, outSymb);
             break;
@@ -774,7 +800,6 @@ Symb generateBinaryOperator(Expression__BinaryOperator * expression, Context ctx
             fprintf(stderr, "Unknown operator found while generating output code\n");
             exit(99);
     }
-    freeTemporarySymbol(left, ctx);
     freeTemporarySymbol(right, ctx);
     return outSymb;
 }
@@ -801,6 +826,9 @@ Symb generateExpression(Expression * expression, Context ctx, bool throwaway, Va
             break;
         case EXPRESSION_BINARY_OPERATOR:
             return generateBinaryOperator((Expression__BinaryOperator*)expression, ctx, throwaway, outVar);
+            break;
+        case EXPRESSION_UNARY_OPERATOR:
+            return generateUnaryOperator((Expression__UnaryOperator*)expression, ctx, throwaway, outVar);
             break;
         default:
             fprintf(stderr, "Unknown expression type found while generating output code\n");
