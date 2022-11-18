@@ -394,7 +394,7 @@ Symb generateExpression(Expression * expression, Context ctx, bool throwaway, Va
 
 void emitTypeCheck(Type requiredType, Expression * subTypeExpression, Symb subTypeSymbol, Context ctx, char * typeCheckFailMsg) {
     Type subType = unionTypeToType(subTypeExpression->getType(subTypeExpression, ctx.functionTable, ctx.program, ctx.currentFunction));
-    if(requiredType.type == subType.type && (requiredType.isRequired == subType.isRequired || subType.isRequired == false)) {
+    if(requiredType.type == subType.type && (requiredType.isRequired == subType.isRequired || requiredType.isRequired == false)) {
         return;
     }
     if(!requiredType.isRequired && subType.type == TYPE_NULL) {
