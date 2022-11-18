@@ -262,7 +262,7 @@ Type unionTypeToType(UnionType unionType) {
  */
 UnionType Expression__Constant__getType(Expression__Constant *this, Table * functionTable, StatementList * program, Function * currentFunction) {
     UnionType type = typeToUnionType(this->type);
-    type.constant = this;
+    type.constant = (Expression*) this;
     return type;
 }
 
@@ -356,7 +356,23 @@ UnionType orUnionType(UnionType type1, UnionType type2) {
     ret.isNull = type1.isNull || type2.isNull;
     ret.isString = type1.isString || type2.isString;
     ret.isUndefined = type1.isUndefined || type2.isUndefined;
-    ret.constant = (type1.constant == type2.constant) ? type1.constant : NULL;
+    if(type1.constant == type2.constant) {
+        ret.constant = type1.constant;
+    } else if(type1.constant != NULL && type2.constant == NULL) {
+        if(!type2.isBool && !type2.isFloat && !type2.isInt && !type2.isNull && !type2.isString && !type2.isUndefined) {
+            ret.constant = type1.constant;
+        } else {
+            ret.constant = NULL;
+        }
+    } else if(type1.constant == NULL && type2.constant != NULL) {
+        if(!type1.isBool && !type1.isFloat && !type1.isInt && !type1.isNull && !type1.isString && !type1.isUndefined) {
+            ret.constant = type2.constant;
+        } else {
+            ret.constant = NULL;
+        }
+    } else {
+        ret.constant = NULL;
+    }
     return ret;
 }
 
@@ -382,7 +398,7 @@ UnionType getExpressionVarType(Expression__Variable * variable, Table * function
             if(exprTypeRet != NULL) {
                 Expression__Constant* constant = (Expression__Constant*)expression;
                 *exprTypeRet = typeToUnionType(constant->type);
-                exprTypeRet->constant = constant;
+                exprTypeRet->constant = expression;
             }
             return (UnionType){0};
         case EXPRESSION_VARIABLE: {
@@ -390,6 +406,7 @@ UnionType getExpressionVarType(Expression__Variable * variable, Table * function
             UnionType type = *(UnionType*)table_find(variableTable, var->name)->data;
             if(exprTypeRet != NULL) {
                 *exprTypeRet = type;
+                exprTypeRet->constant = expression;
             }
             if((Expression__Variable*)expression == variable) {
                 return type;
@@ -417,7 +434,21 @@ UnionType getExpressionVarType(Expression__Variable * variable, Table * function
             if(binOp->operator == TOKEN_ASSIGN && binOp->lSide->expressionType == EXPRESSION_VARIABLE) {
                 UnionType assignedType = rType;
                 assignedType.isUndefined = false;
+                for(int i = 0; i < TB_SIZE; i++) {
+                    TableItem * item = variableTable->tb[i];
+                    while (item != NULL) {
+                        UnionType * type = (UnionType*)item->data;
+                        if(type->constant != NULL && type->constant->expressionType == EXPRESSION_VARIABLE && ((Expression__Variable*)type->constant)->name == ((Expression__Variable*)binOp->lSide)->name) {
+                            type->constant = NULL;
+                        }
+                        item = item->next;
+                    }
+                }
                 *(UnionType*)table_find(variableTable, ((Expression__Variable*)binOp->lSide)->name)->data = assignedType;
+                if(exprTypeRet != NULL) {
+                    *exprTypeRet = assignedType;
+                }
+                return type2;
             }
             if(exprTypeRet == NULL) {
                 return propagateUnionType(type1, type2);
@@ -498,9 +529,8 @@ UnionType getStatementVarType(Expression__Variable * variable, Table * functionT
         }
         case STATEMENT_WHILE: {
             StatementWhile* whileStatement = (StatementWhile*)statement;
-            UnionType typeCond = getExpressionVarType(variable, functionTable, whileStatement->condition, variableTable, NULL);
             Table * duplTable = dublicateVarTypeTable(variableTable);
-            UnionType type = (UnionType){0};
+            UnionType type = getExpressionVarType(variable, functionTable, whileStatement->condition, variableTable, NULL);
             bool changed = true;
             while(changed) {
                 changed = false;
@@ -517,6 +547,13 @@ UnionType getStatementVarType(Expression__Variable * variable, Table * functionT
                         }
                         UnionType * type1 = (UnionType*)item1->data;
                         UnionType * type2 = (UnionType*)item2->data;
+                        if(type1->constant != type2->constant) {
+                            if(type1->constant != NULL) {
+                                type1->constant = NULL;
+                                changed = true;
+                            }
+                            type2->constant = NULL;
+                        }
                         changed |= (!type1->isBool && type2->isBool) || (!type1->isFloat && type2->isFloat) || (!type1->isInt && type2->isInt) || (!type1->isString && type2->isString) || (!type1->isUndefined && type2->isUndefined);
                         *type1 = orUnionType(*type1, *type2);
                         item1 = item1->next;
@@ -530,7 +567,7 @@ UnionType getStatementVarType(Expression__Variable * variable, Table * functionT
             }
             // TODO: free also content
             table_free(duplTable);
-            return orUnionType(typeCond, type);
+            return type;
             break;
         }
         case STATEMENT_LIST:

@@ -73,7 +73,7 @@ typedef struct {
     bool isBool;
     bool isNull;
     bool isUndefined;
-    struct Expression__Constant * constant;
+    struct Expression * constant;
 } UnionType;
 
 Type tokenToType(Token token);
