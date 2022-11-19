@@ -465,10 +465,9 @@ UnionType getExpressionVarType(Expression__Variable * variable, Table * function
             Expression__UnaryOperator* unOp = (Expression__UnaryOperator*)expression;
             UnionType rType;
             UnionType type = getExpressionVarType(variable, functionTable, unOp->rSide, variableTable, &rType);
-            /*TODO? 
              if(exprTypeRet == NULL) {
-                return propagateUnionType(type1, type2);
-            }*/
+                return type;
+            }
             *exprTypeRet = (UnionType){0};
             switch (unOp->operator) {
                 case TOKEN_NEGATE:

@@ -450,6 +450,24 @@ Symb generateFunctionCall(Expression__FunctionCall * expression, Context ctx, Va
         Var retVar = generateTemporaryVariable(ctx);
         emit_FLOAT2INT(retVar, symb);
         return (Symb){.type = Type_variable, .value.v=retVar};
+    } else if(strcmp(function->name, "boolval") == 0) {
+        Symb symb = generateExpression(expression->arguments[0], ctx, false, NULL);
+        Var retVar = generateTemporaryVariable(ctx);
+        switch (symb.type)
+        {
+            case Type_int:
+                emit_INT2BOOL(retVar, symb);
+                break;
+            case Type_string:
+                emit_STRI2BOOL(retVar, symb);
+                break;
+            case Type_float:
+                emit_FLOAT2BOOL(retVar, symb);
+                break;
+            default:
+                break;
+        }
+        return (Symb){.type = Type_variable, .value.v=retVar};
     } else if(strcmp(function->name, "strval") == 0) {
         Symb symb = generateExpression(expression->arguments[0], ctx, false, NULL);
         Var retVar = generateTemporaryVariable(ctx);
@@ -794,7 +812,7 @@ Symb generateUnaryOperator(Expression__UnaryOperator * expression, Context ctx, 
     Symb outSymb = (Symb){.type=Type_variable, .value.v = outVar};
     switch(expression->operator) {
         case TOKEN_NEGATE:
-            emit_NOT(outVar, outSymb);
+            emit_NOT(outVar, right);
             break;
         default:
             fprintf(stderr, "Unknown operator found while generating output code\n");
