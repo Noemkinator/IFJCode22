@@ -560,6 +560,21 @@ Symb generateFunctionCall(Expression__FunctionCall * expression, Context ctx, Va
         Symb symb1 = arguments[0];
         Symb symb2 = arguments[1];
         Symb symb3 = arguments[2];
+        if(symb2.type == Type_int && symb2.value.i < 0) {
+            return (Symb){.type = Type_null};
+        }
+        if(symb3.type == Type_int && symb3.value.i < 0) {
+            return (Symb){.type = Type_null};
+        }
+        if(symb2.type == Type_int && symb3.type == Type_int && symb2.value.i > symb3.value.i) {
+            return (Symb){.type = Type_null};
+        }
+        if(symb1.type == Type_string && symb2.type == Type_int && symb2.value.i >= strlen(symb1.value.s)) {
+            return (Symb){.type = Type_null};
+        }
+        if(symb1.type == Type_string && symb3.type == Type_int && symb3.value.i > strlen(symb1.value.s)) {
+            return (Symb){.type = Type_null};
+        }
         Var retVar = generateTemporaryVariable(ctx);
         size_t substringUID = getNextCodeGenUID();
         StringBuilder func_substring_end;
