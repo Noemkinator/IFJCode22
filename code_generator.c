@@ -446,6 +446,12 @@ void emitTypeCheck(Type requiredType, Expression * subTypeExpression, Symb subTy
     StringBuilder__free(&typeCheckPassed);
 }
 
+void freeArguments(Symb * arguments, int argumentCount, Context ctx) {
+    for(int i = 0; i < argumentCount; i++) {
+        freeTemporarySymbol(arguments[i], ctx);
+    }
+}
+
 /**
  * @brief Generate code for a function call
  * 
@@ -499,11 +505,13 @@ Symb generateFunctionCall(Expression__FunctionCall * expression, Context ctx, Va
         Symb symb = generateExpression(expression->arguments[0], ctx, false, NULL);
         Var retVar = generateTemporaryVariable(ctx);
         emit_INT2FLOAT(retVar, symb);
+        freeTemporarySymbol(symb, ctx);
         return (Symb){.type = Type_variable, .value.v=retVar};
     } else if(strcmp(function->name, "intval") == 0) {
         Symb symb = generateExpression(expression->arguments[0], ctx, false, NULL);
         Var retVar = generateTemporaryVariable(ctx);
         emit_FLOAT2INT(retVar, symb);
+        freeTemporarySymbol(symb, ctx);
         return (Symb){.type = Type_variable, .value.v=retVar};
     } else if(strcmp(function->name, "strval") == 0) {
         Symb symb = generateExpression(expression->arguments[0], ctx, false, NULL);
@@ -533,6 +541,7 @@ Symb generateFunctionCall(Expression__FunctionCall * expression, Context ctx, Va
         emit_DPRINT((Symb){.type=Type_string, .value.s="Unsupported argument type of strval\n"});
         emit_EXIT((Symb){.type=Type_int, .value.i=4});
         emit_LABEL(strval_end.text);
+        freeTemporarySymbol(symb, ctx);
         return (Symb){.type = Type_variable, .value.v=retVar};
     }
     Symb * arguments = malloc(sizeof(Symb) * expression->arity);
@@ -555,24 +564,30 @@ Symb generateFunctionCall(Expression__FunctionCall * expression, Context ctx, Va
         Symb symb = arguments[0];
         Var retVar = generateTemporaryVariable(ctx);
         emit_STRLEN(retVar, symb);
+        freeTemporarySymbol(symb, ctx);
         return (Symb){.type = Type_variable, .value.v=retVar};
     } else if(strcmp(function->name, "substring") == 0) {
         Symb symb1 = arguments[0];
         Symb symb2 = arguments[1];
         Symb symb3 = arguments[2];
         if(symb2.type == Type_int && symb2.value.i < 0) {
+            freeArguments(arguments, expression->arity, ctx);
             return (Symb){.type = Type_null};
         }
         if(symb3.type == Type_int && symb3.value.i < 0) {
+            freeArguments(arguments, expression->arity, ctx);
             return (Symb){.type = Type_null};
         }
         if(symb2.type == Type_int && symb3.type == Type_int && symb2.value.i > symb3.value.i) {
+            freeArguments(arguments, expression->arity, ctx);
             return (Symb){.type = Type_null};
         }
         if(symb1.type == Type_string && symb2.type == Type_int && symb2.value.i >= strlen(symb1.value.s)) {
+            freeArguments(arguments, expression->arity, ctx);
             return (Symb){.type = Type_null};
         }
         if(symb1.type == Type_string && symb3.type == Type_int && symb3.value.i > strlen(symb1.value.s)) {
+            freeArguments(arguments, expression->arity, ctx);
             return (Symb){.type = Type_null};
         }
         Var retVar = generateTemporaryVariable(ctx);
@@ -623,6 +638,7 @@ Symb generateFunctionCall(Expression__FunctionCall * expression, Context ctx, Va
         emit_LABEL(func_substring_end.text);
         freeTemporaryVariable(tempVar, ctx);
         freeTemporaryVariable(func_substring_loop_indexVar, ctx);
+        freeArguments(arguments, expression->arity, ctx);
         return (Symb){.type = Type_variable, .value.v=retVar};
     } else if(strcmp(function->name, "ord") == 0) {
         size_t ordId = getNextCodeGenUID();
@@ -637,11 +653,13 @@ Symb generateFunctionCall(Expression__FunctionCall * expression, Context ctx, Va
         emit_STRI2INT(retVar, symb, (Symb){.type=Type_int, .value.i=0});
         emit_LABEL(sb.text);
         StringBuilder__free(&sb);
+        freeArguments(arguments, expression->arity, ctx);
         return (Symb){.type = Type_variable, .value.v=retVar};
     } else if(strcmp(function->name, "chr") == 0) {
         Symb symb1 = arguments[0];
         Var retVar = generateTemporaryVariable(ctx);
         emit_INT2CHAR(retVar, symb1);
+        freeArguments(arguments, expression->arity, ctx);
         return (Symb){.type = Type_variable, .value.v=retVar};
     }
     emit_CREATEFRAME();
@@ -653,6 +671,7 @@ Symb generateFunctionCall(Expression__FunctionCall * expression, Context ctx, Va
     char * functionLabel = join_strings("function&", expression->name);
     emit_CALL(functionLabel);
     free(functionLabel);
+    freeArguments(arguments, expression->arity, ctx);
     if(function->returnType.type != TYPE_VOID) {
         return (Symb){.type = Type_variable, .value.v=(Var){.frameType = TF, .name = "returnValue"}};
     } else {
