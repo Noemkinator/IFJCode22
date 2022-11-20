@@ -45,11 +45,10 @@ digraph {
     ASSIGN -> ALMOST_EQUALS [label="="]
     ALMOST_EQUALS [shape=circle]
     ALMOST_EQUALS -> EQUALS [label="="]
-    START -> ALMOST_NOT_EQUALS [label="!"]
+    START -> NEGATE [label="!"]
+    NEGATE -> ALMOST_NOT_EQUALS [label="="]
     ALMOST_NOT_EQUALS [shape=circle]
-    ALMOST_NOT_EQUALS -> ALMOST_NOT_EQUALS2 [label="="]
-    ALMOST_NOT_EQUALS2 [shape=circle]
-    ALMOST_NOT_EQUALS2 -> NOT_EQUALS [label="="]
+    ALMOST_NOT_EQUALS -> NOT_EQUALS [label="="]
     START -> LESS [label="<"]
     LESS -> LESS_OR_EQUALS [label="="]
     START -> GREATER [label=">"]
@@ -66,6 +65,12 @@ digraph {
     FLOAT_EXPONENT_SIGN [shape=circle]
     FLOAT_EXPONENT_SIGN -> FLOAT_EXPONENT [label="[0-9]"]
     FLOAT_EXPONENT -> FLOAT_EXPONENT [label="[0-9]"]
+    START -> ALMOST_AND [label="&"]
+    ALMOST_AND [shape=circle]
+    ALMOST_AND -> AND [label="&"]
+    START -> ALMOST_OR [label="|"]
+    ALMOST_OR [shape=circle]
+    ALMOST_OR -> OR [label="|"]
 
     label="Finite state machine"
 }
