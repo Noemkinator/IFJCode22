@@ -515,22 +515,7 @@ Symb generateFunctionCall(Expression__FunctionCall * expression, Context ctx, Va
         return (Symb){.type = Type_variable, .value.v=retVar};
     } else if(strcmp(function->name, "boolval") == 0) {
         Symb symb = generateExpression(expression->arguments[0], ctx, false, NULL);
-        Var retVar = generateTemporaryVariable(ctx);
-        switch (symb.type)
-        {
-            case Type_int:
-                emit_INT2BOOL(retVar, symb);
-                break;
-            case Type_string:
-                emit_STRI2BOOL(retVar, symb);
-                break;
-            case Type_float:
-                emit_FLOAT2BOOL(retVar, symb);
-                break;
-            default:
-                break;
-        }
-        return (Symb){.type = Type_variable, .value.v=retVar};
+        return generateCastToBool(expression->arguments[0], symb, ctx);
     } else if(strcmp(function->name, "strval") == 0) {
         Symb symb = generateExpression(expression->arguments[0], ctx, false, NULL);
         Var retVar = generateTemporaryVariable(ctx);
@@ -938,7 +923,6 @@ void generateIf(StatementIf * statement, Context ctx) {
     StringBuilder__init(&ifEndSb);
     StringBuilder__appendString(&ifEndSb, "ifEnd&");
     StringBuilder__appendInt(&ifEndSb, ifUID);
-
     bool isElseEmpty = statement->elseBody == NULL || (statement->elseBody->statementType == STATEMENT_LIST && ((StatementList*)statement->elseBody)->listSize == 0);
     Symb condition = generateExpression(statement->condition, ctx, false, NULL);
     condition = generateCastToBool(statement->condition, condition, ctx);
