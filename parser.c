@@ -12,16 +12,16 @@ void printParserError(Token token, char * message) {
 
 bool precedence_tb[PREC_TB_SIZE][PREC_TB_SIZE] = {
 //  */      +-     .      <>     !=     =    empty    !     &&     ||
-  {false, false, false, false, false, false, false, false, false, false},   // */ 
-  {true , false, false, false, false, false, false, false, false, false},   // +- 
-  {true , false, false, false, false, false, false, false, false, false},   // .  
-  {true , true , true , false, false, false, false, false, false, false},   // <> 
-  {true , true , true , true , false, false, false, false, false, false},   // != 
-  {true , true , true , true , true , true , false, false, false, false},   // = 
+  {false, false, false, false, false, false, false, true , false, false},   // */ 
+  {true , false, false, false, false, false, false, true , false, false},   // +- 
+  {true , false, false, false, false, false, false, true , false, false},   // .  
+  {true , true , true , false, false, false, false, true , false, false},   // <> 
+  {true , true , true , true , false, false, false, true , false, false},   // != 
+  {true , true , true , true , true , true , false, true , true , true },   // = 
   {true , true , true , true , true , true , false, true , true , true },   // empty
-  {true , true , true , true , true , true , true , false, false, false},   // !
-  {true , true , true , true , true , true , true , true , false, false},   // &&
-  {true , true , true , true , true , true , false, true , true , false},   // ||
+  {true , false, false, false, false, false, false, false, false, false},   // !
+  {true , true , true , true , true , false, false, true , false, false},   // &&
+  {true , true , true , true , true , false, false, true , true , false},   // ||
 };  
 
 int get_prec_tb_indx(TokenType type) {
