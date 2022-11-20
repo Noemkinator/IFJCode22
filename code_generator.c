@@ -716,7 +716,10 @@ Symb generateBinaryOperator(Expression__BinaryOperator * expression, Context ctx
     }
     Symb left = generateExpression(expression->lSide, ctx, false, NULL);
     left = saveTempSymb(left, ctx);
-    Symb right = generateExpression(expression->rSide, ctx, false, NULL);
+    Symb right;
+    if(expression->operator != TOKEN_AND && expression->operator != TOKEN_OR) {
+        right = generateExpression(expression->rSide, ctx, false, NULL);
+    }
     Var outVar;
     if(outVarAlt == NULL) {
         outVar = generateTemporaryVariable(ctx);
@@ -820,12 +823,52 @@ Symb generateBinaryOperator(Expression__BinaryOperator * expression, Context ctx
             emit_LT(outVar, left, right);
             emit_NOT(outVar, outSymb);
             break;
-        case TOKEN_AND:
-            emit_AND(outVar, left, right);
+        case TOKEN_AND: {
+            size_t operatorAndId = getNextCodeGenUID();
+            StringBuilder sb1;
+            StringBuilder__init(&sb1);
+            StringBuilder__appendString(&sb1, "and_is_false&");
+            StringBuilder__appendInt(&sb1, operatorAndId);
+            StringBuilder sb2;
+            StringBuilder__init(&sb2);
+            StringBuilder__appendString(&sb2, "operator_and_done&");
+            StringBuilder__appendInt(&sb2, operatorAndId);
+            Symb leftBool = generateCastToBool(expression->lSide, left, ctx);
+            emit_JUMPIFEQ(sb1.text, leftBool, (Symb){.type=Type_bool, .value.b=false});
+            freeTemporarySymbol(leftBool, ctx);
+            right = generateExpression(expression->rSide, ctx, false, NULL);
+            Symb rightBool = generateCastToBool(expression->rSide, right, ctx);
+            emit_MOVE(outVar, rightBool);
+            freeTemporarySymbol(rightBool, ctx);
+            emit_JUMP(sb2.text);
+            emit_LABEL(sb1.text);
+            emit_MOVE(outVar, (Symb){.type=Type_bool, .value.b=false});
+            emit_LABEL(sb2.text);
             break;
-        case TOKEN_OR:
-            emit_OR(outVar, left, right);
+        }
+        case TOKEN_OR: {
+            size_t operatorOrId = getNextCodeGenUID();
+            StringBuilder sb1;
+            StringBuilder__init(&sb1);
+            StringBuilder__appendString(&sb1, "or_is_true&");
+            StringBuilder__appendInt(&sb1, operatorOrId);
+            StringBuilder sb2;
+            StringBuilder__init(&sb2);
+            StringBuilder__appendString(&sb2, "operator_or_done&");
+            StringBuilder__appendInt(&sb2, operatorOrId);
+            Symb leftBool = generateCastToBool(expression->lSide, left, ctx);
+            emit_JUMPIFEQ(sb1.text, leftBool, (Symb){.type=Type_bool, .value.b=true});
+            freeTemporarySymbol(leftBool, ctx);
+            right = generateExpression(expression->rSide, ctx, false, NULL);
+            Symb rightBool = generateCastToBool(expression->rSide, right, ctx);
+            emit_MOVE(outVar, rightBool);
+            freeTemporarySymbol(rightBool, ctx);
+            emit_JUMP(sb2.text);
+            emit_LABEL(sb1.text);
+            emit_MOVE(outVar, (Symb){.type=Type_bool, .value.b=true});
+            emit_LABEL(sb2.text);
             break;
+        }
         default:
             fprintf(stderr, "Unknown operator found while generating output code\n");
             exit(99);
@@ -852,9 +895,12 @@ Symb generateUnaryOperator(Expression__UnaryOperator * expression, Context ctx, 
     }
     Symb outSymb = (Symb){.type=Type_variable, .value.v = outVar};
     switch(expression->operator) {
-        case TOKEN_NEGATE:
-            emit_NOT(outVar, right);
+        case TOKEN_NEGATE: {
+            Symb rightBool = generateCastToBool(expression->rSide, right, ctx);
+            emit_NOT(outVar, rightBool);
+            freeTemporarySymbol(rightBool, ctx);
             break;
+        }
         default:
             fprintf(stderr, "Unknown operator found while generating output code\n");
             exit(99);
