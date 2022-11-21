@@ -114,6 +114,39 @@ Expression__Constant * performConstantCast(Expression__Constant * in, Type targe
     return result;
 }
 
+Expression__Constant * performConstantCastCondition(Expression__Constant * in) {
+    if(in->type.type == TYPE_BOOL) {
+        in->type.isRequired = true;
+        return in;
+    }
+    if(in->type.type != TYPE_INT && in->type.type != TYPE_FLOAT && in->type.type != TYPE_STRING && in->type.type != TYPE_BOOL && in->type.type != TYPE_NULL) {
+        return in;
+    }
+    Expression__Constant * result = Expression__Constant__init();
+    result->type.isRequired = true;
+    result->type.type = TYPE_BOOL;
+    switch(in->type.type) {
+        case TYPE_INT:
+            result->value.boolean = in->value.integer != 0;
+            break;
+        case TYPE_FLOAT:
+            result->value.boolean = in->value.real != 0.0;
+            break;
+        case TYPE_STRING:
+            result->value.boolean = in->value.string[0] != '\0' && strcmp(in->value.string, "0") != 0;
+            break;
+        case TYPE_VOID:
+        case TYPE_NULL:
+            result->value.boolean = false;
+            break;
+        default:
+            fprintf(stderr, "Bad constant cast");
+            exit(99);
+            break;
+    }
+    return result;
+}
+
 Expression__Constant * performConstantFolding(Expression__BinaryOperator * in) {
     if(in->lSide->expressionType != EXPRESSION_CONSTANT || in->rSide->expressionType != EXPRESSION_CONSTANT) return NULL;
     Expression__Constant * left = (Expression__Constant *) in->lSide;
@@ -251,7 +284,7 @@ Statement * performStatementFolding(Statement * in) {
             StatementIf* ifStatement = (StatementIf *) in;
             if(ifStatement->condition->expressionType == EXPRESSION_CONSTANT) {
                 Expression__Constant * condition = (Expression__Constant *) ifStatement->condition;
-                condition = performConstantCast(condition, (Type){.type = TYPE_BOOL, .isRequired = true});
+                condition = performConstantCastCondition(condition);
                 if(condition->value.boolean) {
                     return ifStatement->ifBody;
                 } else {
@@ -264,7 +297,7 @@ Statement * performStatementFolding(Statement * in) {
             StatementWhile* whileStatement = (StatementWhile *) in;
             if(whileStatement->condition->expressionType == EXPRESSION_CONSTANT) {
                 Expression__Constant * condition = (Expression__Constant *) whileStatement->condition;
-                condition = performConstantCast(condition, (Type){.type = TYPE_BOOL, .isRequired = true});
+                condition = performConstantCastCondition(condition);
                 if(!condition->value.boolean) {
                     return (Statement*)StatementList__init();
                 }
