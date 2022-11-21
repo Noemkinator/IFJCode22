@@ -155,30 +155,24 @@ Expression__Constant * performConstantFolding(Expression__BinaryOperator * in) {
     result->type.isRequired = true;
     switch(in->operator) {
         case TOKEN_PLUS:
-            if(left->type.type == TYPE_INT && right->type.type == TYPE_INT) {
-                result->value.integer = left->value.integer + right->value.integer;
-                result->type.type = TYPE_INT;
-                return result;
-            } else if((left->type.type == TYPE_FLOAT || left->type.type == TYPE_INT) && (right->type.type == TYPE_FLOAT || right->type.type == TYPE_INT)) {
+            if(left->type.type == TYPE_FLOAT || right->type.type == TYPE_FLOAT) {
                 result->value.real = performConstantCast(left, (Type){.type = TYPE_FLOAT, .isRequired = true})->value.real + performConstantCast(right, (Type){.type = TYPE_FLOAT, .isRequired = true})->value.real;
                 result->type.type = TYPE_FLOAT;
                 return result;
             } else {
-                free(result);
-                return NULL;
-            }
-        case TOKEN_MINUS:
-            if(left->type.type == TYPE_INT && right->type.type == TYPE_INT) {
-                result->value.integer = left->value.integer - right->value.integer;
+                result->value.integer = performConstantCast(left, (Type){.type = TYPE_INT, .isRequired = true})->value.integer + performConstantCast(right, (Type){.type = TYPE_INT, .isRequired = true})->value.integer;
                 result->type.type = TYPE_INT;
                 return result;
-            } else if((left->type.type == TYPE_FLOAT || left->type.type == TYPE_INT) && (right->type.type == TYPE_FLOAT || right->type.type == TYPE_INT)) {
+            }
+        case TOKEN_MINUS:
+            if(left->type.type == TYPE_FLOAT || right->type.type == TYPE_FLOAT) {
                 result->value.real = performConstantCast(left, (Type){.type = TYPE_FLOAT, .isRequired = true})->value.real - performConstantCast(right, (Type){.type = TYPE_FLOAT, .isRequired = true})->value.real;
                 result->type.type = TYPE_FLOAT;
                 return result;
             } else {
-                free(result);
-                return NULL;
+                result->value.integer = performConstantCast(left, (Type){.type = TYPE_INT, .isRequired = true})->value.integer - performConstantCast(right, (Type){.type = TYPE_INT, .isRequired = true})->value.integer;
+                result->type.type = TYPE_INT;
+                return result;
             }
         case TOKEN_CONCATENATE: {
             StringBuilder sb;
@@ -190,17 +184,14 @@ Expression__Constant * performConstantFolding(Expression__BinaryOperator * in) {
             return result;
         }
         case TOKEN_MULTIPLY:
-            if(left->type.type == TYPE_INT && right->type.type == TYPE_INT) {
-                result->value.integer = left->value.integer * right->value.integer;
-                result->type.type = TYPE_INT;
-                return result;
-            } else if((left->type.type == TYPE_FLOAT || left->type.type == TYPE_INT) && (right->type.type == TYPE_FLOAT || right->type.type == TYPE_INT)) {
+            if(left->type.type == TYPE_FLOAT || right->type.type == TYPE_FLOAT) {
                 result->value.real = performConstantCast(left, (Type){.type = TYPE_FLOAT, .isRequired = true})->value.real * performConstantCast(right, (Type){.type = TYPE_FLOAT, .isRequired = true})->value.real;
                 result->type.type = TYPE_FLOAT;
                 return result;
             } else {
-                free(result);
-                return NULL;
+                result->value.integer = performConstantCast(left, (Type){.type = TYPE_INT, .isRequired = true})->value.integer * performConstantCast(right, (Type){.type = TYPE_INT, .isRequired = true})->value.integer;
+                result->type.type = TYPE_INT;
+                return result;
             }
         case TOKEN_DIVIDE:
             if((left->type.type == TYPE_FLOAT || left->type.type == TYPE_INT) && ((right->type.type == TYPE_FLOAT && right->value.real != 0.0) || (right->type.type == TYPE_INT && right->value.integer != 0))) {
