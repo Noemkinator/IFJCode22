@@ -8,6 +8,7 @@
 #include "symtable.h"
 
 Expression__Constant * performConstantCast(Expression__Constant * in, Type targetType);
+Expression__Constant * performConstantCastCondition(Expression__Constant * in);
 Expression__Constant * performConstantFolding(Expression__BinaryOperator * in);
 Statement * performStatementFolding(Statement * in);
 void optimize(StatementList * program, Table * functionTable);

@@ -285,7 +285,7 @@ Symb generateSymbType(Expression * expression, Symb symb, Context ctx) {
  * @param context
  * @return Symb
  */
-Symb generateCastToBool(Expression * expression, Symb symb, Context ctx) {
+Symb generateCastToBool(Expression * expression, Symb symb, Context ctx, bool isCondtion) {
     UnionType unionType = expression->getType(expression, ctx.functionTable, ctx.program, ctx.currentFunction);
     unionType.isUndefined = false;
     Type type = unionTypeToType(unionType);
@@ -293,12 +293,17 @@ Symb generateCastToBool(Expression * expression, Symb symb, Context ctx) {
         return symb;
     }
     if(expression->expressionType == EXPRESSION_CONSTANT) {
-        Expression__Constant * constant = performConstantCast((Expression__Constant*)expression, (Type){.type=TYPE_BOOL, .isRequired=true});
-        if(constant != NULL) {
-            return generateConstant(constant);
+        if(!isCondtion) {
+            Expression__Constant * constant = performConstantCast((Expression__Constant*)expression, (Type){.type=TYPE_BOOL, .isRequired=true});
+            if(constant != NULL) {
+                return generateConstant(constant);
+            } else {
+                fprintf(stderr, "ERR: Failed constant cast to bool, but this should always succeed\n");
+                exit(99);
+            }
         } else {
-            fprintf(stderr, "ERR: Failed constant cast to bool, but this should always succeed\n");
-            exit(99);
+            Expression__Constant * constant = performConstantCastCondition((Expression__Constant*)expression);
+            return generateConstant(constant);
         }
     }
     Symb symbType = generateSymbType(expression, symb, ctx);
@@ -369,6 +374,12 @@ Symb generateCastToBool(Expression * expression, Symb symb, Context ctx) {
         emit_PUSHS(symb);
         emit_PUSHS((Symb){.type = Type_string, .value.s = ""});
         emit_EQS();
+        if(isCondtion) {
+            emit_PUSHS(symb);
+            emit_PUSHS((Symb){.type = Type_string, .value.s = "0"});
+            emit_EQS();
+            emit_ORS();
+        }
         emit_NOTS();
         emit_POPS(result);
         emit_JUMP(castEnd.text);
@@ -515,7 +526,7 @@ Symb generateFunctionCall(Expression__FunctionCall * expression, Context ctx, Va
         return (Symb){.type = Type_variable, .value.v=retVar};
     } else if(strcmp(function->name, "boolval") == 0) {
         Symb symb = generateExpression(expression->arguments[0], ctx, false, NULL);
-        return generateCastToBool(expression->arguments[0], symb, ctx);
+        return generateCastToBool(expression->arguments[0], symb, ctx, false);
     } else if(strcmp(function->name, "strval") == 0) {
         Symb symb = generateExpression(expression->arguments[0], ctx, false, NULL);
         Var retVar = generateTemporaryVariable(ctx);
@@ -682,6 +693,226 @@ Symb generateFunctionCall(Expression__FunctionCall * expression, Context ctx, Va
     }
 }
 
+Symb generateCastToInt(Symb symb, Expression * expression, Context * ctx, Symb * typeSymb) {
+    UnionType unionType = expression->getType(expression, ctx->functionTable, ctx->program, ctx->currentFunction);
+    unionType.isUndefined = false;
+    Type type = unionTypeToType(unionType);
+    if(type.type == TYPE_INT && type.isRequired == true) {
+        return symb;
+    }
+    if(expression->expressionType == EXPRESSION_CONSTANT) {
+        Expression__Constant * constant = performConstantCast((Expression__Constant*)expression, (Type){.type=TYPE_BOOL, .isRequired=true});
+        if(constant != NULL) {
+            return generateConstant(constant);
+        } else {
+            fprintf(stderr, "ERR: Failed constant cast to int, but this should always succeed\n");
+            exit(99);
+        }
+    }
+    Symb symbType;
+    if(typeSymb == NULL) {
+        symbType = generateSymbType(expression, symb, *ctx);
+    } else {
+        symbType = *typeSymb;
+    }
+    size_t castUID = getNextCodeGenUID();
+    StringBuilder castEnd;
+    StringBuilder__init(&castEnd);
+    StringBuilder__appendString(&castEnd, "cast_end&");
+    StringBuilder__appendInt(&castEnd, castUID);
+    Var result = generateTemporaryVariable(*ctx);
+    if(unionType.isBool) {
+        StringBuilder notBool;
+        StringBuilder__init(&notBool);
+        StringBuilder__appendString(&notBool, "not_bool&");
+        StringBuilder__appendInt(&notBool, castUID);
+        emit_JUMPIFNEQ(notBool.text, symbType, (Symb){.type = Type_string, .value.s = "bool"});
+        // TODO
+        emit_JUMP(castEnd.text);
+        emit_LABEL(notBool.text);
+        StringBuilder__free(&notBool);
+    }
+    if(unionType.isNull) {
+        StringBuilder notNil;
+        StringBuilder__init(&notNil);
+        StringBuilder__appendString(&notNil, "not_nil&");
+        StringBuilder__appendInt(&notNil, castUID);
+        emit_JUMPIFNEQ(notNil.text, symbType, (Symb){.type = Type_string, .value.s = "nil"});
+        emit_MOVE(result, (Symb){.type = Type_int, .value.i = 0});
+        emit_JUMP(castEnd.text);
+        emit_LABEL(notNil.text);
+        StringBuilder__free(&notNil);
+    }
+    if(unionType.isInt) {
+        StringBuilder notInt;
+        StringBuilder__init(&notInt);
+        StringBuilder__appendString(&notInt, "not_int&");
+        StringBuilder__appendInt(&notInt, castUID);
+        emit_JUMPIFNEQ(notInt.text, symbType, (Symb){.type = Type_string, .value.s = "int"});
+        emit_MOVE(result, symb);
+        emit_JUMP(castEnd.text);
+        emit_LABEL(notInt.text);
+        StringBuilder__free(&notInt);
+    }
+    if(unionType.isFloat) {
+        StringBuilder notFloat;
+        StringBuilder__init(&notFloat);
+        StringBuilder__appendString(&notFloat, "not_float&");
+        StringBuilder__appendInt(&notFloat, castUID);
+        emit_JUMPIFNEQ(notFloat.text, symbType, (Symb){.type = Type_string, .value.s = "float"});
+        emit_FLOAT2INT(result, symb);
+        emit_LABEL(notFloat.text);
+        StringBuilder__free(&notFloat);
+    }
+    if(unionType.isString) {
+        StringBuilder notString;
+        StringBuilder__init(&notString);
+        StringBuilder__appendString(&notString, "not_string&");
+        StringBuilder__appendInt(&notString, castUID);
+        emit_JUMPIFNEQ(notString.text, symbType, (Symb){.type = Type_string, .value.s = "string"});
+        // TODO
+        emit_JUMP(castEnd.text);
+        emit_LABEL(notString.text);
+        StringBuilder__free(&notString);
+    }
+    emit_LABEL(castEnd.text);
+    StringBuilder__free(&castEnd);
+    return (Symb){.type=Type_variable, .value.v=result};
+}
+
+Symb generateCastToFloat(Symb symb, Expression * expression, Context * ctx, Symb * typeSymb) {
+    UnionType unionType = expression->getType(expression, ctx->functionTable, ctx->program, ctx->currentFunction);
+    unionType.isUndefined = false;
+    Type type = unionTypeToType(unionType);
+    if(type.type == TYPE_FLOAT && type.isRequired == true) {
+        return symb;
+    }
+    if(expression->expressionType == EXPRESSION_CONSTANT) {
+        Expression__Constant * constant = performConstantCast((Expression__Constant*)expression, (Type){.type=TYPE_BOOL, .isRequired=true});
+        if(constant != NULL) {
+            return generateConstant(constant);
+        } else {
+            fprintf(stderr, "ERR: Failed constant cast to float, but this should always succeed\n");
+            exit(99);
+        }
+    }
+    Symb symbType;
+    if(typeSymb == NULL) {
+        symbType = generateSymbType(expression, symb, *ctx);
+    } else {
+        symbType = *typeSymb;
+    }
+    size_t castUID = getNextCodeGenUID();
+    StringBuilder castEnd;
+    StringBuilder__init(&castEnd);
+    StringBuilder__appendString(&castEnd, "cast_end&");
+    StringBuilder__appendInt(&castEnd, castUID);
+    Var result = generateTemporaryVariable(*ctx);
+    if(unionType.isBool) {
+        StringBuilder notBool;
+        StringBuilder__init(&notBool);
+        StringBuilder__appendString(&notBool, "not_bool&");
+        StringBuilder__appendInt(&notBool, castUID);
+        emit_JUMPIFNEQ(notBool.text, symbType, (Symb){.type = Type_string, .value.s = "bool"});
+        // TODO
+        emit_JUMP(castEnd.text);
+        emit_LABEL(notBool.text);
+        StringBuilder__free(&notBool);
+    }
+    if(unionType.isNull) {
+        StringBuilder notNil;
+        StringBuilder__init(&notNil);
+        StringBuilder__appendString(&notNil, "not_nil&");
+        StringBuilder__appendInt(&notNil, castUID);
+        emit_JUMPIFNEQ(notNil.text, symbType, (Symb){.type = Type_string, .value.s = "nil"});
+        emit_MOVE(result, (Symb){.type = Type_int, .value.f = 0});
+        emit_JUMP(castEnd.text);
+        emit_LABEL(notNil.text);
+        StringBuilder__free(&notNil);
+    }
+    if(unionType.isInt) {
+        StringBuilder notInt;
+        StringBuilder__init(&notInt);
+        StringBuilder__appendString(&notInt, "not_int&");
+        StringBuilder__appendInt(&notInt, castUID);
+        emit_JUMPIFNEQ(notInt.text, symbType, (Symb){.type = Type_string, .value.s = "int"});
+        emit_INT2FLOAT(result, symb);
+        emit_JUMP(castEnd.text);
+        emit_LABEL(notInt.text);
+        StringBuilder__free(&notInt);
+    }
+    if(unionType.isFloat) {
+        StringBuilder notFloat;
+        StringBuilder__init(&notFloat);
+        StringBuilder__appendString(&notFloat, "not_float&");
+        StringBuilder__appendInt(&notFloat, castUID);
+        emit_JUMPIFNEQ(notFloat.text, symbType, (Symb){.type = Type_string, .value.s = "float"});
+        emit_MOVE(result, symb);
+        emit_LABEL(notFloat.text);
+        StringBuilder__free(&notFloat);
+    }
+    if(unionType.isString) {
+        StringBuilder notString;
+        StringBuilder__init(&notString);
+        StringBuilder__appendString(&notString, "not_string&");
+        StringBuilder__appendInt(&notString, castUID);
+        emit_JUMPIFNEQ(notString.text, symbType, (Symb){.type = Type_string, .value.s = "string"});
+        // TODO
+        emit_JUMP(castEnd.text);
+        emit_LABEL(notString.text);
+        StringBuilder__free(&notString);
+    }
+    emit_LABEL(castEnd.text);
+    StringBuilder__free(&castEnd);
+    return (Symb){.type=Type_variable, .value.v=result};
+}
+
+
+void emitAddMulSubCast(Symb symb1, Symb symb2, Expression * expr1, Expression * expr2, Symb * out1, Symb * out2, Context * ctx) {
+    UnionType unionType1 = expr1->getType(expr1, ctx->functionTable, ctx->program, ctx->currentFunction);
+    UnionType unionType2 = expr2->getType(expr2, ctx->functionTable, ctx->program, ctx->currentFunction);
+    bool canBeFloat = unionType1.isFloat || unionType2.isFloat || unionType1.isString || unionType2.isString;
+    bool isType1Float = !unionType1.isBool && unionType1.isFloat && !unionType1.isInt && !unionType1.isNull && !unionType1.isString;
+    bool isType2Float = !unionType2.isBool && unionType2.isFloat && !unionType2.isInt && !unionType2.isNull && !unionType2.isString;
+    bool isGuaranteedFloat = isType1Float || isType2Float;
+    if(isGuaranteedFloat) {
+        *out1 = generateCastToFloat(symb1, expr1, ctx, NULL);
+        *out2 = generateCastToFloat(symb2, expr2, ctx, NULL);
+    } else if(canBeFloat) {
+        Symb type1 = generateSymbType(expr1, symb1, *ctx);
+        Symb type2 = generateSymbType(expr2, symb2, *ctx);
+        size_t castUID = getNextCodeGenUID();
+        StringBuilder castEnd;
+        StringBuilder__init(&castEnd);
+        StringBuilder__appendString(&castEnd, "cast_end&");
+        StringBuilder__appendInt(&castEnd, castUID);
+        Var result1 = generateTemporaryVariable(*ctx);
+        *out1 = (Symb){.type=Type_variable, .value.v=result1};
+        Var result2 = generateTemporaryVariable(*ctx);
+        *out2 = (Symb){.type=Type_variable, .value.v=result2};
+        StringBuilder isFloat;
+        StringBuilder__init(&isFloat);
+        StringBuilder__appendString(&isFloat, "is_float&");
+        StringBuilder__appendInt(&isFloat, castUID);
+        emit_JUMPIFEQ(isFloat.text, type1, (Symb){.type = Type_string, .value.s = "float"});
+        emit_JUMPIFEQ(isFloat.text, type2, (Symb){.type = Type_string, .value.s = "float"});
+        emit_MOVE(result1, generateCastToInt(symb1, expr1, ctx, &type1));
+        emit_MOVE(result2, generateCastToInt(symb2, expr2, ctx, &type2));
+        emit_JUMP(castEnd.text);
+        emit_LABEL(isFloat.text);
+        emit_MOVE(result1, generateCastToFloat(symb1, expr1, ctx, &type1));
+        emit_MOVE(result2, generateCastToFloat(symb2, expr2, ctx, &type2));
+        emit_LABEL(castEnd.text);
+        StringBuilder__free(&isFloat);
+        StringBuilder__free(&castEnd);
+        freeTemporarySymbol(type1, *ctx);
+        freeTemporarySymbol(type2, *ctx);
+    } else {
+        *out1 = generateCastToInt(symb1, expr1, ctx, NULL);
+        *out2 = generateCastToInt(symb2, expr2, ctx, NULL);
+    }
+}
+
 /**
  * @brief Generates binary operator code
  * 
@@ -729,15 +960,18 @@ Symb generateBinaryOperator(Expression__BinaryOperator * expression, Context ctx
     Symb outSymb = (Symb){.type=Type_variable, .value.v = outVar};
     switch(expression->operator) {
         case TOKEN_PLUS:
+            emitAddMulSubCast(left, right, expression->lSide, expression->rSide, &left, &right, &ctx);
             emit_ADD(outVar, left, right);
             break;
         case TOKEN_MINUS:
+            emitAddMulSubCast(left, right, expression->lSide, expression->rSide, &left, &right, &ctx);
             emit_SUB(outVar, left, right);
             break;
         case TOKEN_CONCATENATE:
             emit_CONCAT(outVar, left, right);
             break;
         case TOKEN_MULTIPLY:
+            emitAddMulSubCast(left, right, expression->lSide, expression->rSide, &left, &right, &ctx);
             emit_MUL(outVar, left, right);
             break;
         case TOKEN_DIVIDE:
@@ -833,11 +1067,11 @@ Symb generateBinaryOperator(Expression__BinaryOperator * expression, Context ctx
             StringBuilder__init(&sb2);
             StringBuilder__appendString(&sb2, "operator_and_done&");
             StringBuilder__appendInt(&sb2, operatorAndId);
-            Symb leftBool = generateCastToBool(expression->lSide, left, ctx);
+            Symb leftBool = generateCastToBool(expression->lSide, left, ctx, false);
             emit_JUMPIFEQ(sb1.text, leftBool, (Symb){.type=Type_bool, .value.b=false});
             freeTemporarySymbol(leftBool, ctx);
             right = generateExpression(expression->rSide, ctx, false, NULL);
-            Symb rightBool = generateCastToBool(expression->rSide, right, ctx);
+            Symb rightBool = generateCastToBool(expression->rSide, right, ctx, false);
             emit_MOVE(outVar, rightBool);
             freeTemporarySymbol(rightBool, ctx);
             emit_JUMP(sb2.text);
@@ -856,11 +1090,11 @@ Symb generateBinaryOperator(Expression__BinaryOperator * expression, Context ctx
             StringBuilder__init(&sb2);
             StringBuilder__appendString(&sb2, "operator_or_done&");
             StringBuilder__appendInt(&sb2, operatorOrId);
-            Symb leftBool = generateCastToBool(expression->lSide, left, ctx);
+            Symb leftBool = generateCastToBool(expression->lSide, left, ctx, false);
             emit_JUMPIFEQ(sb1.text, leftBool, (Symb){.type=Type_bool, .value.b=true});
             freeTemporarySymbol(leftBool, ctx);
             right = generateExpression(expression->rSide, ctx, false, NULL);
-            Symb rightBool = generateCastToBool(expression->rSide, right, ctx);
+            Symb rightBool = generateCastToBool(expression->rSide, right, ctx, false);
             emit_MOVE(outVar, rightBool);
             freeTemporarySymbol(rightBool, ctx);
             emit_JUMP(sb2.text);
@@ -896,7 +1130,7 @@ Symb generateUnaryOperator(Expression__UnaryOperator * expression, Context ctx, 
     Symb outSymb = (Symb){.type=Type_variable, .value.v = outVar};
     switch(expression->operator) {
         case TOKEN_NEGATE: {
-            Symb rightBool = generateCastToBool(expression->rSide, right, ctx);
+            Symb rightBool = generateCastToBool(expression->rSide, right, ctx, false);
             emit_NOT(outVar, rightBool);
             freeTemporarySymbol(rightBool, ctx);
             break;
@@ -971,7 +1205,7 @@ void generateIf(StatementIf * statement, Context ctx) {
     StringBuilder__appendInt(&ifEndSb, ifUID);
     bool isElseEmpty = statement->elseBody == NULL || (statement->elseBody->statementType == STATEMENT_LIST && ((StatementList*)statement->elseBody)->listSize == 0);
     Symb condition = generateExpression(statement->condition, ctx, false, NULL);
-    condition = generateCastToBool(statement->condition, condition, ctx);
+    condition = generateCastToBool(statement->condition, condition, ctx, true);
     emit_JUMPIFNEQ(ifElseSb.text, condition, (Symb){.type=Type_bool, .value.b = true});
     freeTemporarySymbol(condition, ctx);
     generateStatement(statement->ifBody, ctx);
@@ -1004,7 +1238,7 @@ void generateWhile(StatementWhile * statement, Context ctx) {
 
     emit_LABEL(whileStartSb.text);
     Symb condition = generateExpression(statement->condition, ctx, false, NULL);
-    condition = generateCastToBool(statement->condition, condition, ctx);
+    condition = generateCastToBool(statement->condition, condition, ctx, true);
     emit_JUMPIFNEQ(whileEndSb.text, condition, (Symb){.type=Type_bool, .value.b = true});
     freeTemporarySymbol(condition, ctx);
     generateStatement(statement->body, ctx);
