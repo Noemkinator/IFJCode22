@@ -355,11 +355,7 @@ int getExpressionError(Expression * expression, Table * functionTable, Statement
         }
         case EXPRESSION_UNARY_OPERATOR: {
             Expression__UnaryOperator * op = (Expression__UnaryOperator *) expression;
-            int rightError = getExpressionError(op->rSide, functionTable, program, currentFunction);
-            if(rightError != 0) {
-                return rightError;
-            }
-            return 0;
+            return getExpressionError(op->rSide, functionTable, program, currentFunction);
         }
     }
     return -1;
@@ -375,8 +371,9 @@ bool replaceErrorsWithExit(Statement ** statement, Table * functionTable, Statem
             *statement = (Statement*)exitStatement;
             return true;
         }
-        replaceErrorsWithExit(&ifStatement->ifBody, functionTable, program, currentFunction);
-        replaceErrorsWithExit(&ifStatement->elseBody, functionTable, program, currentFunction);
+        bool ret = replaceErrorsWithExit(&ifStatement->ifBody, functionTable, program, currentFunction);
+        ret |= replaceErrorsWithExit(&ifStatement->elseBody, functionTable, program, currentFunction);
+        return ret;
     } else if((*statement)->statementType == STATEMENT_WHILE) {
         StatementWhile * whileStatement = (StatementWhile *) *statement;
         int error = getExpressionError(whileStatement->condition, functionTable, program, currentFunction);
@@ -386,7 +383,7 @@ bool replaceErrorsWithExit(Statement ** statement, Table * functionTable, Statem
             *statement = (Statement*)exitStatement;
             return true;
         }
-        replaceErrorsWithExit(&whileStatement->body, functionTable, program, currentFunction);
+        return replaceErrorsWithExit(&whileStatement->body, functionTable, program, currentFunction);
     } else if((*statement)->statementType == STATEMENT_RETURN) {
         StatementReturn * returnStatement = (StatementReturn *) *statement;
         int error = getExpressionError(returnStatement->expression, functionTable, program, currentFunction);
@@ -407,13 +404,15 @@ bool replaceErrorsWithExit(Statement ** statement, Table * functionTable, Statem
         }
     } else if((*statement)->statementType == STATEMENT_LIST) {
         StatementList * list = (StatementList *) *statement;
+        bool ret = false;
         for(int i = 0; i < list->listSize; i++) {
-            replaceErrorsWithExit(&list->statements[i], functionTable, program, currentFunction);
+            ret |= replaceErrorsWithExit(&list->statements[i], functionTable, program, currentFunction);
         }
+        return ret;
     } else if((*statement)->statementType == STATEMENT_FUNCTION) {
         Function * function = (Function *) *statement;
         if(function->body != NULL) {
-            replaceErrorsWithExit(&function->body, functionTable, program, currentFunction);
+            return replaceErrorsWithExit(&function->body, functionTable, program, currentFunction);
         }
     }
     return false;
