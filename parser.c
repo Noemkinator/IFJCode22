@@ -207,7 +207,7 @@ extern bool parse_statement();
 bool parse_statement_list(StatementList ** statementListRet) {
     StatementList * statementList = StatementList__init();
     *statementListRet = statementList;
-    while(nextToken.type == TOKEN_OPEN_BRACKET || nextToken.type == TOKEN_IDENTIFIER || nextToken.type == TOKEN_VARIABLE || nextToken.type == TOKEN_INTEGER || nextToken.type == TOKEN_FLOAT || nextToken.type == TOKEN_STRING || nextToken.type == TOKEN_VARIABLE || nextToken.type == TOKEN_IF || nextToken.type == TOKEN_WHILE || nextToken.type == TOKEN_IDENTIFIER || nextToken.type == TOKEN_RETURN || nextToken.type == TOKEN_NULL) {
+    while(nextToken.type == TOKEN_OPEN_BRACKET || nextToken.type == TOKEN_IDENTIFIER || nextToken.type == TOKEN_VARIABLE || nextToken.type == TOKEN_INTEGER || nextToken.type == TOKEN_FLOAT || nextToken.type == TOKEN_STRING || nextToken.type == TOKEN_VARIABLE || nextToken.type == TOKEN_IF || nextToken.type == TOKEN_WHILE || nextToken.type == TOKEN_IDENTIFIER || nextToken.type == TOKEN_RETURN || nextToken.type == TOKEN_NULL || nextToken.type == TOKEN_BREAK || nextToken.type == TOKEN_CONTINUE || nextToken.type == TOKEN_FOR) {
         Statement * statement;
         bool success = parse_statement(&statement);
         StatementList__addStatement(statementList, statement);
@@ -289,6 +289,63 @@ bool parse_while(StatementWhile ** statementWhileRet) {
     nextToken = getNextToken();
     return true;
 }
+bool parse_for(StatementFor ** statementForRet) {
+    StatementFor * statementFor = StatementFor__init();
+    *statementForRet = statementFor;
+    nextToken = getNextToken();
+    if(nextToken.type != TOKEN_OPEN_BRACKET) {
+        printParserError(nextToken, "Missing ( after for");
+        return false;
+    }
+    nextToken = getNextToken();
+    if(nextToken.type != TOKEN_VARIABLE) {
+        printParserError(nextToken, "Missing variable after for");
+        return false;
+    }
+    statementFor->variable = getTokenText(nextToken);
+    nextToken = getNextToken();
+    if(nextToken.type != TOKEN_IN) {
+        printParserError(nextToken, "Missing in after for");
+        return false;
+    }
+    nextToken = getNextToken();
+    if(!parse_expression(&statementFor->list, TOKEN_ERROR)) return false;
+    if(nextToken.type != TOKEN_CLOSE_BRACKET) {
+        printParserError(nextToken, "Missing ) after for");
+        return false;
+    }
+    nextToken = getNextToken();
+    if(nextToken.type != TOKEN_OPEN_CURLY_BRACKET) {
+        printParserError(nextToken, "Missing { after for");
+        return false;
+    }
+    nextToken = getNextToken();
+    if(!parse_statement_list((StatementList**)&statementFor->body)) return false;
+    if(nextToken.type != TOKEN_CLOSE_CURLY_BRACKET) {
+        printParserError(nextToken, "Missing } after for");
+        return false;
+    }
+    nextToken = getNextToken();
+    return true;
+}
+bool parse_continue(StatementContinue ** statementContinueRet) {
+    StatementContinue * statementContinue = StatementContinue__init();
+    *statementContinueRet = statementContinue;
+    nextToken = getNextToken();
+    if(nextToken.type != TOKEN_SEMICOLON) {
+        printParserError(nextToken, "Missing ; after continue");
+        return false;
+    }
+    nextToken = getNextToken();
+    return true;
+}
+
+bool parse_break(StatementBreak ** statementBreakRet) {
+    StatementBreak * statementBreak = StatementBreak__init();
+    *statementBreakRet = statementBreak;
+    nextToken = getNextToken();
+    return true;
+}
 
 bool parse_function_arguments(Expression__FunctionCall * functionCall) {
     if(nextToken.type == TOKEN_CLOSE_BRACKET) return true;
@@ -348,6 +405,12 @@ bool parse_statement(Statement ** retStatement) {
             return parse_while((StatementWhile**)retStatement);
         case TOKEN_RETURN:
             return parse_return((StatementReturn**)retStatement);
+        case TOKEN_FOR:
+            return parse_for((StatementFor**)retStatement);
+        case TOKEN_BREAK:
+            return parse_break((StatementBreak**)retStatement);
+        case TOKEN_CONTINUE:
+            return parse_continue((StatementContinue**)retStatement);
         default:
             if(nextToken.type == TOKEN_OPEN_BRACKET || nextToken.type == TOKEN_IDENTIFIER || nextToken.type == TOKEN_VARIABLE || nextToken.type == TOKEN_INTEGER || nextToken.type == TOKEN_FLOAT || nextToken.type == TOKEN_STRING || nextToken.type == TOKEN_NULL) {
                 if(!parse_expression((Expression**)retStatement, TOKEN_ERROR)) return false;

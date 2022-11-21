@@ -138,6 +138,9 @@ Token getNextToken() {
                 } else if(strcmp(getTokenText(token), "while") == 0) {
                     token.type = TOKEN_WHILE;
                     return token;
+                } else if(strcmp(getTokenText(token), "for") == 0) {
+                    token.type = TOKEN_FOR;
+                    return token;
                 }
             }
             return token;
