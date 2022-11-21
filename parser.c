@@ -10,10 +10,10 @@ void printParserError(Token token, char * message) {
     fprintf(stderr, "PARSER ERROR: %s on line %d, column %d\n", message, token.line, token.column);
 }
 
-bool precedence_tb[PREC_TB_SIZE][PREC_TB_SIZE] = {
+//bool precedence_tb[PREC_TB_SIZE][PREC_TB_SIZE] = {
 //  */      +-     .      <>     !=     =    empty    !     &&     ||
-  {false, false, false, false, false, false, false, true , false, false},   // */ 
-  {true , false, false, false, false, false, false, true , false, false},   // +- 
+//  {false, false, false, false, false, false, false, true , false, false},   // */ 
+/*  {true , false, false, false, false, false, false, true , false, false},   // +- 
   {true , false, false, false, false, false, false, true , false, false},   // .  
   {true , true , true , false, false, false, false, true , false, false},   // <> 
   {true , true , true , true , false, false, false, true , false, false},   // != 
@@ -22,40 +22,37 @@ bool precedence_tb[PREC_TB_SIZE][PREC_TB_SIZE] = {
   {true , false, false, false, false, false, false, false, false, false},   // !
   {true , true , true , true , true , false, false, true , false, false},   // &&
   {true , true , true , true , true , false, false, true , true , false},   // ||
-};  
+};  */
 
-int get_prec_tb_indx(TokenType type) {
-  switch (type) {
+int getPrecedence(TokenType type) {
+    switch (type) {
+    case TOKEN_NEGATE:
+        return 8;
     case TOKEN_MULTIPLY:
     case TOKEN_DIVIDE:
-        return 0;
+        return 7;
     case TOKEN_PLUS:
     case TOKEN_MINUS:
-        return 1;
     case TOKEN_CONCATENATE:
-        return 2;
+        return 6;
     case TOKEN_LESS:
     case TOKEN_LESS_OR_EQUALS:
     case TOKEN_GREATER:
     case TOKEN_GREATER_OR_EQUALS:
-        return 3;
+        return 5;
     case TOKEN_EQUALS:
     case TOKEN_NOT_EQUALS:
         return 4;
-    case TOKEN_ASSIGN:
-        return 5;
-    case TOKEN_ERROR:
-        return 6;
-    case TOKEN_NEGATE:
-        return 7;
     case TOKEN_AND:
-        return 8;
+        return 3;
     case TOKEN_OR:
-        return 9;
+        return 2;
+    case TOKEN_ASSIGN:
+        return 1;
     default:
         return -1;
     }
-} 
+}
 
 bool is_operator(Token token) {
     return token.type == TOKEN_PLUS || token.type == TOKEN_MINUS || token.type == TOKEN_MULTIPLY || token.type == TOKEN_DIVIDE || token.type == TOKEN_CONCATENATE || token.type == TOKEN_LESS || token.type == TOKEN_LESS_OR_EQUALS || token.type == TOKEN_GREATER || token.type == TOKEN_GREATER_OR_EQUALS || token.type == TOKEN_EQUALS || token.type == TOKEN_NOT_EQUALS || token.type == TOKEN_ASSIGN || token.type == TOKEN_AND || token.type == TOKEN_OR || token.type == TOKEN_NEGATE;
@@ -146,7 +143,7 @@ bool parse_terminal_expression(Expression ** expression) {
     *expression = NULL;
     if(nextToken.type == TOKEN_OPEN_BRACKET) {
         nextToken = getNextToken();
-        if(!parse_expression(expression, TOKEN_ERROR)) return false;
+        if(!parse_expression(expression, 0)) return false;
         if(nextToken.type != TOKEN_CLOSE_BRACKET) {
             printParserError(nextToken, "Expected closing bracket");
             return false;
@@ -201,30 +198,27 @@ bool parse_terminal_expression(Expression ** expression) {
     return true;
 }
 
-bool parse_expression(Expression ** expression, TokenType previousToken) {
-    if(!is_unary_operator(nextToken)) {
-        if(!parse_terminal_expression(expression)) return false;
+bool parse_expression(Expression ** expression, int previousPrecedence) {
+    if(is_unary_operator(nextToken)) {
+        Token operatorToken = nextToken;
+        Expression__UnaryOperator * operator = Expression__UnaryOperator__init();
+        operator->operator = operatorToken.type;
+        *expression = (Expression*)operator;
+        nextToken = getNextToken();
+        if(!parse_expression(&operator->rSide, getPrecedence(operatorToken.type))) return false;
+        return true;
     }
+    if(!parse_terminal_expression(expression)) return false;
     while(is_operator(nextToken)) {
         Token operatorToken = nextToken;
-        int j = get_prec_tb_indx(operatorToken.type);
-        int i = get_prec_tb_indx(previousToken);
-        //if(i == -1 || j == -1) would happen error but it shouldn't be possible
-        bool precedence = precedence_tb[i][j];
-        if(precedence) {
+        if(previousPrecedence <= getPrecedence(operatorToken.type)) {
             if(!is_unary_operator(nextToken)) {
                 Expression__BinaryOperator * operator = Expression__BinaryOperator__init();
                 operator->operator = operatorToken.type;
                 operator->lSide = *expression;
                 *expression = (Expression*)operator;
                 nextToken = getNextToken();
-                if(!parse_expression(&operator->rSide, operatorToken.type)) return false;
-            } else {
-                Expression__UnaryOperator * operator = Expression__UnaryOperator__init();
-                operator->operator = operatorToken.type;
-                *expression = (Expression*)operator;
-                nextToken = getNextToken();
-                if(!parse_expression(&operator->rSide, operatorToken.type)) return false;
+                if(!parse_expression(&operator->rSide, getPrecedence(operatorToken.type))) return false;
             }
         } else {
             break;
@@ -256,7 +250,7 @@ bool parse_if(StatementIf ** statementIfRet) {
         return false;
     }
     nextToken = getNextToken(&statementIf->condition);
-    if(!parse_expression(&statementIf->condition, TOKEN_ERROR)) return false;
+    if(!parse_expression(&statementIf->condition, 0)) return false;
     if(nextToken.type != TOKEN_CLOSE_BRACKET) {
         printParserError(nextToken, "Missing ) if");
         return false;
@@ -303,7 +297,7 @@ bool parse_while(StatementWhile ** statementWhileRet) {
         return false;
     }
     nextToken = getNextToken();
-    if(!parse_expression(&statementWhile->condition, TOKEN_ERROR)) return false;
+    if(!parse_expression(&statementWhile->condition, 0)) return false;
     if(nextToken.type != TOKEN_CLOSE_BRACKET) {
         printParserError(nextToken, "Missing ) after while");
         return false;
@@ -326,12 +320,12 @@ bool parse_while(StatementWhile ** statementWhileRet) {
 bool parse_function_arguments(Expression__FunctionCall * functionCall) {
     if(nextToken.type == TOKEN_CLOSE_BRACKET) return true;
     Expression * expression;
-    bool success = parse_expression(&expression, TOKEN_ERROR);
+    bool success = parse_expression(&expression, 0);
     Expression__FunctionCall__addArgument(functionCall, expression);
     if(!success) return false;
     while(nextToken.type == TOKEN_COMMA) {
         nextToken = getNextToken();
-        success = parse_expression(&expression, TOKEN_ERROR);
+        success = parse_expression(&expression, 0);
         Expression__FunctionCall__addArgument(functionCall, expression);
         if(!success) return false;
     }
@@ -363,7 +357,7 @@ bool parse_return(StatementReturn ** statementReturnRet) {
     nextToken = getNextToken();
     // expression after return is optional
     if(nextToken.type != TOKEN_SEMICOLON) {
-        if(!parse_expression(&statementReturn->expression, TOKEN_ERROR)) return false;
+        if(!parse_expression(&statementReturn->expression, 0)) return false;
     }
     if(nextToken.type != TOKEN_SEMICOLON) {
         printParserError(nextToken, "Missing ; after return");
@@ -383,7 +377,7 @@ bool parse_statement(Statement ** retStatement) {
             return parse_return((StatementReturn**)retStatement);
         default:
             if(nextToken.type == TOKEN_OPEN_BRACKET || nextToken.type == TOKEN_IDENTIFIER || nextToken.type == TOKEN_VARIABLE || nextToken.type == TOKEN_INTEGER || nextToken.type == TOKEN_FLOAT || nextToken.type == TOKEN_STRING || nextToken.type == TOKEN_NULL) {
-                if(!parse_expression((Expression**)retStatement, TOKEN_ERROR)) return false;
+                if(!parse_expression((Expression**)retStatement, 0)) return false;
                 if(nextToken.type != TOKEN_SEMICOLON) {
                     printParserError(nextToken, "Missing ; after expression");
                     return false;
