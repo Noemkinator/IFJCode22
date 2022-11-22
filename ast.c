@@ -554,14 +554,8 @@ UnionType getStatementVarType(Expression__Variable * variable, Table * functionT
         }
         case STATEMENT_WHILE: {
             StatementWhile* whileStatement = (StatementWhile*)statement;
-<<<<<<< Updated upstream
-            Table * duplTable = dublicateVarTypeTable(variableTable);
-            UnionType type = getExpressionVarType(variable, functionTable, whileStatement->condition, variableTable, NULL);
-=======
-            UnionType typeCond = getExpressionVarType(variable, functionTable, whileStatement->condition, variableTable, NULL);
             Table * duplTable = duplicateVarTypeTable(variableTable);
-            UnionType type = (UnionType){0};
->>>>>>> Stashed changes
+            UnionType type = getExpressionVarType(variable, functionTable, whileStatement->condition, variableTable, NULL);
             bool changed = true;
             while(changed) {
                 changed = false;

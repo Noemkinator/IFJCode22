@@ -1277,7 +1277,7 @@ void generateFor(StatementFor * statement, Context ctx) {
     generateStatement(statement->init, ctx);
     emit_LABEL(forStartSb.text);
     Symb condition = generateExpression(statement->condition, ctx, false, NULL);
-    condition = generateCastToBool(statement->condition, condition, ctx);
+    condition = generateCastToBool(statement->condition, condition, ctx, true);
     emit_JUMPIFNEQ(forEndSb.text, condition, (Symb){.type=Type_bool, .value.b = true});
     freeTemporarySymbol(condition, ctx);
     generateStatement(statement->body, ctx);
