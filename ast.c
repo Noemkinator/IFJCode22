@@ -521,7 +521,11 @@ UnionType getStatementVarType(Expression__Variable * variable, Table * functionT
         case STATEMENT_EXPRESSION:
             return getExpressionVarType(variable, functionTable, (Expression*)statement, variableTable, NULL);
         case STATEMENT_RETURN:
-            return getExpressionVarType(variable, functionTable, ((StatementReturn*)statement)->expression, variableTable, NULL);
+            if(((StatementReturn*)statement)->expression != NULL) {
+                return getExpressionVarType(variable, functionTable, ((StatementReturn*)statement)->expression, variableTable, NULL);
+            } else {
+                return (UnionType){0};
+            }
         case STATEMENT_IF: {
             StatementIf* ifStatement = (StatementIf*)statement;
             UnionType typeCond = getExpressionVarType(variable, functionTable, ifStatement->condition, variableTable, NULL);
