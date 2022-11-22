@@ -114,6 +114,39 @@ Expression__Constant * performConstantCast(Expression__Constant * in, Type targe
     return result;
 }
 
+Expression__Constant * performConstantCastCondition(Expression__Constant * in) {
+    if(in->type.type == TYPE_BOOL) {
+        in->type.isRequired = true;
+        return in;
+    }
+    if(in->type.type != TYPE_INT && in->type.type != TYPE_FLOAT && in->type.type != TYPE_STRING && in->type.type != TYPE_BOOL && in->type.type != TYPE_NULL) {
+        return in;
+    }
+    Expression__Constant * result = Expression__Constant__init();
+    result->type.isRequired = true;
+    result->type.type = TYPE_BOOL;
+    switch(in->type.type) {
+        case TYPE_INT:
+            result->value.boolean = in->value.integer != 0;
+            break;
+        case TYPE_FLOAT:
+            result->value.boolean = in->value.real != 0.0;
+            break;
+        case TYPE_STRING:
+            result->value.boolean = in->value.string[0] != '\0' && strcmp(in->value.string, "0") != 0;
+            break;
+        case TYPE_VOID:
+        case TYPE_NULL:
+            result->value.boolean = false;
+            break;
+        default:
+            fprintf(stderr, "Bad constant cast");
+            exit(99);
+            break;
+    }
+    return result;
+}
+
 Expression__Constant * performConstantFolding(Expression__BinaryOperator * in) {
     if(in->lSide->expressionType != EXPRESSION_CONSTANT || in->rSide->expressionType != EXPRESSION_CONSTANT) return NULL;
     Expression__Constant * left = (Expression__Constant *) in->lSide;
@@ -122,30 +155,24 @@ Expression__Constant * performConstantFolding(Expression__BinaryOperator * in) {
     result->type.isRequired = true;
     switch(in->operator) {
         case TOKEN_PLUS:
-            if(left->type.type == TYPE_INT && right->type.type == TYPE_INT) {
-                result->value.integer = left->value.integer + right->value.integer;
-                result->type.type = TYPE_INT;
-                return result;
-            } else if((left->type.type == TYPE_FLOAT || left->type.type == TYPE_INT) && (right->type.type == TYPE_FLOAT || right->type.type == TYPE_INT)) {
+            if(left->type.type == TYPE_FLOAT || right->type.type == TYPE_FLOAT) {
                 result->value.real = performConstantCast(left, (Type){.type = TYPE_FLOAT, .isRequired = true})->value.real + performConstantCast(right, (Type){.type = TYPE_FLOAT, .isRequired = true})->value.real;
                 result->type.type = TYPE_FLOAT;
                 return result;
             } else {
-                free(result);
-                return NULL;
-            }
-        case TOKEN_MINUS:
-            if(left->type.type == TYPE_INT && right->type.type == TYPE_INT) {
-                result->value.integer = left->value.integer - right->value.integer;
+                result->value.integer = performConstantCast(left, (Type){.type = TYPE_INT, .isRequired = true})->value.integer + performConstantCast(right, (Type){.type = TYPE_INT, .isRequired = true})->value.integer;
                 result->type.type = TYPE_INT;
                 return result;
-            } else if((left->type.type == TYPE_FLOAT || left->type.type == TYPE_INT) && (right->type.type == TYPE_FLOAT || right->type.type == TYPE_INT)) {
+            }
+        case TOKEN_MINUS:
+            if(left->type.type == TYPE_FLOAT || right->type.type == TYPE_FLOAT) {
                 result->value.real = performConstantCast(left, (Type){.type = TYPE_FLOAT, .isRequired = true})->value.real - performConstantCast(right, (Type){.type = TYPE_FLOAT, .isRequired = true})->value.real;
                 result->type.type = TYPE_FLOAT;
                 return result;
             } else {
-                free(result);
-                return NULL;
+                result->value.integer = performConstantCast(left, (Type){.type = TYPE_INT, .isRequired = true})->value.integer - performConstantCast(right, (Type){.type = TYPE_INT, .isRequired = true})->value.integer;
+                result->type.type = TYPE_INT;
+                return result;
             }
         case TOKEN_CONCATENATE: {
             StringBuilder sb;
@@ -157,17 +184,14 @@ Expression__Constant * performConstantFolding(Expression__BinaryOperator * in) {
             return result;
         }
         case TOKEN_MULTIPLY:
-            if(left->type.type == TYPE_INT && right->type.type == TYPE_INT) {
-                result->value.integer = left->value.integer * right->value.integer;
-                result->type.type = TYPE_INT;
-                return result;
-            } else if((left->type.type == TYPE_FLOAT || left->type.type == TYPE_INT) && (right->type.type == TYPE_FLOAT || right->type.type == TYPE_INT)) {
+            if(left->type.type == TYPE_FLOAT || right->type.type == TYPE_FLOAT) {
                 result->value.real = performConstantCast(left, (Type){.type = TYPE_FLOAT, .isRequired = true})->value.real * performConstantCast(right, (Type){.type = TYPE_FLOAT, .isRequired = true})->value.real;
                 result->type.type = TYPE_FLOAT;
                 return result;
             } else {
-                free(result);
-                return NULL;
+                result->value.integer = performConstantCast(left, (Type){.type = TYPE_INT, .isRequired = true})->value.integer * performConstantCast(right, (Type){.type = TYPE_INT, .isRequired = true})->value.integer;
+                result->type.type = TYPE_INT;
+                return result;
             }
         case TOKEN_DIVIDE:
             if((left->type.type == TYPE_FLOAT || left->type.type == TYPE_INT) && ((right->type.type == TYPE_FLOAT && right->value.real != 0.0) || (right->type.type == TYPE_INT && right->value.integer != 0))) {
@@ -251,7 +275,7 @@ Statement * performStatementFolding(Statement * in) {
             StatementIf* ifStatement = (StatementIf *) in;
             if(ifStatement->condition->expressionType == EXPRESSION_CONSTANT) {
                 Expression__Constant * condition = (Expression__Constant *) ifStatement->condition;
-                condition = performConstantCast(condition, (Type){.type = TYPE_BOOL, .isRequired = true});
+                condition = performConstantCastCondition(condition);
                 if(condition->value.boolean) {
                     return ifStatement->ifBody;
                 } else {
@@ -264,7 +288,7 @@ Statement * performStatementFolding(Statement * in) {
             StatementWhile* whileStatement = (StatementWhile *) in;
             if(whileStatement->condition->expressionType == EXPRESSION_CONSTANT) {
                 Expression__Constant * condition = (Expression__Constant *) whileStatement->condition;
-                condition = performConstantCast(condition, (Type){.type = TYPE_BOOL, .isRequired = true});
+                condition = performConstantCastCondition(condition);
                 if(!condition->value.boolean) {
                     return (Statement*)StatementList__init();
                 }
@@ -329,6 +353,10 @@ int getExpressionError(Expression * expression, Table * functionTable, Statement
             }
             return -1;
         }
+        case EXPRESSION_UNARY_OPERATOR: {
+            Expression__UnaryOperator * op = (Expression__UnaryOperator *) expression;
+            return getExpressionError(op->rSide, functionTable, program, currentFunction);
+        }
     }
     return -1;
 }
@@ -343,8 +371,9 @@ bool replaceErrorsWithExit(Statement ** statement, Table * functionTable, Statem
             *statement = (Statement*)exitStatement;
             return true;
         }
-        replaceErrorsWithExit(&ifStatement->ifBody, functionTable, program, currentFunction);
-        replaceErrorsWithExit(&ifStatement->elseBody, functionTable, program, currentFunction);
+        bool ret = replaceErrorsWithExit(&ifStatement->ifBody, functionTable, program, currentFunction);
+        ret |= replaceErrorsWithExit(&ifStatement->elseBody, functionTable, program, currentFunction);
+        return ret;
     } else if((*statement)->statementType == STATEMENT_WHILE) {
         StatementWhile * whileStatement = (StatementWhile *) *statement;
         int error = getExpressionError(whileStatement->condition, functionTable, program, currentFunction);
@@ -354,7 +383,7 @@ bool replaceErrorsWithExit(Statement ** statement, Table * functionTable, Statem
             *statement = (Statement*)exitStatement;
             return true;
         }
-        replaceErrorsWithExit(&whileStatement->body, functionTable, program, currentFunction);
+        return replaceErrorsWithExit(&whileStatement->body, functionTable, program, currentFunction);
     } else if((*statement)->statementType == STATEMENT_RETURN) {
         StatementReturn * returnStatement = (StatementReturn *) *statement;
         int error = getExpressionError(returnStatement->expression, functionTable, program, currentFunction);
@@ -375,13 +404,15 @@ bool replaceErrorsWithExit(Statement ** statement, Table * functionTable, Statem
         }
     } else if((*statement)->statementType == STATEMENT_LIST) {
         StatementList * list = (StatementList *) *statement;
+        bool ret = false;
         for(int i = 0; i < list->listSize; i++) {
-            replaceErrorsWithExit(&list->statements[i], functionTable, program, currentFunction);
+            ret |= replaceErrorsWithExit(&list->statements[i], functionTable, program, currentFunction);
         }
+        return ret;
     } else if((*statement)->statementType == STATEMENT_FUNCTION) {
         Function * function = (Function *) *statement;
         if(function->body != NULL) {
-            replaceErrorsWithExit(&function->body, functionTable, program, currentFunction);
+            return replaceErrorsWithExit(&function->body, functionTable, program, currentFunction);
         }
     }
     return false;

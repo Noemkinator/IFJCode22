@@ -112,14 +112,23 @@ Token getNextToken() {
                     lexerError(secondToken);
                 }
             } else if(token.type == TOKEN_IDENTIFIER) {
-                if(strcmp(getTokenText(token), "else") == 0) {
+                if(strcmp(getTokenText(token), "if") == 0) {
+                    token.type = TOKEN_IF;
+                    return token;
+                } else if(strcmp(getTokenText(token), "else") == 0) {
                     token.type = TOKEN_ELSE;
+                    return token;
+                } else if(strcmp(getTokenText(token), "elseif") == 0) {
+                    token.type = TOKEN_ELSEIF;
+                    return token;
+                } else if(strcmp(getTokenText(token), "true") == 0) {
+                    token.type = TOKEN_BOOL;
+                    return token;
+                } else if(strcmp(getTokenText(token), "false") == 0) {
+                    token.type = TOKEN_BOOL;
                     return token;
                 } else if(strcmp(getTokenText(token), "function") == 0) {
                     token.type = TOKEN_FUNCTION;
-                    return token;
-                } else if(strcmp(getTokenText(token), "if") == 0) {
-                    token.type = TOKEN_IF;
                     return token;
                 } else if(strcmp(getTokenText(token), "null") == 0) {
                     token.type = TOKEN_NULL;
@@ -129,7 +138,8 @@ Token getNextToken() {
                     return token;
                 } else if(strcmp(getTokenText(token), "float") == 0 ||
                             strcmp(getTokenText(token), "int") == 0 ||
-                            strcmp(getTokenText(token), "string") == 0) {
+                            strcmp(getTokenText(token), "string") == 0 ||
+                            strcmp(getTokenText(token), "bool") == 0) {
                     token.type = TOKEN_TYPE;
                     return token;
                 } else if(strcmp(getTokenText(token), "void") == 0) {

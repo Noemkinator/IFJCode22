@@ -49,7 +49,7 @@ typedef enum {
     TOKEN_IF,
     TOKEN_NULL,
     TOKEN_RETURN,
-    TOKEN_TYPE, // represents keywords float, int, string
+    TOKEN_TYPE, // represents keywords float, int, string, bool
     TOKEN_VOID,
     TOKEN_WHILE,
     TOKEN_FLOAT,
@@ -58,6 +58,11 @@ typedef enum {
     TOKEN_FOR,
     TOKEN_CONTINUE,
     TOKEN_BREAK,
+    TOKEN_NEGATE,
+    TOKEN_BOOL,
+    TOKEN_ELSEIF,
+    TOKEN_OR,
+    TOKEN_AND
 } TokenType;
 
 /**
