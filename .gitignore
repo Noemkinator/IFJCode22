@@ -2,3 +2,5 @@ ifj22
 tester
 *.zip
 doc/Doxygen
+*.out
+temp_out

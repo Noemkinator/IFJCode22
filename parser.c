@@ -325,7 +325,12 @@ bool parse_for(StatementFor ** statementForRet) {
         return false;
     }
     nextToken = getNextToken();
-    if(!parse_statement(&statementFor->init, TOKEN_ERROR)) return false;
+    if(!parse_expression(&statementFor->init, 0)) return false;
+    if(nextToken.type != TOKEN_SEMICOLON) {
+        printParserError(nextToken, "Missing ; after for init");
+        return false;
+    }
+    nextToken = getNextToken();
     if(!parse_expression(&statementFor->condition,0)) return false;
     if(nextToken.type != TOKEN_SEMICOLON) {
         printParserError(nextToken, "Missing ; after for condition");
@@ -635,10 +640,10 @@ bool parse() {
     }
     // https://jsoncrack.com/editor
     // https://vanya.jp.net/vtree/
-    StringBuilder stringBuilder;
-    StringBuilder__init(&stringBuilder);
-    program->super.serialize((Statement*)program, &stringBuilder);
-    fprintf(stderr, "%s\n", stringBuilder.text);
+    //StringBuilder stringBuilder;
+    //StringBuilder__init(&stringBuilder);
+    //program->super.serialize((Statement*)program, &stringBuilder);
+    //fprintf(stderr, "%s\n", stringBuilder.text);
     generateCode(program, function_table);
     return true;
 }

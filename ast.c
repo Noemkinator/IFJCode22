@@ -595,6 +595,48 @@ UnionType getStatementVarType(Expression__Variable * variable, Table * functionT
             return type;
             break;
         }
+        case STATEMENT_FOR: {
+            StatementFor* forStatement = (StatementFor*)statement;
+            Table * duplTable = duplicateVarTypeTable(variableTable);
+            UnionType type = getExpressionVarType(variable, functionTable, forStatement->condition, variableTable, NULL);
+            bool changed = true;
+            while(changed) {
+                changed = false;
+                type = orUnionType(type, getStatementVarType(variable, functionTable, forStatement->body, duplTable));
+                type = orUnionType(type, getExpressionVarType(variable, functionTable, forStatement->condition, duplTable, NULL));
+                // or the tables
+                for(int j=0; j<TB_SIZE; j++) {
+                    TableItem * item1 = variableTable->tb[j];
+                    TableItem * item2 = duplTable->tb[j];
+                    while(item1 != NULL && item2 != NULL) {
+                        if(strcmp(item1->name, item2->name) != 0) {
+                            fprintf(stderr, "Error: merging of variable tables failed");
+                            exit(99);
+                        }
+                        UnionType * type1 = (UnionType*)item1->data;
+                        UnionType * type2 = (UnionType*)item2->data;
+                        if(type1->constant != type2->constant) {
+                            if(type1->constant != NULL) {
+                                type1->constant = NULL;
+                                changed = true;
+                            }
+                            type2->constant = NULL;
+                        }
+                        changed |= (!type1->isBool && type2->isBool) || (!type1->isFloat && type2->isFloat) || (!type1->isInt && type2->isInt) || (!type1->isString && type2->isString) || (!type1->isUndefined && type2->isUndefined);
+                        *type1 = orUnionType(*type1, *type2);
+                        item1 = item1->next;
+                        item2 = item2->next;
+                    }
+                    if(item1 != NULL || item2 != NULL) {
+                        fprintf(stderr, "Error: merging of variable tables failed");
+                        exit(99);
+                    }
+                }
+            }
+            table_free(duplTable);
+            return type;
+            break;
+        }
         case STATEMENT_LIST:
             return getStatementListVarType(variable, functionTable, (StatementList*)statement, variableTable);
         default:
