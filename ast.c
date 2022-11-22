@@ -438,7 +438,7 @@ UnionType getExpressionVarType(Expression__Variable * variable, Table * function
                     TableItem * item = variableTable->tb[i];
                     while (item != NULL) {
                         UnionType * type = (UnionType*)item->data;
-                        if(type->constant != NULL && type->constant->expressionType == EXPRESSION_VARIABLE && ((Expression__Variable*)type->constant)->name == ((Expression__Variable*)binOp->lSide)->name) {
+                        if(type->constant != NULL && type->constant->expressionType == EXPRESSION_VARIABLE && strcmp(((Expression__Variable*)type->constant)->name, ((Expression__Variable*)binOp->lSide)->name) == 0) {
                             type->constant = NULL;
                         }
                         item = item->next;
