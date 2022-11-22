@@ -979,9 +979,12 @@ Symb generateBinaryOperator(Expression__BinaryOperator * expression, Context ctx
             emitAddMulSubCast(left, right, expression->lSide, expression->rSide, &left, &right, &ctx);
             emit_MUL(outVar, left, right);
             break;
-        case TOKEN_DIVIDE:
-            emit_DIV(outVar, left, right);
+        case TOKEN_DIVIDE: {
+            Symb left2 = generateCastToFloat(left, expression->lSide, &ctx, NULL);
+            Symb right2 = generateCastToFloat(right, expression->rSide, &ctx, NULL);
+            emit_DIV(outVar, left2, right2);
             break;
+        }
         case TOKEN_EQUALS: {
             Type typeL = unionTypeToType(expression->lSide->getType(expression->lSide, ctx.functionTable, ctx.program, ctx.currentFunction));
             Type typeR = unionTypeToType(expression->rSide->getType(expression->rSide, ctx.functionTable, ctx.program, ctx.currentFunction));
