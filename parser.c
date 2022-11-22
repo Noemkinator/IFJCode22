@@ -325,18 +325,19 @@ bool parse_for(StatementFor ** statementForRet) {
         return false;
     }
     nextToken = getNextToken();
-    if(nextToken.type != TOKEN_VARIABLE) {
-        printParserError(nextToken, "Missing variable after for");
-        return false;
-    }
-    statementFor->variable = getTokenText(nextToken);
-    nextToken = getNextToken();
-    if(nextToken.type != TOKEN_IN) {
-        printParserError(nextToken, "Missing in after for");
+    if(!parse_expression(&statementFor->init, TOKEN_ERROR)) return false;
+    if(nextToken.type != TOKEN_SEMICOLON) {
+        printParserError(nextToken, "Missing ; after for");
         return false;
     }
     nextToken = getNextToken();
-    if(!parse_expression(&statementFor->list, TOKEN_ERROR)) return false;
+    if(!parse_expression(&statementFor->condition, TOKEN_ERROR)) return false;
+    if(nextToken.type != TOKEN_SEMICOLON) {
+        printParserError(nextToken, "Missing ; after for");
+        return false;
+    }
+    nextToken = getNextToken();
+    if(!parse_expression(&statementFor->increment, TOKEN_ERROR)) return false;
     if(nextToken.type != TOKEN_CLOSE_BRACKET) {
         printParserError(nextToken, "Missing ) after for");
         return false;

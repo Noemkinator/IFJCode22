@@ -24,7 +24,10 @@ typedef enum {
     STATEMENT_WHILE,
     STATEMENT_RETURN,
     STATEMENT_EXIT,
-    STATEMENT_FUNCTION
+    STATEMENT_FUNCTION,
+    STATEMENT_FOR,
+    STATEMENT_CONTINUE,
+    STATEMENT_BREAK
 } StatementType;
 
 /**
@@ -177,6 +180,17 @@ StatementWhile* StatementWhile__init();
 typedef struct {
     Statement super; /*<Superclass>*/
 
+    Expression * condition; /*<Condition of the for statement>*/
+    Statement * body; /*<Body of the for statement>*/
+    Expression * init; /*<Initialization of the for statement>*/
+    Expression * increment; /*<Increment of the for statement>*/
+} StatementFor;
+
+StatementFor* StatementFor__init();
+
+typedef struct {
+    Statement super; /*<Superclass>*/
+
     Expression * expression; /*<Expression to be returned>*/
 } StatementReturn;
 
@@ -190,6 +204,19 @@ typedef struct {
 
 StatementExit* StatementExit__init();
 
+// structure for continue statement
+typedef struct {
+    Statement super; /*<Superclass>*/
+} StatementContinue;
+
+StatementContinue* StatementContinue__init();
+
+// structure for break statement
+typedef struct {
+    Statement super; /*<Superclass>*/
+} StatementBreak;
+
+StatementBreak* StatementBreak__init();
 typedef struct Function {
     Statement super; /*<Superclass>*/
     char * name; /*<Name of the function>*/

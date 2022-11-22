@@ -1258,6 +1258,69 @@ void generateWhile(StatementWhile * statement, Context ctx) {
 }
 
 /**
+ * @brief Generates code for for statement
+ * 
+ * @param statement 
+ * @param ctx 
+ */
+void generateFor(StatementFor * statement, Context ctx) {   
+    size_t forUID = getNextCodeGenUID();
+    StringBuilder forStartSb;
+    StringBuilder__init(&forStartSb);
+    StringBuilder__appendString(&forStartSb, "forStart&");
+    StringBuilder__appendInt(&forStartSb, forUID);
+    StringBuilder forEndSb;
+    StringBuilder__init(&forEndSb);
+    StringBuilder__appendString(&forEndSb, "forEnd&");
+    StringBuilder__appendInt(&forEndSb, forUID);
+
+    generateStatement(statement->init, ctx);
+    emit_LABEL(forStartSb.text);
+    Symb condition = generateExpression(statement->condition, ctx, false, NULL);
+    condition = generateCastToBool(statement->condition, condition, ctx);
+    emit_JUMPIFNEQ(forEndSb.text, condition, (Symb){.type=Type_bool, .value.b = true});
+    freeTemporarySymbol(condition, ctx);
+    generateStatement(statement->body, ctx);
+    generateStatement(statement->increment, ctx);
+    emit_JUMP(forStartSb.text);
+    emit_LABEL(forEndSb.text);
+
+    StringBuilder__free(&forStartSb);
+    StringBuilder__free(&forEndSb);
+}
+
+/**
+ * @brief Generates code for continue statement
+ * 
+ * @param statement 
+ * @param ctx 
+ */
+void generateContinue(StatementContinue * statement, Context ctx) {
+    size_t forUID = getNextCodeGenUID();
+    StringBuilder forStartSb;
+    StringBuilder__init(&forStartSb);
+    StringBuilder__appendString(&forStartSb, "forStart&");
+    StringBuilder__appendInt(&forStartSb, forUID);
+    emit_JUMP(forStartSb.text);
+    StringBuilder__free(&forStartSb);
+}
+
+/**
+ * @brief Generates code for break statement
+ * 
+ * @param statement 
+ * @param ctx 
+ */
+void generateBreak(StatementBreak * statement, Context ctx) {
+    size_t forUID = getNextCodeGenUID();
+    StringBuilder forEndSb;
+    StringBuilder__init(&forEndSb);
+    StringBuilder__appendString(&forEndSb, "forEnd&");
+    StringBuilder__appendInt(&forEndSb, forUID);
+    emit_JUMP(forEndSb.text);
+    StringBuilder__free(&forEndSb);
+}
+/**
  * @brief Generates code for return statement
  * 
  * @param statement 
@@ -1313,6 +1376,15 @@ void generateStatement(Statement * statement, Context ctx) {
             break;
         case STATEMENT_WHILE:
             generateWhile((StatementWhile*)statement, ctx);
+            break;
+        case STATEMENT_FOR:
+            generateFor((StatementFor*)statement, ctx);
+            break;
+        case STATEMENT_CONTINUE:
+            generateContinue((StatementContinue*)statement, ctx);
+            break;
+        case STATEMENT_BREAK:
+            generateBreak((StatementBreak*)statement, ctx);
             break;
         case STATEMENT_RETURN:
             generateReturn((StatementReturn*)statement, ctx);

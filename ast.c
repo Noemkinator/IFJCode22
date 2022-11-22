@@ -328,7 +328,7 @@ Statement *** Expression__Variable__getChildren(Expression__Variable *this, int 
     return NULL;
 }
 
-Table * dublicateVarTypeTable(Table * table) {
+Table * duplicateVarTypeTable(Table * table) {
     Table * new_table = table_init();
     for (int i = 0; i < TB_SIZE; i++) {
         TableItem * item = table->tb[i];
@@ -525,7 +525,7 @@ UnionType getStatementVarType(Expression__Variable * variable, Table * functionT
         case STATEMENT_IF: {
             StatementIf* ifStatement = (StatementIf*)statement;
             UnionType typeCond = getExpressionVarType(variable, functionTable, ifStatement->condition, variableTable, NULL);
-            Table * duplTable = dublicateVarTypeTable(variableTable);
+            Table * duplTable = duplicateVarTypeTable(variableTable);
             UnionType type1 = getStatementVarType(variable, functionTable, ifStatement->ifBody, variableTable);
             UnionType type2 = getStatementVarType(variable, functionTable, ifStatement->elseBody, duplTable);
             // or the tables
@@ -554,8 +554,14 @@ UnionType getStatementVarType(Expression__Variable * variable, Table * functionT
         }
         case STATEMENT_WHILE: {
             StatementWhile* whileStatement = (StatementWhile*)statement;
+<<<<<<< Updated upstream
             Table * duplTable = dublicateVarTypeTable(variableTable);
             UnionType type = getExpressionVarType(variable, functionTable, whileStatement->condition, variableTable, NULL);
+=======
+            UnionType typeCond = getExpressionVarType(variable, functionTable, whileStatement->condition, variableTable, NULL);
+            Table * duplTable = duplicateVarTypeTable(variableTable);
+            UnionType type = (UnionType){0};
+>>>>>>> Stashed changes
             bool changed = true;
             while(changed) {
                 changed = false;
@@ -1240,6 +1246,198 @@ StatementWhile* StatementWhile__init() {
     this->super.free = (void (*)(struct Statement *))StatementWhile__free;
     this->condition = NULL;
     this->body = NULL;
+    return this;
+}
+
+/**
+ * @brief <for> statement serializer
+ * 
+ * @param this 
+ * @param stringBuilder 
+ */
+void StatementFor__serialize(StatementFor *this, StringBuilder * stringBuilder) {
+    StringBuilder__appendString(stringBuilder, "{\"statementType\": \"STATEMENT_FOR\", \"init\": ");
+    if(this->init != NULL) {
+        this->init->super.serialize((Statement*)this->init, stringBuilder);
+    } else {
+        StringBuilder__appendString(stringBuilder, "null");
+    }
+    StringBuilder__appendString(stringBuilder, ", \"condition\": ");
+    if(this->condition != NULL) {
+        this->condition->super.serialize((Statement*)this->condition, stringBuilder);
+    } else {
+        StringBuilder__appendString(stringBuilder, "null");
+    }
+    StringBuilder__appendString(stringBuilder, ", \"increment\": ");
+    if(this->increment != NULL) {
+        this->increment->super.serialize((Statement*)this->increment, stringBuilder);
+    } else {
+        StringBuilder__appendString(stringBuilder, "null");
+    }
+    StringBuilder__appendString(stringBuilder, ", \"body\": ");
+    if(this->body != NULL) {
+        this->body->serialize(this->body, stringBuilder);
+    } else {
+        StringBuilder__appendString(stringBuilder, "null");
+    }
+    StringBuilder__appendString(stringBuilder, "}");
+}
+
+/**
+ * @brief Get <for> statement children
+ * 
+ * @param this 
+ * @param childrenCount 
+ * @return Statement*** 
+ */
+Statement *** StatementFor__getChildren(StatementFor *this, int * childrenCount) {
+    *childrenCount = 4;
+    Statement *** children = malloc(*childrenCount * sizeof(Statement**));
+    children[0] = (Statement**) &this->init;
+    children[1] = (Statement**) &this->condition;
+    children[2] = (Statement**) &this->increment;
+    children[3] = (Statement**) &this->body;
+    return children;
+}
+
+/**
+ * @brief Duplicates <for> statement
+ * 
+ * @param this 
+ * @return StatementFor* 
+ */
+StatementFor* StatementFor__duplicate(StatementFor* this) {
+    StatementFor* duplicate = StatementFor__init();
+    duplicate->body = (this->body != NULL ? this->body->duplicate(this->body) : NULL);
+    duplicate->condition = (this->condition != NULL ? (Expression*)this->condition->super.duplicate((Statement*)this->condition) : NULL);
+    duplicate->init = (this->init != NULL ? (Expression*)this->init->super.duplicate((Statement*)this->init) : NULL);
+    duplicate->increment = (this->increment != NULL ? (Expression*)this->increment->super.duplicate((Statement*)this->increment) : NULL);
+    return duplicate;
+}
+
+void StatementFor__free(StatementFor* this) {
+    if(this == NULL) return;
+    this->body->free(this->body);
+    this->condition->super.free((Statement*)this->condition);
+    this->init->super.free((Statement*)this->init);
+    this->increment->super.free((Statement*)this->increment);
+    free(this);
+}
+
+/**
+ * @brief <for> statement constructor
+ */
+StatementFor* StatementFor__init() {
+    StatementFor *this = malloc(sizeof(StatementFor));
+    this->super.statementType = STATEMENT_FOR;
+    this->super.serialize = (void (*)(struct Statement *, StringBuilder *))StatementFor__serialize;
+    this->super.getChildren = (struct Statement *** (*)(struct Statement *, int *))StatementFor__getChildren;
+    this->super.duplicate = (struct Statement * (*)(struct Statement *))StatementFor__duplicate;
+    this->super.free = (void (*)(struct Statement *))StatementFor__free;
+    this->condition = NULL;
+    this->body = NULL;
+    this->init = NULL;
+    this->increment = NULL;
+    return this;
+}
+
+/**
+ * @brief <continue> statement serializer
+ * 
+ * @param this 
+ * @param stringBuilder 
+ */
+void StatementContinue__serialize(StatementContinue *this, StringBuilder * stringBuilder) {
+    StringBuilder__appendString(stringBuilder, "{\"statementType\": \"STATEMENT_CONTINUE\"}");
+}
+
+/**
+ * @brief Get <continue> statement children
+ * 
+ * @param this 
+ * @param childrenCount 
+ * @return Statement*** 
+ */
+Statement *** StatementContinue__getChildren(StatementContinue *this, int * childrenCount) {
+    *childrenCount = 0;
+    return NULL;
+}
+
+/**
+ * @brief Duplicates <continue> statement
+ * 
+ * @param this 
+ * @return StatementContinue* 
+ */
+StatementContinue* StatementContinue__duplicate(StatementContinue* this) {
+    return StatementContinue__init();
+}
+
+void StatementContinue__free(StatementContinue* this) {
+    if(this == NULL) return;
+    free(this);
+}
+
+/**
+ * @brief <continue> statement constructor
+ */
+StatementContinue* StatementContinue__init() {
+    StatementContinue *this = malloc(sizeof(StatementContinue));
+    this->super.statementType = STATEMENT_CONTINUE;
+    this->super.serialize = (void (*)(struct Statement *, StringBuilder *))StatementContinue__serialize;
+    this->super.getChildren = (struct Statement *** (*)(struct Statement *, int *))StatementContinue__getChildren;
+    this->super.duplicate = (struct Statement * (*)(struct Statement *))StatementContinue__duplicate;
+    this->super.free = (void (*)(struct Statement *))StatementContinue__free;
+    return this;
+}
+
+/**
+ * @brief <break> statement serializer
+ * 
+ * @param this 
+ * @param stringBuilder 
+ */
+void StatementBreak__serialize(StatementBreak *this, StringBuilder * stringBuilder) {
+    StringBuilder__appendString(stringBuilder, "{\"statementType\": \"STATEMENT_BREAK\"}");
+}
+
+/**
+ * @brief Get <break> statement children
+ * 
+ * @param this 
+ * @param childrenCount 
+ * @return Statement*** 
+ */
+Statement *** StatementBreak__getChildren(StatementBreak *this, int * childrenCount) {
+    *childrenCount = 0;
+    return NULL;
+}
+
+/**
+ * @brief Duplicates <break> statement
+ * 
+ * @param this 
+ * @return StatementBreak* 
+ */
+StatementBreak* StatementBreak__duplicate(StatementBreak* this) {
+    return StatementBreak__init();
+}
+
+void StatementBreak__free(StatementBreak* this) {
+    if(this == NULL) return;
+    free(this);
+}
+
+/**
+ * @brief <break> statement constructor
+ */
+StatementBreak* StatementBreak__init() {
+    StatementBreak *this = malloc(sizeof(StatementBreak));
+    this->super.statementType = STATEMENT_BREAK;
+    this->super.serialize = (void (*)(struct Statement *, StringBuilder *))StatementBreak__serialize;
+    this->super.getChildren = (struct Statement *** (*)(struct Statement *, int *))StatementBreak__getChildren;
+    this->super.duplicate = (struct Statement * (*)(struct Statement *))StatementBreak__duplicate;
+    this->super.free = (void (*)(struct Statement *))StatementBreak__free;
     return this;
 }
 
