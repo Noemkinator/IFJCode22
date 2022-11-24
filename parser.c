@@ -108,7 +108,7 @@ char * decodeString(char * text) {
                     }
                     break;
                 case '0' ... '3':
-                    if('0' <= text[1] && text[1] <= 7 && '0' <= text[2] && text[2] <= 7) {
+                    if('0' <= text[1] && text[1] <= '7' && '0' <= text[2] && text[2] <= '7') {
                         char oct[4];
                         oct[0] = text[0];
                         oct[1] = text[1];

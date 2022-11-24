@@ -438,7 +438,7 @@ UnionType getExpressionVarType(Expression__Variable * variable, Table * function
                     TableItem * item = variableTable->tb[i];
                     while (item != NULL) {
                         UnionType * type = (UnionType*)item->data;
-                        if(type->constant != NULL && type->constant->expressionType == EXPRESSION_VARIABLE && ((Expression__Variable*)type->constant)->name == ((Expression__Variable*)binOp->lSide)->name) {
+                        if(type->constant != NULL && type->constant->expressionType == EXPRESSION_VARIABLE && strcmp(((Expression__Variable*)type->constant)->name, ((Expression__Variable*)binOp->lSide)->name) == 0) {
                             type->constant = NULL;
                         }
                         item = item->next;
@@ -521,7 +521,11 @@ UnionType getStatementVarType(Expression__Variable * variable, Table * functionT
         case STATEMENT_EXPRESSION:
             return getExpressionVarType(variable, functionTable, (Expression*)statement, variableTable, NULL);
         case STATEMENT_RETURN:
-            return getExpressionVarType(variable, functionTable, ((StatementReturn*)statement)->expression, variableTable, NULL);
+            if(((StatementReturn*)statement)->expression != NULL) {
+                return getExpressionVarType(variable, functionTable, ((StatementReturn*)statement)->expression, variableTable, NULL);
+            } else {
+                return (UnionType){0};
+            }
         case STATEMENT_IF: {
             StatementIf* ifStatement = (StatementIf*)statement;
             UnionType typeCond = getExpressionVarType(variable, functionTable, ifStatement->condition, variableTable, NULL);
