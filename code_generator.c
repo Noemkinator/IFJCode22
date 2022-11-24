@@ -424,8 +424,16 @@ Symb generateCastToInt(Symb symb, Expression * expression, Context * ctx, Symb *
         StringBuilder__init(&notBool);
         StringBuilder__appendString(&notBool, "not_bool&");
         StringBuilder__appendInt(&notBool, castUID);
+        StringBuilder isTrue;
+        StringBuilder__init(&isTrue);
+        StringBuilder__appendString(&isTrue, "is_true&");
+        StringBuilder__appendInt(&isTrue, castUID);
         emit_JUMPIFNEQ(notBool.text, symbType, (Symb){.type = Type_string, .value.s = "bool"});
-        // TODO
+        emit_JUMPIFEQ(isTrue.text, symbType, (Symb){.type = Type_bool, .value.b = true});
+        emit_MOVE(result, (Symb){.type = Type_int, .value.i = 0});
+        emit_JUMP(castEnd.text);
+        emit_LABEL(isTrue.text);
+        emit_MOVE(result, (Symb){.type = Type_int, .value.i = 1});
         emit_JUMP(castEnd.text);
         emit_LABEL(notBool.text);
         StringBuilder__free(&notBool);
@@ -511,8 +519,16 @@ Symb generateCastToFloat(Symb symb, Expression * expression, Context * ctx, Symb
         StringBuilder__init(&notBool);
         StringBuilder__appendString(&notBool, "not_bool&");
         StringBuilder__appendInt(&notBool, castUID);
+        StringBuilder isTrue;
+        StringBuilder__init(&isTrue);
+        StringBuilder__appendString(&isTrue, "is_true&");
+        StringBuilder__appendInt(&isTrue, castUID);
         emit_JUMPIFNEQ(notBool.text, symbType, (Symb){.type = Type_string, .value.s = "bool"});
-        // TODO
+        emit_JUMPIFEQ(isTrue.text, symbType, (Symb){.type = Type_bool, .value.b = true});
+        emit_MOVE(result, (Symb){.type = Type_float, .value.f = 0});
+        emit_JUMP(castEnd.text);
+        emit_LABEL(isTrue.text);
+        emit_MOVE(result, (Symb){.type = Type_float, .value.f = 1});
         emit_JUMP(castEnd.text);
         emit_LABEL(notBool.text);
         StringBuilder__free(&notBool);
@@ -523,7 +539,7 @@ Symb generateCastToFloat(Symb symb, Expression * expression, Context * ctx, Symb
         StringBuilder__appendString(&notNil, "not_nil&");
         StringBuilder__appendInt(&notNil, castUID);
         emit_JUMPIFNEQ(notNil.text, symbType, (Symb){.type = Type_string, .value.s = "nil"});
-        emit_MOVE(result, (Symb){.type = Type_int, .value.f = 0});
+        emit_MOVE(result, (Symb){.type = Type_float, .value.f = 0});
         emit_JUMP(castEnd.text);
         emit_LABEL(notNil.text);
         StringBuilder__free(&notNil);
