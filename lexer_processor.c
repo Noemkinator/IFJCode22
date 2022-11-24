@@ -151,6 +151,12 @@ Token getNextToken() {
                 } else if(strcmp(getTokenText(token), "for") == 0) {
                     token.type = TOKEN_FOR;
                     return token;
+                } else if(strcmp(getTokenText(token), "break") == 0) {
+                    token.type = TOKEN_BREAK;
+                    return token;
+                } else if(strcmp(getTokenText(token), "continue") == 0) {
+                    token.type = TOKEN_CONTINUE;
+                    return token;
                 }
             }
             return token;

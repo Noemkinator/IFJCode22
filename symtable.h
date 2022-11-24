@@ -1,7 +1,8 @@
 /**
+ * @file symtable.h
+ * @authors Jakub Kratochvíl (xkrato67), Jiří Gallo (xgallo04)
  * @brief Hlavičkový soubor pro implementaci tabulky symbolů (symtable.c) 
- * @author Jakub Kratochvíl (xkrato67)
- * @author Jiří Gallo (xgallo04)
+ * @date 2022-10-22
  */
 
 #ifndef __SYMTABLE_H__

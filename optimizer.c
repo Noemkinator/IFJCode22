@@ -1,5 +1,9 @@
-// Implementace překladače imperativního jazyka IFJ22
-// Authors: Jiří Gallo (xgallo04)
+/**
+ * @file optimizer.c
+ * @author Jiří Gallo (xgallo04)
+ * @brief Optimizer of IFJcode22
+ * @date 2022-10-26
+ */
 
 #include "optimizer.h"
 
@@ -288,6 +292,17 @@ Statement * performStatementFolding(Statement * in) {
             StatementWhile* whileStatement = (StatementWhile *) in;
             if(whileStatement->condition->expressionType == EXPRESSION_CONSTANT) {
                 Expression__Constant * condition = (Expression__Constant *) whileStatement->condition;
+                condition = performConstantCastCondition(condition);
+                if(!condition->value.boolean) {
+                    return (Statement*)StatementList__init();
+                }
+            }
+            break;
+        }
+        case STATEMENT_FOR: {
+            StatementFor* forStatement = (StatementFor *) in;
+            if(forStatement->condition->expressionType == EXPRESSION_CONSTANT) {
+                Expression__Constant * condition = (Expression__Constant *) forStatement->condition;
                 condition = performConstantCastCondition(condition);
                 if(!condition->value.boolean) {
                     return (Statement*)StatementList__init();

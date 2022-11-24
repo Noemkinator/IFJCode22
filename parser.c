@@ -1,5 +1,9 @@
-// Implementace překladače imperativního jazyka IFJ22
-// Authors: Jiří Gallo (xgallo04), Jakub Kratochvíl (xkrato67)
+/**
+ * @file parser.c
+ * @authors Jiří Gallo (xgallo04), Jakub Kratochvíl (xkrato67), Michal Cejpek (xcejpe05), Jan Zajíček (xzajic22)
+ * @brief Parser for IFJcode22
+ * @date 2022-10-22
+ */
 
 #include "parser.h"
 
@@ -325,19 +329,31 @@ bool parse_for(StatementFor ** statementForRet) {
         return false;
     }
     nextToken = getNextToken();
-    if(!parse_expression(&statementFor->init, 0)) return false;
+    if(nextToken.type == TOKEN_SEMICOLON) {
+        statementFor->init = NULL;
+    } else {
+        if(!parse_expression(&statementFor->init, 0)) return false;
+    }
     if(nextToken.type != TOKEN_SEMICOLON) {
         printParserError(nextToken, "Missing ; after for init");
         return false;
     }
     nextToken = getNextToken();
-    if(!parse_expression(&statementFor->condition,0)) return false;
+    if(nextToken.type == TOKEN_SEMICOLON) {
+        statementFor->condition = NULL;
+    } else {
+        if(!parse_expression(&statementFor->condition, 0)) return false;
+    }
     if(nextToken.type != TOKEN_SEMICOLON) {
         printParserError(nextToken, "Missing ; after for condition");
         return false;
     }
     nextToken = getNextToken();
-    if(!parse_expression(&statementFor->increment,0)) return false;
+    if(nextToken.type == TOKEN_CLOSE_BRACKET) {
+        statementFor->increment = NULL;
+    } else {
+        if(!parse_expression(&statementFor->increment, 0)) return false;
+    }
     if(nextToken.type != TOKEN_CLOSE_BRACKET) {
         printParserError(nextToken, "Missing ) after for");
         return false;
@@ -372,6 +388,10 @@ bool parse_break(StatementBreak ** statementBreakRet) {
     StatementBreak * statementBreak = StatementBreak__init();
     *statementBreakRet = statementBreak;
     nextToken = getNextToken();
+    if(nextToken.type != TOKEN_SEMICOLON) {
+        printParserError(nextToken, "Missing ; after break");
+        return false;
+    }
     return true;
 }
 
@@ -437,6 +457,7 @@ bool parse_statement(Statement ** retStatement) {
             return parse_for((StatementFor**)retStatement);
         case TOKEN_BREAK:
             return parse_break((StatementBreak**)retStatement);
+            
         case TOKEN_CONTINUE:
             return parse_continue((StatementContinue**)retStatement);
         default:

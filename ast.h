@@ -214,6 +214,8 @@ StatementContinue* StatementContinue__init();
 // structure for break statement
 typedef struct {
     Statement super; /*<Superclass>*/
+
+    int depth; /*<Depth of the break statement>*/
 } StatementBreak;
 
 StatementBreak* StatementBreak__init();

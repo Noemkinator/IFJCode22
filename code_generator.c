@@ -1,3 +1,10 @@
+/**
+ * @file code_generator.c
+ * @authors Jiří Gallo (xgallo04), Jan Zajíček (xzajic22)
+ * @brief Code generator for IFJcode22
+ * @date 2022-10-25
+ */
+
 #include "ast.h"
 #include "symtable.h"
 #include "emitter.h"
@@ -1306,11 +1313,12 @@ void generateContinue(StatementContinue * statement, Context ctx) {
 }
 
 /**
- * @brief Generates code for break statement
- * 
- * @param statement 
- * @param ctx 
- */
+ * @brief Generates interpreter code for break statement that breaks out of the for and while loop with the given depth (0 is the innermost loop)
+  if the depth is -1, it breaks out of all loops
+    *
+    * @param statement
+    * @param ctx
+    */
 void generateBreak(StatementBreak * statement, Context ctx) {
     size_t forUID = getNextCodeGenUID();
     StringBuilder forEndSb;
@@ -1320,6 +1328,9 @@ void generateBreak(StatementBreak * statement, Context ctx) {
     emit_JUMP(forEndSb.text);
     StringBuilder__free(&forEndSb);
 }
+
+
+
 /**
  * @brief Generates code for return statement
  * 
