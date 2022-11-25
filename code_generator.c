@@ -1348,14 +1348,18 @@ void generateFor(StatementFor * statement, Context ctx) {
     StringBuilder__appendString(&forEndSb, "forEnd&");
     StringBuilder__appendInt(&forEndSb, forUID);
 
-    generateExpression(statement->init, ctx, false, NULL);
+    if (statement->init != NULL) generateExpression(statement->init, ctx, true, NULL);
     emit_LABEL(forStartSb.text);
-    Symb condition = generateExpression(statement->condition, ctx, false, NULL);
-    condition = generateCastToBool(statement->condition, condition, ctx, true);
-    emit_JUMPIFNEQ(forEndSb.text, condition, (Symb){.type=Type_bool, .value.b = true});
-    freeTemporarySymbol(condition, ctx);
+    if (statement->condition != NULL) {
+        Symb condition = generateExpression(statement->condition, ctx, false, NULL);
+        condition = generateCastToBool(statement->condition, condition, ctx, true);
+        emit_JUMPIFNEQ(forEndSb.text, condition, (Symb){.type=Type_bool, .value.b = true});
+        freeTemporarySymbol(condition, ctx);
+    }else {
+        emit_COMMENT("No condition in for statement");
+    }
     generateStatement(statement->body, ctx);
-    generateExpression(statement->increment, ctx, false, NULL);
+    if (statement->increment != NULL) generateExpression(statement->increment, ctx, false, NULL);
     emit_JUMP(forStartSb.text);
     emit_LABEL(forEndSb.text);
 

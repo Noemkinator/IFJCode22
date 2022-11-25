@@ -207,6 +207,8 @@ StatementExit* StatementExit__init();
 // structure for continue statement
 typedef struct {
     Statement super; /*<Superclass>*/
+
+    int depth; /*<Depth of the loop affected>*/
 } StatementContinue;
 
 StatementContinue* StatementContinue__init();

@@ -24,7 +24,7 @@ clean:
 	rm -frd ./doc/Doxygen
 
 pack: clean
-	zip -r xlogin99.zip . -x "ifj2022.pdf" -x "tests/*" -x ".git/*"
+	zip -r xlogin99.zip . -x "ifj2022.pdf" -x "tests/*" -x ".git*" -x "ic22int" 
 
 docs:
 	@doxygen ./Doxyfile

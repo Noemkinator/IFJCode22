@@ -372,27 +372,59 @@ bool parse_for(StatementFor ** statementForRet) {
     nextToken = getNextToken();
     return true;
 }
+/**
+ * @brief Parses continue statement
+ * 
+ * @param statementContinueRet 
+ * @return true 
+ * @return false 
+ */
 bool parse_continue(StatementContinue ** statementContinueRet) {
     StatementContinue * statementContinue = StatementContinue__init();
     *statementContinueRet = statementContinue;
     nextToken = getNextToken();
-    if(nextToken.type != TOKEN_SEMICOLON) {
-        printParserError(nextToken, "Missing ; after continue");
-        return false;
+    if(nextToken.type == TOKEN_SEMICOLON) {
+        nextToken = getNextToken();
+        return true;
+    }else {
+       if(parse_statement(&statementContinue->depth, NULL)) {
+            if(nextToken.type == TOKEN_SEMICOLON) {
+                nextToken = getNextToken();
+                return true;
+            }else if(nextToken.type == TOKEN_CLOSE_CURLY_BRACKET) {
+                return true;
+            }else {
+                printParserError(nextToken, "Missing ; after continue");
+                return false;
+            }
+        }
     }
-    nextToken = getNextToken();
-    return true;
+    printParserError(nextToken, "Error parsing continue");
+    return false;
 }
 
 bool parse_break(StatementBreak ** statementBreakRet) {
     StatementBreak * statementBreak = StatementBreak__init();
     *statementBreakRet = statementBreak;
     nextToken = getNextToken();
-    if(nextToken.type != TOKEN_SEMICOLON) {
-        printParserError(nextToken, "Missing ; after break");
-        return false;
+    if(nextToken.type == TOKEN_SEMICOLON) {
+        nextToken = getNextToken();
+        return true;
+    }else {
+        if(parse_statement(&statementBreak->depth, NULL)){
+            if(nextToken.type == TOKEN_SEMICOLON) {
+                nextToken = getNextToken();
+                return true;
+            }else if(nextToken.type == TOKEN_CLOSE_CURLY_BRACKET) {
+                return true;
+            }else {
+                printParserError(nextToken, "Missing ; after break");
+                return false;
+            }
+        }
     }
-    return true;
+    printParserError(nextToken, "Error parsing break");
+    return false;
 }
 
 bool parse_function_arguments(Expression__FunctionCall * functionCall) {
@@ -457,7 +489,6 @@ bool parse_statement(Statement ** retStatement) {
             return parse_for((StatementFor**)retStatement);
         case TOKEN_BREAK:
             return parse_break((StatementBreak**)retStatement);
-            
         case TOKEN_CONTINUE:
             return parse_continue((StatementContinue**)retStatement);
         default:
