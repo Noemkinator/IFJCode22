@@ -1000,8 +1000,8 @@ void emitAddMulSubCast(Symb symb1, Symb symb2, Expression * expr1, Expression * 
 }
 
 void relationalOperatorCast(Symb symb1, Symb symb2, Expression * expr1, Expression * expr2, Symb * out1, Symb * out2, Context * ctx) {
-    // UnionType unionType1 = expr1->getType(expr1, ctx->functionTable, ctx->program, ctx->currentFunction);
-    // UnionType unionType2 = expr2->getType(expr2, ctx->functionTable, ctx->program, ctx->currentFunction);
+    UnionType unionType1 = expr1->getType(expr1, ctx->functionTable, ctx->program, ctx->currentFunction);
+    UnionType unionType2 = expr2->getType(expr2, ctx->functionTable, ctx->program, ctx->currentFunction);
     Symb type1 = generateSymbType(expr1, symb1, *ctx);
     Symb type2 = generateSymbType(expr2, symb2, *ctx);
     if(type1.type != Type_variable && type2.type != Type_variable && strcmp(type1.value.s, type2.value.s) == 0 && strcmp(type1.value.s, "nil") != 0) {
@@ -1033,31 +1033,43 @@ void relationalOperatorCast(Symb symb1, Symb symb2, Expression * expr1, Expressi
     StringBuilder__init(&isString);
     StringBuilder__appendString(&isString, "is_string&");
     StringBuilder__appendInt(&isString, getNextCodeGenUID());
-    emit_JUMPIFEQ(isNull.text, type1, (Symb){.type = Type_string, .value.s = "nil"});
-    emit_JUMPIFEQ(isNull.text, type2, (Symb){.type = Type_string, .value.s = "nil"});
+    if(unionType1.isNull || unionType2.isNull) {
+        emit_JUMPIFEQ(isNull.text, type1, (Symb){.type = Type_string, .value.s = "nil"});
+        emit_JUMPIFEQ(isNull.text, type2, (Symb){.type = Type_string, .value.s = "nil"});
+    }
     emit_JUMPIFNEQ(arentEqualTypes.text, type1, type2);
     emit_MOVE(result1, symb1);
     emit_MOVE(result2, symb2);
     emit_JUMP(castEnd.text);
     emit_LABEL(arentEqualTypes.text);
-    emit_JUMPIFEQ(isString.text, type1, (Symb){.type = Type_string, .value.s = "string"});
-    emit_JUMPIFEQ(isString.text, type2, (Symb){.type = Type_string, .value.s = "string"});
-    emit_JUMPIFEQ(isFloat.text, type1, (Symb){.type = Type_string, .value.s = "float"});
-    emit_JUMPIFEQ(isFloat.text, type2, (Symb){.type = Type_string, .value.s = "float"});
+    if(unionType1.isString || unionType2.isString) {
+        emit_JUMPIFEQ(isString.text, type1, (Symb){.type = Type_string, .value.s = "string"});
+        emit_JUMPIFEQ(isString.text, type2, (Symb){.type = Type_string, .value.s = "string"});
+    }
+    if(unionType1.isFloat || unionType2.isFloat) {
+        emit_JUMPIFEQ(isFloat.text, type1, (Symb){.type = Type_string, .value.s = "float"});
+        emit_JUMPIFEQ(isFloat.text, type2, (Symb){.type = Type_string, .value.s = "float"});
+    }
     emit_MOVE(result1, generateCastToInt(symb1, expr1, ctx, &type1));
     emit_MOVE(result2, generateCastToInt(symb2, expr2, ctx, &type2));
     emit_JUMP(castEnd.text);
-    emit_LABEL(isNull.text);
-    emit_MOVE(result1, generateCastToBool(expr1, symb1, *ctx, false));
-    emit_MOVE(result2, generateCastToBool(expr2, symb2, *ctx, false));
-    emit_JUMP(castEnd.text);
-    emit_LABEL(isFloat.text);
-    emit_MOVE(result1, generateCastToFloat(symb1, expr1, ctx, &type1));
-    emit_MOVE(result2, generateCastToFloat(symb2, expr2, ctx, &type2));
-    emit_JUMP(castEnd.text);
-    emit_LABEL(isString.text);
-    emit_MOVE(result1, generateCastToBool(expr1, symb1, *ctx, false));
-    emit_MOVE(result2, generateCastToBool(expr2, symb2, *ctx, false));
+    if(unionType1.isNull || unionType2.isNull) {
+        emit_LABEL(isNull.text);
+        emit_MOVE(result1, generateCastToBool(expr1, symb1, *ctx, false));
+        emit_MOVE(result2, generateCastToBool(expr2, symb2, *ctx, false));
+        emit_JUMP(castEnd.text);
+    }
+    if(unionType1.isFloat || unionType2.isFloat) {
+        emit_LABEL(isFloat.text);
+        emit_MOVE(result1, generateCastToFloat(symb1, expr1, ctx, &type1));
+        emit_MOVE(result2, generateCastToFloat(symb2, expr2, ctx, &type2));
+        emit_JUMP(castEnd.text);
+    }
+    if(unionType1.isString || unionType2.isString) {
+        emit_LABEL(isString.text);
+        emit_MOVE(result1, generateCastToBool(expr1, symb1, *ctx, false));
+        emit_MOVE(result2, generateCastToBool(expr2, symb2, *ctx, false));
+    }
     emit_LABEL(castEnd.text);
     StringBuilder__free(&isNull);
     StringBuilder__free(&isFloat);
