@@ -641,12 +641,48 @@ Symb generateCastToString(Symb symb, Expression * expression, Context * ctx, Sym
         StringBuilder__free(&notNil);
     }
     if(unionType.isInt) {
+        Var q = generateTemporaryVariable(*ctx);
+        Var r = generateTemporaryVariable(*ctx);
+        Var temp_char = generateTemporaryVariable(*ctx);
+        Var index = generateTemporaryVariable(*ctx);
         StringBuilder notInt;
         StringBuilder__init(&notInt);
         StringBuilder__appendString(&notInt, "not_int&");
         StringBuilder__appendInt(&notInt, castUID);
+        StringBuilder strval_push_loop;
+        StringBuilder__init(&strval_push_loop);
+        StringBuilder__appendString(&strval_push_loop, "strval_push_loop&");
+        StringBuilder__appendInt(&strval_push_loop, castUID);
+        StringBuilder strval_pop_loop;
+        StringBuilder__init(&strval_pop_loop);
+        StringBuilder__appendString(&strval_pop_loop, "strval_pop_loop&");
+        StringBuilder__appendInt(&strval_pop_loop, castUID);
         emit_JUMPIFNEQ(notInt.text, symbType, (Symb){.type = Type_string, .value.s = "int"});
-        // TODO
+        emit_MOVE(result, (Symb){.type = Type_string, .value.s = ""});
+        emit_MOVE(index, (Symb){.type = Type_int, .value.i = 0});
+        emit_MOVE(q, symb);
+        // loop for pushing converted numbers to stack
+        emit_LABEL(strval_push_loop.text);
+        // r = number % 10
+        emit_IDIV(r, (Symb){.type = Type_variable, .value.v = q}, (Symb){.type = Type_int, .value.i = 10});
+        emit_MUL(r, (Symb){.type = Type_variable, .value.v = r}, (Symb){.type = Type_int, .value.i = 10});
+        emit_SUB(r, (Symb){.type = Type_variable, .value.v = q}, (Symb){.type = Type_variable, .value.v = r});
+        emit_PUSHS((Symb){.type = Type_variable, .value.v = r});
+        // q = number / 10 
+        emit_IDIV(q, (Symb){.type = Type_variable, .value.v = q}, (Symb){.type = Type_int, .value.i = 10});
+        // print remainder
+        emit_ADD(index, (Symb){.type = Type_variable, .value.v = index}, (Symb){.type = Type_int, .value.i = 1});
+        emit_JUMPIFEQ(strval_pop_loop.text, (Symb){.type = Type_variable, .value.v = q}, (Symb){.type = Type_int, .value.i = 0});
+        // jump back to beginning
+        emit_JUMP(strval_push_loop.text); 
+        // loop for poping converted numbers from stack and printing
+        emit_LABEL(strval_pop_loop.text);
+        emit_POPS(r);
+        emit_ADD(r, (Symb){.type = Type_variable, .value.v = r}, (Symb){.type = Type_int, .value.i = 48});
+        emit_INT2CHAR(temp_char, (Symb){.type = Type_variable, .value.v = r});
+        emit_CONCAT(result, (Symb){.type = Type_variable, .value.v = result}, (Symb){.type = Type_variable, .value.v = temp_char});
+        emit_SUB(index, (Symb){.type = Type_variable, .value.v = index}, (Symb){.type = Type_int, .value.i = 1});
+        emit_JUMPIFNEQ(strval_pop_loop.text, (Symb){.type = Type_variable, .value.v = index}, (Symb){.type = Type_int, .value.i = 0});
         emit_JUMP(castEnd.text);
         emit_LABEL(notInt.text);
         StringBuilder__free(&notInt);
