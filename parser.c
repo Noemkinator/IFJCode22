@@ -211,14 +211,16 @@ bool parse_expression(Expression ** expression, int previousPrecedence) {
     if(!parse_terminal_expression(expression)) return false;
     while(is_operator(nextToken)) {
         Token operatorToken = nextToken;
-        if(previousPrecedence <= getPrecedence(operatorToken.type)) {
+        bool isRightAssociative = operatorToken.type == TOKEN_ASSIGN;
+        int nextPrecedence = getPrecedence(operatorToken.type);
+        if(previousPrecedence < nextPrecedence || (previousPrecedence == nextPrecedence && isRightAssociative)) {
             if(!is_unary_operator(nextToken)) {
                 Expression__BinaryOperator * operator = Expression__BinaryOperator__init();
                 operator->operator = operatorToken.type;
                 operator->lSide = *expression;
                 *expression = (Expression*)operator;
                 nextToken = getNextToken();
-                if(!parse_expression(&operator->rSide, getPrecedence(operatorToken.type))) return false;
+                if(!parse_expression(&operator->rSide, nextPrecedence)) return false;
             }
         } else {
             break;

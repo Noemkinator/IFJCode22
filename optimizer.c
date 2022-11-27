@@ -262,6 +262,45 @@ Expression__Constant * performConstantFolding(Expression__BinaryOperator * in) {
             return result;
             break;
         }
+        case TOKEN_LESS: {
+            result->type.type = TYPE_BOOL;
+            if(left->type.type == TYPE_NULL || right->type.type == TYPE_NULL) {
+                Expression__Constant * castL = performConstantCast(left, (Type){.type = TYPE_BOOL, .isRequired = true});
+                Expression__Constant * castR = performConstantCast(right, (Type){.type = TYPE_BOOL, .isRequired = true});
+                result->value.boolean = castL->value.boolean < castR->value.boolean;
+                return result;
+            }
+            if(left->type.type == TYPE_FLOAT || right->type.type == TYPE_FLOAT) {
+                Expression__Constant * castL = performConstantCast(left, (Type){.type = TYPE_FLOAT, .isRequired = true});
+                Expression__Constant * castR = performConstantCast(right, (Type){.type = TYPE_FLOAT, .isRequired = true});
+                result->value.boolean = castL->value.real < castR->value.real;
+                return result;
+            }
+            if(left->type.type == TYPE_STRING || right->type.type == TYPE_STRING) {
+                Expression__Constant * castL = performConstantCast(left, (Type){.type = TYPE_STRING, .isRequired = true});
+                Expression__Constant * castR = performConstantCast(right, (Type){.type = TYPE_STRING, .isRequired = true});
+                bool less = false;
+                char * s1 = castL->value.string;
+                char * s2 = castR->value.string;
+                while(*s1 != '\0' || *s2 != '\0') {
+                    if(*s1 < *s2) {
+                        less = true;
+                        break;
+                    } else if(*s1 > *s2) {
+                        break;
+                    }
+                    s1++;
+                    s2++;
+                }
+                result->value.boolean = less;
+                return result;
+            }
+            Expression__Constant * castL = performConstantCast(left, (Type){.type = TYPE_INT, .isRequired = true});
+            Expression__Constant * castR = performConstantCast(right, (Type){.type = TYPE_INT, .isRequired = true});
+            result->value.boolean = castL->value.integer < castR->value.integer;
+            return result;
+            break;
+        }
         default:
             free(result);
             return NULL;
@@ -418,9 +457,25 @@ bool replaceErrorsWithExit(Statement ** statement, Table * functionTable, Statem
     return false;
 }
 
+void unrollWhile(Statement ** statement, int iterationCount) {
+    if(iterationCount <= 0) return;
+    if((*statement)->statementType != STATEMENT_WHILE) return;
+    StatementWhile * whileStatement = (StatementWhile *) *statement;
+    StatementIf * generatedCondition = StatementIf__init();
+    generatedCondition->condition = (Expression*) whileStatement->condition->super.duplicate(&whileStatement->condition->super);
+    StatementList * generatedBody = StatementList__init();
+    generatedCondition->ifBody = (Statement*)generatedBody;
+    generatedCondition->elseBody = (Statement*)StatementList__init();
+    StatementList__addStatement(generatedBody, whileStatement->body);
+    StatementList__addStatement(generatedBody, (Statement*)whileStatement->super.duplicate(&whileStatement->super));
+    unrollWhile(&generatedBody->statements[generatedBody->listSize-1], iterationCount-1);
+    *statement = (Statement*)generatedCondition;
+}
+
 typedef struct {
     int assigments;
     int uses;
+    Expression__BinaryOperator ** latestUnaccessedAssignment;
 } OptimizerVarInfo;
 
 bool optimizeStatement(Statement ** statement, Table * functionTable, StatementList * program, Function * currentFunction, Table * optimizerVarInfo) {
@@ -523,7 +578,32 @@ bool optimizeNestedStatements(Statement ** parent, Table * functionTable, Statem
     return optimized;
 }
 
+bool expandStatement(Statement ** statement, Table * functionTable, StatementList * program, Function * currentFunction) {
+    if(statement == NULL) return false;
+    if(*statement == NULL) return false;
+    if((*statement)->statementType == STATEMENT_WHILE) {
+        unrollWhile(statement, 1);
+        return true;
+    }
+    return false;
+}
+
+bool performNestedStatementsExpansion(Statement ** parent, Table * functionTable, StatementList * program, Function * currentFunction) {
+    if(parent == NULL || *parent == NULL) return false;
+    bool optimized = false;
+    int childrenCount = 0;
+    Statement *** children = (*parent)->getChildren(*parent, &childrenCount);
+    if(childrenCount == 0) return optimized;
+    for(int i=0; i<childrenCount; i++) {
+        optimized |= performNestedStatementsExpansion(children[i], functionTable, program, currentFunction);
+    }
+    free(children);
+    optimized |= expandStatement(parent, functionTable, program, currentFunction);
+    return optimized;
+}
+
 void optimize(StatementList * program, Table * functionTable) {
+    //performNestedStatementsExpansion((Statement**)&program, functionTable, program, NULL);
     bool continueOptimizing = true;
     while(continueOptimizing) {
         continueOptimizing = false;

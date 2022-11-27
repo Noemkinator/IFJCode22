@@ -1347,6 +1347,7 @@ Symb generateBinaryOperator(Expression__BinaryOperator * expression, Context ctx
             emit_LABEL(sb1.text);
             emit_MOVE(outVar, (Symb){.type=Type_bool, .value.b=false});
             emit_LABEL(sb2.text);
+            return outSymb;
             break;
         }
         case TOKEN_OR: {
@@ -1370,6 +1371,7 @@ Symb generateBinaryOperator(Expression__BinaryOperator * expression, Context ctx
             emit_LABEL(sb1.text);
             emit_MOVE(outVar, (Symb){.type=Type_bool, .value.b=true});
             emit_LABEL(sb2.text);
+            return outSymb;
             break;
         }
         default:
