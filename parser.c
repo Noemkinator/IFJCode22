@@ -211,7 +211,7 @@ bool parse_expression(Expression ** expression, int previousPrecedence) {
     if(!parse_terminal_expression(expression)) return false;
     while(is_operator(nextToken)) {
         Token operatorToken = nextToken;
-        if(previousPrecedence <= getPrecedence(operatorToken.type)) {
+        if(previousPrecedence < getPrecedence(operatorToken.type)) {
             if(!is_unary_operator(nextToken)) {
                 Expression__BinaryOperator * operator = Expression__BinaryOperator__init();
                 operator->operator = operatorToken.type;
