@@ -4,3 +4,8 @@ tester
 doc/Doxygen
 *.out
 temp_out
+ic22int
+/test
+/x
+/x2
+.vscode
