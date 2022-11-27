@@ -102,7 +102,8 @@ Token getNextToken() {
                 } else if(secondToken.type == TOKEN_IDENTIFIER && 
                         (strcmp(getTokenText(secondToken), "float") == 0 || 
                             strcmp(getTokenText(secondToken), "int") == 0 || 
-                            strcmp(getTokenText(secondToken), "string") == 0)
+                            strcmp(getTokenText(secondToken), "string") == 0 ||
+                            strcmp(getTokenText(secondToken), "boolean") == 0)
                         ) {
                     token.type = TOKEN_TYPE;
                     token.length += secondToken.length;
@@ -139,7 +140,7 @@ Token getNextToken() {
                 } else if(strcmp(getTokenText(token), "float") == 0 ||
                             strcmp(getTokenText(token), "int") == 0 ||
                             strcmp(getTokenText(token), "string") == 0 ||
-                            strcmp(getTokenText(token), "bool") == 0) {
+                            strcmp(getTokenText(token), "boolean") == 0) {
                     token.type = TOKEN_TYPE;
                     return token;
                 } else if(strcmp(getTokenText(token), "void") == 0) {
