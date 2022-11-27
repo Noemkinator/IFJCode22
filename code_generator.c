@@ -673,7 +673,7 @@ Symb generateCastToString(Symb symb, Expression * expression, Context * ctx, Sym
         // print remainder
         emit_ADD(index, (Symb){.type = Type_variable, .value.v = index}, (Symb){.type = Type_int, .value.i = 1});
         emit_JUMPIFEQ(strval_pop_loop.text, (Symb){.type = Type_variable, .value.v = q}, (Symb){.type = Type_int, .value.i = 0});
-        // jump back to beginning
+        // jump to next iteration
         emit_JUMP(strval_push_loop.text); 
         // loop for poping converted numbers from stack and printing
         emit_LABEL(strval_pop_loop.text);
@@ -688,12 +688,61 @@ Symb generateCastToString(Symb symb, Expression * expression, Context * ctx, Sym
         StringBuilder__free(&notInt);
     }
     if(unionType.isFloat) {
+        Var q = generateTemporaryVariable(*ctx);
+        Var r = generateTemporaryVariable(*ctx);
+        Var temp_char = generateTemporaryVariable(*ctx);
+        Var char_counter = generateTemporaryVariable(*ctx);
+        Var dot_counter = generateTemporaryVariable(*ctx);
         StringBuilder notFloat;
         StringBuilder__init(&notFloat);
         StringBuilder__appendString(&notFloat, "not_float&");
         StringBuilder__appendInt(&notFloat, castUID);
+        StringBuilder strval_push_loop;
+        StringBuilder__init(&strval_push_loop);
+        StringBuilder__appendString(&strval_push_loop, "strval_push_loop&");
+        StringBuilder__appendInt(&strval_push_loop, castUID);
+        StringBuilder strval_pop_loop;
+        StringBuilder__init(&strval_pop_loop);
+        StringBuilder__appendString(&strval_pop_loop, "strval_pop_loop&");
+        StringBuilder__appendInt(&strval_pop_loop, castUID);
+        StringBuilder not_float_dot;
+        StringBuilder__init(&not_float_dot);
+        StringBuilder__appendString(&not_float_dot, "not_float_dot&");
+        StringBuilder__appendInt(&not_float_dot, castUID);
         emit_JUMPIFNEQ(notFloat.text, symbType, (Symb){.type = Type_string, .value.s = "float"});
-        // TODO
+        emit_MOVE(result, (Symb){.type = Type_string, .value.s = ""});
+        emit_MOVE(char_counter, (Symb){.type = Type_int, .value.i = 0});
+        emit_MOVE(dot_counter, (Symb){.type = Type_int, .value.i = 0});
+        emit_MOVE(q, symb);
+        emit_MUL(q, (Symb){.type = Type_variable, .value.v = q}, (Symb){.type = Type_float, .value.f = 10000});
+        emit_FLOAT2INT(q, (Symb){.type = Type_variable, .value.v = q});
+        // loop for pushing converted numbers to stack
+        emit_LABEL(strval_push_loop.text);
+        // r = number % 10
+        emit_IDIV(r, (Symb){.type = Type_variable, .value.v = q}, (Symb){.type = Type_int, .value.i = 10});
+        emit_MUL(r, (Symb){.type = Type_variable, .value.v = r}, (Symb){.type = Type_int, .value.i = 10});
+        emit_SUB(r, (Symb){.type = Type_variable, .value.v = q}, (Symb){.type = Type_variable, .value.v = r});
+        emit_PUSHS((Symb){.type = Type_variable, .value.v = r});
+        // q = number / 10 
+        emit_IDIV(q, (Symb){.type = Type_variable, .value.v = q}, (Symb){.type = Type_int, .value.i = 10});
+        emit_ADD(char_counter, (Symb){.type = Type_variable, .value.v = char_counter}, (Symb){.type = Type_int, .value.i = 1});
+        emit_JUMPIFEQ(strval_pop_loop.text, (Symb){.type = Type_variable, .value.v = q}, (Symb){.type = Type_int, .value.i = 0});
+        // jump to next iteration
+        emit_JUMP(strval_push_loop.text); 
+        // loop for poping converted numbers from stack and printing
+        emit_LABEL(strval_pop_loop.text);
+        // jumping to not_float_dot if 4 numbers were not poped
+        emit_JUMPIFNEQ(not_float_dot.text, (Symb){.type = Type_variable, .value.v = dot_counter}, (Symb){.type = Type_int, .value.i = 6});
+        emit_CONCAT(result, (Symb){.type = Type_variable, .value.v = result}, (Symb){.type = Type_string, .value.s = "."});
+        emit_LABEL(not_float_dot.text);
+        emit_ADD(dot_counter, (Symb){.type = Type_variable, .value.v = char_counter}, (Symb){.type = Type_int, .value.i = 1});
+        emit_POPS(r);
+        emit_ADD(r, (Symb){.type = Type_variable, .value.v = r}, (Symb){.type = Type_int, .value.i = 48});
+        emit_INT2CHAR(temp_char, (Symb){.type = Type_variable, .value.v = r});
+        emit_CONCAT(result, (Symb){.type = Type_variable, .value.v = result}, (Symb){.type = Type_variable, .value.v = temp_char});
+        emit_SUB(char_counter, (Symb){.type = Type_variable, .value.v = char_counter}, (Symb){.type = Type_int, .value.i = 1});
+        emit_JUMPIFNEQ(strval_pop_loop.text, (Symb){.type = Type_variable, .value.v = char_counter}, (Symb){.type = Type_int, .value.i = 0});
+        emit_JUMP(castEnd.text);
         emit_LABEL(notFloat.text);
         StringBuilder__free(&notFloat);
     }
