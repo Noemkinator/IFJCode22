@@ -73,7 +73,7 @@ Expression__Constant * performConstantCast(Expression__Constant * in, Type targe
                     sprintf(result->value.string, "%g", in->value.real);
                     break;
                 case TYPE_BOOL:
-                    result->value.string = malloc(6);
+                    result->value.string = malloc(2);
                     sprintf(result->value.string, "%s", in->value.boolean ? "1" : "");
                     break;
                 case TYPE_VOID:
@@ -270,12 +270,6 @@ Expression__Constant * performConstantFolding(Expression__BinaryOperator * in) {
                 result->value.boolean = castL->value.boolean < castR->value.boolean;
                 return result;
             }
-            if(left->type.type == TYPE_FLOAT || right->type.type == TYPE_FLOAT) {
-                Expression__Constant * castL = performConstantCast(left, (Type){.type = TYPE_FLOAT, .isRequired = true});
-                Expression__Constant * castR = performConstantCast(right, (Type){.type = TYPE_FLOAT, .isRequired = true});
-                result->value.boolean = castL->value.real < castR->value.real;
-                return result;
-            }
             if(left->type.type == TYPE_STRING || right->type.type == TYPE_STRING) {
                 Expression__Constant * castL = performConstantCast(left, (Type){.type = TYPE_STRING, .isRequired = true});
                 Expression__Constant * castR = performConstantCast(right, (Type){.type = TYPE_STRING, .isRequired = true});
@@ -295,9 +289,132 @@ Expression__Constant * performConstantFolding(Expression__BinaryOperator * in) {
                 result->value.boolean = less;
                 return result;
             }
+            if(left->type.type == TYPE_FLOAT || right->type.type == TYPE_FLOAT) {
+                Expression__Constant * castL = performConstantCast(left, (Type){.type = TYPE_FLOAT, .isRequired = true});
+                Expression__Constant * castR = performConstantCast(right, (Type){.type = TYPE_FLOAT, .isRequired = true});
+                result->value.boolean = castL->value.real < castR->value.real;
+                return result;
+            }
             Expression__Constant * castL = performConstantCast(left, (Type){.type = TYPE_INT, .isRequired = true});
             Expression__Constant * castR = performConstantCast(right, (Type){.type = TYPE_INT, .isRequired = true});
             result->value.boolean = castL->value.integer < castR->value.integer;
+            return result;
+            break;
+        }
+        case TOKEN_GREATER: {
+            result->type.type = TYPE_BOOL;
+            if(left->type.type == TYPE_NULL || right->type.type == TYPE_NULL) {
+                Expression__Constant * castL = performConstantCast(left, (Type){.type = TYPE_BOOL, .isRequired = true});
+                Expression__Constant * castR = performConstantCast(right, (Type){.type = TYPE_BOOL, .isRequired = true});
+                result->value.boolean = castL->value.boolean > castR->value.boolean;
+                return result;
+            }
+            if(left->type.type == TYPE_STRING || right->type.type == TYPE_STRING) {
+                Expression__Constant * castL = performConstantCast(left, (Type){.type = TYPE_STRING, .isRequired = true});
+                Expression__Constant * castR = performConstantCast(right, (Type){.type = TYPE_STRING, .isRequired = true});
+                bool less = false;
+                char * s1 = castL->value.string;
+                char * s2 = castR->value.string;
+                while(*s1 != '\0' || *s2 != '\0') {
+                    if(*s1 > *s2) {
+                        less = true;
+                        break;
+                    } else if(*s1 < *s2) {
+                        break;
+                    }
+                    s1++;
+                    s2++;
+                }
+                result->value.boolean = less;
+                return result;
+            }
+            if(left->type.type == TYPE_FLOAT || right->type.type == TYPE_FLOAT) {
+                Expression__Constant * castL = performConstantCast(left, (Type){.type = TYPE_FLOAT, .isRequired = true});
+                Expression__Constant * castR = performConstantCast(right, (Type){.type = TYPE_FLOAT, .isRequired = true});
+                result->value.boolean = castL->value.real > castR->value.real;
+                return result;
+            }
+            Expression__Constant * castL = performConstantCast(left, (Type){.type = TYPE_INT, .isRequired = true});
+            Expression__Constant * castR = performConstantCast(right, (Type){.type = TYPE_INT, .isRequired = true});
+            result->value.boolean = castL->value.integer > castR->value.integer;
+            return result;
+            break;
+        }
+        case TOKEN_LESS_OR_EQUALS: {
+            result->type.type = TYPE_BOOL;
+            if(left->type.type == TYPE_NULL || right->type.type == TYPE_NULL) {
+                Expression__Constant * castL = performConstantCast(left, (Type){.type = TYPE_BOOL, .isRequired = true});
+                Expression__Constant * castR = performConstantCast(right, (Type){.type = TYPE_BOOL, .isRequired = true});
+                result->value.boolean = castL->value.boolean <= castR->value.boolean;
+                return result;
+            }
+            if(left->type.type == TYPE_STRING || right->type.type == TYPE_STRING) {
+                Expression__Constant * castL = performConstantCast(left, (Type){.type = TYPE_STRING, .isRequired = true});
+                Expression__Constant * castR = performConstantCast(right, (Type){.type = TYPE_STRING, .isRequired = true});
+                bool less = true;
+                char * s1 = castL->value.string;
+                char * s2 = castR->value.string;
+                while(*s1 != '\0' || *s2 != '\0') {
+                    if(!(*s1 <= *s2)) {
+                        less = false;
+                        break;
+                    } else if(*s1 < *s2) {
+                        break;
+                    }
+                    s1++;
+                    s2++;
+                }
+                result->value.boolean = less;
+                return result;
+            }
+            if(left->type.type == TYPE_FLOAT || right->type.type == TYPE_FLOAT) {
+                Expression__Constant * castL = performConstantCast(left, (Type){.type = TYPE_FLOAT, .isRequired = true});
+                Expression__Constant * castR = performConstantCast(right, (Type){.type = TYPE_FLOAT, .isRequired = true});
+                result->value.boolean = castL->value.real <= castR->value.real;
+                return result;
+            }
+            Expression__Constant * castL = performConstantCast(left, (Type){.type = TYPE_INT, .isRequired = true});
+            Expression__Constant * castR = performConstantCast(right, (Type){.type = TYPE_INT, .isRequired = true});
+            result->value.boolean = castL->value.integer <= castR->value.integer;
+            return result;
+            break;
+        }
+        case TOKEN_GREATER_OR_EQUALS: {
+            result->type.type = TYPE_BOOL;
+            if(left->type.type == TYPE_NULL || right->type.type == TYPE_NULL) {
+                Expression__Constant * castL = performConstantCast(left, (Type){.type = TYPE_BOOL, .isRequired = true});
+                Expression__Constant * castR = performConstantCast(right, (Type){.type = TYPE_BOOL, .isRequired = true});
+                result->value.boolean = castL->value.boolean >= castR->value.boolean;
+                return result;
+            }
+            if(left->type.type == TYPE_STRING || right->type.type == TYPE_STRING) {
+                Expression__Constant * castL = performConstantCast(left, (Type){.type = TYPE_STRING, .isRequired = true});
+                Expression__Constant * castR = performConstantCast(right, (Type){.type = TYPE_STRING, .isRequired = true});
+                bool less = true;
+                char * s1 = castL->value.string;
+                char * s2 = castR->value.string;
+                while(*s1 != '\0' || *s2 != '\0') {
+                    if(!(*s1 >= *s2)) {
+                        less = false;
+                        break;
+                    } else if(*s1 > *s2) {
+                        break;
+                    }
+                    s1++;
+                    s2++;
+                }
+                result->value.boolean = less;
+                return result;
+            }
+            if(left->type.type == TYPE_FLOAT || right->type.type == TYPE_FLOAT) {
+                Expression__Constant * castL = performConstantCast(left, (Type){.type = TYPE_FLOAT, .isRequired = true});
+                Expression__Constant * castR = performConstantCast(right, (Type){.type = TYPE_FLOAT, .isRequired = true});
+                result->value.boolean = castL->value.real >= castR->value.real;
+                return result;
+            }
+            Expression__Constant * castL = performConstantCast(left, (Type){.type = TYPE_INT, .isRequired = true});
+            Expression__Constant * castR = performConstantCast(right, (Type){.type = TYPE_INT, .isRequired = true});
+            result->value.boolean = castL->value.integer >= castR->value.integer;
             return result;
             break;
         }
