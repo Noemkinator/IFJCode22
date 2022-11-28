@@ -340,6 +340,10 @@ bool parse_function_arguments(Expression__FunctionCall * functionCall) {
 }
 
 bool parse_function_call(Expression__FunctionCall ** functionCallRet) {
+    if(nextToken.type != TOKEN_IDENTIFIER) {
+        printParserError(nextToken, "Expected function name");
+        return false;
+    }
     Expression__FunctionCall * functionCall = Expression__FunctionCall__init();
     *functionCallRet = functionCall;
     functionCall->name = getTokenTextPermanent(nextToken);
@@ -349,7 +353,7 @@ bool parse_function_call(Expression__FunctionCall ** functionCallRet) {
         return false;
     }
     nextToken = getNextToken();
-    parse_function_arguments(functionCall);
+    if(!parse_function_arguments(functionCall)) return false;
     if(nextToken.type != TOKEN_CLOSE_BRACKET) {
         printParserError(nextToken, "Missing ) after function call");
         return false;
