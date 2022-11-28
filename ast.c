@@ -295,6 +295,7 @@ void Expression__Constant__free(Expression__Constant* this) {
 Expression__Constant* Expression__Constant__init() {
     Expression__Constant *this = malloc(sizeof(Expression__Constant));
     this->super.expressionType = EXPRESSION_CONSTANT;
+    this->super.isLValue = false;
     this->super.super.statementType = STATEMENT_EXPRESSION;
     this->super.super.serialize = (void (*)(struct Statement *, StringBuilder *))Expression__Constant__serialize;
     this->super.super.getChildren = (struct Statement *** (*)(struct Statement *, int *))Expression__Constant__getChildren;
@@ -741,6 +742,7 @@ void Expression__Variable__free(Expression__Variable* this) {
 Expression__Variable* Expression__Variable__init() {
     Expression__Variable *this = malloc(sizeof(Expression__Variable));
     this->super.expressionType = EXPRESSION_VARIABLE;
+    this->super.isLValue = true;
     this->super.super.statementType = STATEMENT_EXPRESSION;
     this->super.super.serialize = (void (*)(struct Statement *, StringBuilder *))Expression__Variable__serialize;
     this->super.super.getChildren = (struct Statement *** (*)(struct Statement *, int *))Expression__Variable__getChildren;
@@ -842,6 +844,7 @@ void Expression__FunctionCall__free(Expression__FunctionCall* this) {
 Expression__FunctionCall* Expression__FunctionCall__init() {
     Expression__FunctionCall *this = malloc(sizeof(Expression__FunctionCall));
     this->super.expressionType = EXPRESSION_FUNCTION_CALL;
+    this->super.isLValue = false;
     this->super.getType = (UnionType (*)(struct Expression *, Table *, StatementList *, Function *))Expression__FunctionCall__getType;
     this->super.super.statementType = STATEMENT_EXPRESSION;
     this->super.super.serialize = (void (*)(struct Statement *, StringBuilder *))Expression__FunctionCall__serialize;
@@ -1028,6 +1031,7 @@ void Expression__BinaryOperator__free(Expression__BinaryOperator* this) {
 Expression__BinaryOperator* Expression__BinaryOperator__init() {
     Expression__BinaryOperator *this = malloc(sizeof(Expression__BinaryOperator));
     this->super.expressionType = EXPRESSION_BINARY_OPERATOR;
+    this->super.isLValue = false;
     this->super.super.statementType = STATEMENT_EXPRESSION;
     this->super.super.serialize = (void (*)(struct Statement *, StringBuilder *))Expression__BinaryOperator__serialize;
     this->super.super.getChildren = (struct Statement *** (*)(struct Statement *, int *))Expression__BinaryOperator__getChildren;
@@ -1123,6 +1127,7 @@ void Expression__UnaryOperator__free(Expression__UnaryOperator* this) {
 Expression__UnaryOperator* Expression__UnaryOperator__init() {
     Expression__UnaryOperator *this = malloc(sizeof(Expression__UnaryOperator));
     this->super.expressionType = EXPRESSION_UNARY_OPERATOR;
+    this->super.isLValue = false;
     this->super.super.statementType = STATEMENT_EXPRESSION;
     this->super.super.serialize = (void (*)(struct Statement *, StringBuilder *))Expression__UnaryOperator__serialize;
     this->super.super.getChildren = (struct Statement *** (*)(struct Statement *, int *))Expression__UnaryOperator__getChildren;

@@ -148,6 +148,7 @@ bool parse_terminal_expression(Expression ** expression) {
     if(nextToken.type == TOKEN_OPEN_BRACKET) {
         nextToken = getNextToken();
         if(!parse_expression(expression, 0)) return false;
+        (*expression)->isLValue = false;
         if(nextToken.type != TOKEN_CLOSE_BRACKET) {
             printParserError(nextToken, "Expected closing bracket");
             return false;
@@ -222,6 +223,10 @@ bool parse_expression(Expression ** expression, int previousPrecedence) {
                 Expression__BinaryOperator * operator = Expression__BinaryOperator__init();
                 operator->operator = operatorToken.type;
                 operator->lSide = *expression;
+                if(operator->operator == TOKEN_ASSIGN && !operator->lSide->isLValue) {
+                    printParserError(nextToken, "Cannot assign to non-lvalue");
+                    return false;
+                }
                 *expression = (Expression*)operator;
                 nextToken = getNextToken();
                 if(!parse_expression(&operator->rSide, nextPrecedence)) return false;
@@ -445,6 +450,10 @@ bool parse_function_arguments(Expression__FunctionCall * functionCall) {
 }
 
 bool parse_function_call(Expression__FunctionCall ** functionCallRet) {
+    if(nextToken.type != TOKEN_IDENTIFIER) {
+        printParserError(nextToken, "Expected function name");
+        return false;
+    }
     Expression__FunctionCall * functionCall = Expression__FunctionCall__init();
     *functionCallRet = functionCall;
     functionCall->name = getTokenTextPermanent(nextToken);
@@ -454,7 +463,7 @@ bool parse_function_call(Expression__FunctionCall ** functionCallRet) {
         return false;
     }
     nextToken = getNextToken();
-    parse_function_arguments(functionCall);
+    if(!parse_function_arguments(functionCall)) return false;
     if(nextToken.type != TOKEN_CLOSE_BRACKET) {
         printParserError(nextToken, "Missing ) after function call");
         return false;
