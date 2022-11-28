@@ -99,6 +99,7 @@ struct Function;
 typedef struct Expression {
     Statement super;/*<Superclass>*/
     ExpressionType expressionType;/*<Expression type>*/
+    bool isLValue;/*<Is the expression an lvalue>*/
     UnionType (*getType)(struct Expression * expression, Table * functionTable, StatementList * program, struct Function * currentFunction);/*<Get type function pointer>*/
 } Expression;
 

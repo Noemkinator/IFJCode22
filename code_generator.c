@@ -1319,8 +1319,8 @@ void relationalOperatorCast(Symb symb1, Symb symb2, Expression * expr1, Expressi
     }
     if(unionType1.isString || unionType2.isString) {
         emit_LABEL(isString.text);
-        emit_MOVE(result1, generateCastToBool(expr1, symb1, *ctx, false));
-        emit_MOVE(result2, generateCastToBool(expr2, symb2, *ctx, false));
+        emit_MOVE(result1, generateCastToString(symb1, expr1, ctx, &type1));
+        emit_MOVE(result2, generateCastToString(symb2, expr2, ctx, &type2));
     }
     emit_LABEL(castEnd.text);
     StringBuilder__free(&isNull);
