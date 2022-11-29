@@ -638,14 +638,34 @@ UnionType getStatementVarType(Table * functionTable, Statement * statement, Tabl
             break;
         }
         case STATEMENT_FOR: {
-            StatementFor* forStatement = (StatementFor*)statement;
-            Table * duplTable = duplicateVarTypeTable(variableTable);
-            UnionType type = getExpressionVarType(variable, functionTable, forStatement->condition, variableTable, NULL);
+            StatementFor* forStatement = (StatementFor*)statement; // initialize for statement
+            Table * duplTable = duplicateVarTypeTable(variableTable); // duplicate variable table
+            // get variable type of initialization
+            if(forStatement->init != NULL) {
+                getExpressionVarType(functionTable, forStatement->init, variableTable, NULL, resultTable);
+            }
+            // get variable type of condition
+            if(forStatement->condition != NULL) {
+                getExpressionVarType(functionTable, forStatement->condition, variableTable, NULL, resultTable);
+            }
+            // get variable type of increment
+            if(forStatement->increment != NULL) {
+                getExpressionVarType(functionTable, forStatement->increment, variableTable, NULL, resultTable);
+            }
+            PointerTable * duplResultTable = duplicateTableStatement(resultTable);
             bool changed = true;
             while(changed) {
                 changed = false;
-                type = orUnionType(type, getStatementVarType(variable, functionTable, forStatement->body, duplTable));
-                type = orUnionType(type, getExpressionVarType(variable, functionTable, forStatement->condition, duplTable, NULL));
+                // get variable type of body
+                getStatementVarType(functionTable, forStatement->body, duplTable, duplResultTable);
+                // get variable type of condition
+                if(forStatement->condition != NULL) {
+                    getExpressionVarType(functionTable, forStatement->condition, duplTable, NULL, duplResultTable);
+                }
+                // get variable type of increment
+                if(forStatement->increment != NULL) {
+                    getExpressionVarType(functionTable, forStatement->increment, duplTable, NULL, duplResultTable);
+                }
                 // or the tables
                 for(int j=0; j<TB_SIZE; j++) {
                     TableItem * item1 = variableTable->tb[j];
@@ -674,9 +694,23 @@ UnionType getStatementVarType(Table * functionTable, Statement * statement, Tabl
                         exit(99);
                     }
                 }
+                // or the result tables
+                for(int j=0; j<TB_SIZE; j++) {
+                    PointerTableItem * itemB = duplResultTable->tb[j];
+                    while(itemB != NULL) {
+                        PointerTableItem * itemA = table_statement_find(resultTable, itemB->name);
+                        if(itemA == NULL) {
+                            table_statement_insert(resultTable, itemB->name, itemB->data);
+                        } else {
+                            UnionType * typeA = (UnionType*)itemA->data;
+                            UnionType * typeB = (UnionType*)itemB->data;
+                            *typeA = orUnionType(*typeA, *typeB);
+                        }
+                        itemB = itemB->next;
+                    }
+                }
             }
             table_free(duplTable);
-            return type;
             break;
         }
         case STATEMENT_LIST:
