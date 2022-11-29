@@ -607,18 +607,17 @@ Symb generateCastToFloat(Symb symb, Expression * expression, Context * ctx, Symb
         StringBuilder__free(&notFloat);
     }
     if(unionType.isString) {
-        // TODO - exponential format and fix some specific inputs ("3.ABC")
         Var temp_value = generateTemporaryVariable(*ctx);
         Var index = generateTemporaryVariable(*ctx);
         Var length = generateTemporaryVariable(*ctx);
-        Var is_decimal = generateTemporaryVariable(*ctx);
+        Var has_decimal = generateTemporaryVariable(*ctx);
+        Var is_invalid = generateTemporaryVariable(*ctx);
         Var decimal_places_counter = generateTemporaryVariable(*ctx);
         Var divider = generateTemporaryVariable(*ctx);
         StringBuilder notString;
         StringBuilder__init(&notString);
         StringBuilder__appendString(&notString, "not_string&");
         StringBuilder__appendInt(&notString, castUID);
-        emit_JUMPIFNEQ(notString.text, symbType, (Symb){.type = Type_string, .value.s = "string"});
         StringBuilder floatval_loop;
         StringBuilder__init(&floatval_loop);
         StringBuilder__appendString(&floatval_loop, "func_floatval_loop&");
@@ -635,36 +634,33 @@ Symb generateCastToFloat(Symb symb, Expression * expression, Context * ctx, Symb
         StringBuilder__init(&skip_decimal_counter);
         StringBuilder__appendString(&skip_decimal_counter, "skip_decimal_counter&");
         StringBuilder__appendInt(&skip_decimal_counter, castUID);
-        StringBuilder skip_decimal_counter2;
-        StringBuilder__init(&skip_decimal_counter2);
-        StringBuilder__appendString(&skip_decimal_counter2, "skip_decimal_counter2&");
-        StringBuilder__appendInt(&skip_decimal_counter2, castUID);
         StringBuilder divider_loop;
         StringBuilder__init(&divider_loop);
         StringBuilder__appendString(&divider_loop, "divider_loop&");
         StringBuilder__appendInt(&divider_loop, castUID);
+        StringBuilder skip_divider_loop;
+        StringBuilder__init(&skip_divider_loop);
+        StringBuilder__appendString(&skip_divider_loop, "skip_divider_loop&");
+        StringBuilder__appendInt(&skip_divider_loop, castUID);
         emit_JUMPIFNEQ(notString.text, symbType, (Symb){.type = Type_string, .value.s = "string"});
+        // initialization of values
         emit_MOVE(index, (Symb){.type = Type_int, .value.i = 0});
-        emit_MOVE(is_decimal, (Symb){.type = Type_bool, .value.b = false});
+        emit_MOVE(has_decimal, (Symb){.type = Type_bool, .value.b = false});
         emit_MOVE(decimal_places_counter, (Symb){.type = Type_int, .value.i = 0});
         emit_MOVE(divider, (Symb){.type = Type_float, .value.f = 1});
         emit_MOVE(result, (Symb){.type = Type_int, .value.i = 0});
+        // get length of string
         emit_STRLEN(length, symb);
         emit_JUMPIFEQ(castEnd.text, (Symb){.type = Type_variable, .value.v = length}, (Symb){.type = Type_int, .value.i = 0});
         // floatval loop
         emit_LABEL(floatval_loop.text);
-        // temp_value = symb[i]
-        emit_STRI2INT(temp_value, symb, (Symb){.type = Type_variable, .value.v = index});
-        emit_ADD(index, (Symb){.type = Type_variable, .value.v = index}, (Symb){.type = Type_int, .value.i = 1});
+        emit_STRI2INT(temp_value, symb, (Symb){.type = Type_variable, .value.v = index});                                                   
+        emit_ADD(index, (Symb){.type = Type_variable, .value.v = index}, (Symb){.type = Type_int, .value.i = 1});                           
         emit_JUMPIFEQ(floatval_loop.text, (Symb){.type = Type_variable, .value.v = temp_value}, (Symb){.type = Type_int, .value.i = 32});
-        // check if is_decimal is true
-        emit_JUMPIFEQ(skip_decimal_counter.text, (Symb){.type = Type_variable, .value.v = is_decimal}, (Symb){.type = Type_bool, .value.b = false});
-        emit_ADD(decimal_places_counter, (Symb){.type = Type_variable, .value.v = decimal_places_counter}, (Symb){.type = Type_int, .value.i = 1});
-        emit_LABEL(skip_decimal_counter.text);
-        emit_JUMPIFEQ(skip_decimal_check.text, (Symb){.type = Type_variable, .value.v = is_decimal}, (Symb){.type = Type_bool, .value.b = true});
-        // check if char is '.'
-        emit_EQ(is_decimal, (Symb){.type = Type_variable, .value.v = temp_value}, (Symb){.type = Type_int, .value.i = 46});
-        emit_JUMPIFEQ(floatval_loop.text, (Symb){.type = Type_variable, .value.v = is_decimal}, (Symb){.type = Type_bool, .value.b = true});
+        // check if temp_val is decimal dot
+        emit_JUMPIFEQ(skip_decimal_check.text, (Symb){.type = Type_variable, .value.v = has_decimal}, (Symb){.type = Type_bool, .value.b = true});
+        emit_EQ(has_decimal, (Symb){.type = Type_variable, .value.v = temp_value}, (Symb){.type = Type_int, .value.i = 46});
+        emit_JUMPIFEQ(floatval_loop.text, (Symb){.type = Type_variable, .value.v = has_decimal}, (Symb){.type = Type_bool, .value.b = true});
         emit_LABEL(skip_decimal_check.text);
         // check if char < '0'
         emit_PUSHS((Symb){.type = Type_variable, .value.v = temp_value});
@@ -675,28 +671,37 @@ Symb generateCastToFloat(Symb symb, Expression * expression, Context * ctx, Symb
         emit_PUSHS((Symb){.type = Type_int, .value.i = 57});
         emit_GTS();
         emit_ORS();
-        emit_PUSHS((Symb){.type = Type_bool, .value.b = true});
+        emit_POPS(is_invalid);
+        // increment decimal_places_counter
+        emit_JUMPIFEQ(skip_decimal_counter.text, (Symb){.type = Type_variable, .value.v = is_invalid}, (Symb){.type = Type_bool, .value.b = true});
+        emit_JUMPIFEQ(skip_decimal_counter.text, (Symb){.type = Type_variable, .value.v = has_decimal}, (Symb){.type = Type_bool, .value.b = false});
+        emit_ADD(decimal_places_counter, (Symb){.type = Type_variable, .value.v = decimal_places_counter}, (Symb){.type = Type_int, .value.i = 1});
+        emit_LABEL(skip_decimal_counter.text);
         // if char != digit then break
-        emit_JUMPIFEQS(floatval_loop_end.text);
+        emit_JUMPIFEQ(floatval_loop_end.text, (Symb){.type = Type_variable, .value.v = is_invalid}, (Symb){.type = Type_bool, .value.b = true});
         // get the actual number from char
         emit_SUB(temp_value, (Symb){.type = Type_variable, .value.v = temp_value}, (Symb){.type = Type_int, .value.i = 48});
         // multiply result by 10
         emit_MUL(result, (Symb){.type = Type_variable, .value.v = result}, (Symb){.type = Type_int, .value.i = 10});
         // add current digit into result
         emit_ADD(result, (Symb){.type = Type_variable, .value.v = result}, (Symb){.type = Type_variable, .value.v = temp_value});
+        // go to the next iteration if index < length
         emit_JUMPIFNEQ(floatval_loop.text, (Symb){.type = Type_variable, .value.v = index}, (Symb){.type = Type_variable, .value.v = length});
-        // end of floatval_loop
+        // after the loop
         emit_LABEL(floatval_loop_end.text);
-        // convert result to float
         emit_INT2FLOAT(result, (Symb){.type = Type_variable, .value.v = result});
-        emit_JUMPIFEQ(skip_decimal_counter2.text, (Symb){.type = Type_variable, .value.v = is_decimal}, (Symb){.type = Type_bool, .value.b = false});
-        emit_SUB(decimal_places_counter, (Symb){.type = Type_variable, .value.v = decimal_places_counter}, (Symb){.type = Type_int, .value.i = 1});
-        emit_LABEL(skip_decimal_counter2.text);
+        // skip divider loop if decimal_places_counter < 1
+        emit_PUSHS((Symb){.type = Type_variable, .value.v = decimal_places_counter});
+        emit_PUSHS((Symb){.type = Type_int, .value.i = 1});
+        emit_LTS();
+        emit_PUSHS((Symb){.type = Type_bool, .value.b = true});
+        emit_JUMPIFEQS(skip_divider_loop.text);
         // calculate divider loop
         emit_LABEL(divider_loop.text);
         emit_MUL(divider, (Symb){.type = Type_variable, .value.v = divider}, (Symb){.type = Type_float, .value.f = 10});
         emit_SUB(decimal_places_counter, (Symb){.type = Type_variable, .value.v = decimal_places_counter}, (Symb){.type = Type_int, .value.i = 1});
         emit_JUMPIFNEQ(divider_loop.text, (Symb){.type = Type_variable, .value.v = decimal_places_counter}, (Symb){.type = Type_int, .value.i = 0});
+        emit_LABEL(skip_divider_loop.text);
         // divide result by divider to move the result x decimal spaces (x=decimal_places_counter)
         emit_DIV(result, (Symb){.type = Type_variable, .value.v = result}, (Symb){.type = Type_variable, .value.v = divider});
         emit_JUMP(castEnd.text);
