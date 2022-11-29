@@ -260,7 +260,7 @@ Type unionTypeToType(UnionType unionType) {
  * @param this 
  * @return Type 
  */
-UnionType Expression__Constant__getType(Expression__Constant *this, Table * functionTable, StatementList * program, Function * currentFunction) {
+UnionType Expression__Constant__getType(Expression__Constant *this, Table * functionTable, StatementList * program, Function * currentFunction, PointerTable * resultTable) {
     UnionType type = typeToUnionType(this->type);
     type.constant = (Expression*) this;
     return type;
@@ -301,7 +301,7 @@ Expression__Constant* Expression__Constant__init() {
     this->super.super.getChildren = (struct Statement *** (*)(struct Statement *, int *))Expression__Constant__getChildren;
     this->super.super.duplicate = (struct Statement * (*)(struct Statement *))Expression__Constant__duplicate;
     this->super.super.free = (void (*)(struct Statement *))Expression__Constant__free;
-    this->super.getType = (UnionType (*)(struct Expression *, Table *, StatementList *, Function *))Expression__Constant__getType;
+    this->super.getType = (UnionType (*)(struct Expression *, Table *, StatementList *, Function *, PointerTable *))Expression__Constant__getType;
     this->type.isRequired = false;
     this->type.type = TYPE_UNKNOWN;
     return this;
@@ -349,6 +349,26 @@ Table * duplicateVarTypeTable(Table * table) {
     return new_table;
 }
 
+PointerTable * duplicateTableStatement(PointerTable * table) {
+    PointerTable * new_table = table_statement_init();
+    for (int i = 0; i < TB_SIZE; i++) {
+        PointerTableItem * item = table->tb[i];
+        PointerTableItem ** new_item = &new_table->tb[i];
+        while (item != NULL) {
+            UnionType type = *(UnionType *)item->data;
+            UnionType * new_type = malloc(sizeof(UnionType));
+            *new_type = type;
+            *new_item = malloc(sizeof(PointerTableItem));
+            (*new_item)->name = item->name;
+            (*new_item)->data = new_type;
+            (*new_item)->next = NULL;
+            item = item->next;
+            new_item = &(*new_item)->next;
+        }
+    }
+    return new_table;
+}
+
 UnionType orUnionType(UnionType type1, UnionType type2) {
     UnionType ret;
     ret.isBool = type1.isBool || type2.isBool;
@@ -377,23 +397,7 @@ UnionType orUnionType(UnionType type1, UnionType type2) {
     return ret;
 }
 
-UnionType propagateUnionType(UnionType type1, UnionType type2) {
-    UnionType ret;
-    ret.isBool = type1.isBool || type2.isBool;
-    ret.isFloat = type1.isFloat || type2.isFloat;
-    ret.isInt = type1.isInt || type2.isInt;
-    ret.isNull = type1.isNull || type2.isNull;
-    ret.isString = type1.isString || type2.isString;
-    ret.isUndefined = type1.isUndefined || type2.isUndefined;
-    if(type1.constant != NULL) {
-        ret.constant = type1.constant;
-    } else {
-        ret.constant = type2.constant;
-    }
-    return ret;
-}
-
-UnionType getExpressionVarType(Expression__Variable * variable, Table * functionTable, Expression * expression, Table * variableTable, UnionType * exprTypeRet) {
+void getExpressionVarType(Table * functionTable, Expression * expression, Table * variableTable, UnionType * exprTypeRet, PointerTable * resultTable) {
     switch (expression->expressionType) {
         case EXPRESSION_CONSTANT:
             if(exprTypeRet != NULL) {
@@ -401,7 +405,7 @@ UnionType getExpressionVarType(Expression__Variable * variable, Table * function
                 *exprTypeRet = typeToUnionType(constant->type);
                 exprTypeRet->constant = expression;
             }
-            return (UnionType){0};
+            break;
         case EXPRESSION_VARIABLE: {
             Expression__Variable* var = (Expression__Variable*)expression;
             UnionType type = *(UnionType*)table_find(variableTable, var->name)->data;
@@ -409,29 +413,27 @@ UnionType getExpressionVarType(Expression__Variable * variable, Table * function
                 *exprTypeRet = type;
                 exprTypeRet->constant = expression;
             }
-            if((Expression__Variable*)expression == variable) {
-                return type;
-            }
-            return (UnionType){0};
+            UnionType * typePtr = malloc(sizeof(UnionType));
+            *typePtr = type;
+            table_statement_insert(resultTable, (Statement*)var, typePtr);
+            break;
         }
         case EXPRESSION_FUNCTION_CALL: {
             Expression__FunctionCall* func = (Expression__FunctionCall*)expression;
-            UnionType ret = (UnionType){0};
             for(int i = 0; i < func->arity; i++) {
-                ret = propagateUnionType(ret, getExpressionVarType(variable, functionTable, func->arguments[i], variableTable, NULL));
+                getExpressionVarType(functionTable, func->arguments[i], variableTable, NULL, resultTable);
             }
             if(exprTypeRet != NULL) {
                 Function * function = (Function*)table_find(functionTable, func->name)->data;
                 *exprTypeRet = typeToUnionType(function->returnType);
             }
-            return ret;
+            break;
         }
         case EXPRESSION_BINARY_OPERATOR: {
             Expression__BinaryOperator* binOp = (Expression__BinaryOperator*)expression;
             UnionType lType;
             UnionType rType;
-            UnionType type1 = getExpressionVarType(variable, functionTable, binOp->lSide, variableTable, &lType);
-            UnionType type2 = getExpressionVarType(variable, functionTable, binOp->rSide, variableTable, &rType);
+            getExpressionVarType(functionTable, binOp->rSide, variableTable, &rType, resultTable);
             if(binOp->operator == TOKEN_ASSIGN && binOp->lSide->expressionType == EXPRESSION_VARIABLE) {
                 UnionType assignedType = rType;
                 assignedType.isUndefined = false;
@@ -449,10 +451,14 @@ UnionType getExpressionVarType(Expression__Variable * variable, Table * function
                 if(exprTypeRet != NULL) {
                     *exprTypeRet = assignedType;
                 }
-                return type2;
+                UnionType * emptyType = malloc(sizeof(UnionType));
+                *emptyType = (UnionType){0};
+                table_statement_insert(resultTable, binOp->lSide, emptyType);
+                return;
             }
+            getExpressionVarType(functionTable, binOp->lSide, variableTable, &lType, resultTable);
             if(exprTypeRet == NULL) {
-                return propagateUnionType(type1, type2);
+                return;
             }
             *exprTypeRet = (UnionType){0};
             switch (binOp->operator) {
@@ -490,15 +496,14 @@ UnionType getExpressionVarType(Expression__Variable * variable, Table * function
                 default:
                     break;
             }
-            return propagateUnionType(type1, type2);
             break;
         }
         case EXPRESSION_UNARY_OPERATOR: {
             Expression__UnaryOperator* unOp = (Expression__UnaryOperator*)expression;
             UnionType rType;
-            UnionType type = getExpressionVarType(variable, functionTable, unOp->rSide, variableTable, &rType);
+            getExpressionVarType(functionTable, unOp->rSide, variableTable, &rType, resultTable);
              if(exprTypeRet == NULL) {
-                return type;
+                return;
             }
             *exprTypeRet = (UnionType){0};
             switch (unOp->operator) {
@@ -508,31 +513,31 @@ UnionType getExpressionVarType(Expression__Variable * variable, Table * function
                 default:
                     break;
             }
-            return type;
             break;
         }
     }
-    return (UnionType){0};
 }
 
-UnionType getStatementListVarType(Expression__Variable * variable, Table * functionTable, StatementList * statementList, Table * variableTable);
+void getStatementListVarType(Table * functionTable, StatementList * statementList, Table * variableTable, PointerTable * resultTable);
 
-UnionType getStatementVarType(Expression__Variable * variable, Table * functionTable, Statement * statement, Table * variableTable) {
+UnionType getStatementVarType(Table * functionTable, Statement * statement, Table * variableTable, PointerTable * resultTable) {
     switch(statement->statementType) {
         case STATEMENT_EXPRESSION:
-            return getExpressionVarType(variable, functionTable, (Expression*)statement, variableTable, NULL);
+            getExpressionVarType(functionTable, (Expression*)statement, variableTable, NULL, resultTable);
+            break;
         case STATEMENT_RETURN:
             if(((StatementReturn*)statement)->expression != NULL) {
-                return getExpressionVarType(variable, functionTable, ((StatementReturn*)statement)->expression, variableTable, NULL);
-            } else {
-                return (UnionType){0};
+                getExpressionVarType(functionTable, ((StatementReturn*)statement)->expression, variableTable, NULL, resultTable);
             }
+            break;
         case STATEMENT_IF: {
             StatementIf* ifStatement = (StatementIf*)statement;
-            UnionType typeCond = getExpressionVarType(variable, functionTable, ifStatement->condition, variableTable, NULL);
+            getExpressionVarType(functionTable, ifStatement->condition, variableTable, NULL, resultTable);
+            // duplicate result table
             Table * duplTable = duplicateVarTypeTable(variableTable);
-            UnionType type1 = getStatementVarType(variable, functionTable, ifStatement->ifBody, variableTable);
-            UnionType type2 = getStatementVarType(variable, functionTable, ifStatement->elseBody, duplTable);
+            PointerTable * duplResultTable = duplicateTableStatement(resultTable);
+            getStatementVarType(functionTable, ifStatement->ifBody, variableTable, resultTable);
+            getStatementVarType(functionTable, ifStatement->elseBody, duplTable, duplResultTable);
             // or the tables
             for(int j=0; j<TB_SIZE; j++) {
                 TableItem * itemA = variableTable->tb[j];
@@ -553,19 +558,36 @@ UnionType getStatementVarType(Expression__Variable * variable, Table * functionT
                     exit(99);
                 }
             }
+            // or the result tables
+            for(int j=0; j<TB_SIZE; j++) {
+                PointerTableItem * itemB = duplResultTable->tb[j];
+                while(itemB != NULL) {
+                    PointerTableItem * itemA = table_statement_find(resultTable, itemB->name);
+                    if(itemA == NULL) {
+                        table_statement_insert(resultTable, itemB->name, itemB->data);
+                    } else {
+                        UnionType * typeA = (UnionType*)itemA->data;
+                        UnionType * typeB = (UnionType*)itemB->data;
+                        *typeA = orUnionType(*typeA, *typeB);
+                    }
+                    itemB = itemB->next;
+                }
+            }
             // TODO: free also content
             table_free(duplTable);
-            return propagateUnionType(typeCond, propagateUnionType(type1, type2));
+            //table_statement_free(duplResultTable);
+            break;
         }
         case STATEMENT_WHILE: {
             StatementWhile* whileStatement = (StatementWhile*)statement;
             Table * duplTable = duplicateVarTypeTable(variableTable);
-            UnionType type = getExpressionVarType(variable, functionTable, whileStatement->condition, variableTable, NULL);
+            getExpressionVarType(functionTable, whileStatement->condition, variableTable, NULL, resultTable);
+            PointerTable * duplResultTable = duplicateTableStatement(resultTable);
             bool changed = true;
             while(changed) {
                 changed = false;
-                type = orUnionType(type, getStatementVarType(variable, functionTable, whileStatement->body, duplTable));
-                type = orUnionType(type, getExpressionVarType(variable, functionTable, whileStatement->condition, duplTable, NULL));
+                getStatementVarType(functionTable, whileStatement->body, duplTable, duplResultTable);
+                getExpressionVarType(functionTable, whileStatement->condition, duplTable, NULL, duplResultTable);
                 // or the tables
                 for(int j=0; j<TB_SIZE; j++) {
                     TableItem * item1 = variableTable->tb[j];
@@ -594,10 +616,25 @@ UnionType getStatementVarType(Expression__Variable * variable, Table * functionT
                         exit(99);
                     }
                 }
+                // or the result tables
+                for(int j=0; j<TB_SIZE; j++) {
+                    PointerTableItem * itemB = duplResultTable->tb[j];
+                    while(itemB != NULL) {
+                        PointerTableItem * itemA = table_statement_find(resultTable, itemB->name);
+                        if(itemA == NULL) {
+                            table_statement_insert(resultTable, itemB->name, itemB->data);
+                        } else {
+                            UnionType * typeA = (UnionType*)itemA->data;
+                            UnionType * typeB = (UnionType*)itemB->data;
+                            *typeA = orUnionType(*typeA, *typeB);
+                        }
+                        itemB = itemB->next;
+                    }
+                }
             }
             // TODO: free also content
             table_free(duplTable);
-            return type;
+            //table_statement_free(duplResultTable);
             break;
         }
         case STATEMENT_FOR: {
@@ -643,23 +680,70 @@ UnionType getStatementVarType(Expression__Variable * variable, Table * functionT
             break;
         }
         case STATEMENT_LIST:
-            return getStatementListVarType(variable, functionTable, (StatementList*)statement, variableTable);
+            getStatementListVarType(functionTable, (StatementList*)statement, variableTable, resultTable);
+            break;
         default:
             break;
     }
     return (UnionType){0};
 }
 
-UnionType getStatementListVarType(Expression__Variable * variable, Table * functionTable, StatementList * statementList, Table * variableTable) {
-    UnionType type = {0};
+void getStatementListVarType(Table * functionTable, StatementList * statementList, Table * variableTable, PointerTable * resultTable) {
     for(int i=0; i<statementList->listSize; i++) {
-        type = propagateUnionType(type, getStatementVarType(variable, functionTable, statementList->statements[i], variableTable));
+        getStatementVarType(functionTable, statementList->statements[i], variableTable, resultTable);
     }
-    return type;
 }
 
 // TODO: move the function elsewhere...
 Statement *** getAllStatements(Statement*, size_t*);
+
+void generateResultsTypeForFunction(Table * functionTable, StatementList * program, Function * currentFunction, PointerTable * resultTable) {
+    Table * variableTable = table_init();
+    for(int i=0; i<currentFunction->arity; i++) {
+        UnionType type = typeToUnionType(currentFunction->parameterTypes[i]);
+        UnionType * typePerm = malloc(sizeof(UnionType));
+        *typePerm = type;
+        table_insert(variableTable, currentFunction->parameterNames[i], typePerm);
+    }
+    size_t statementCount;
+    Statement *** allStatements = getAllStatements((Statement*)currentFunction->body, &statementCount);
+    for(int i=0; i<statementCount; i++) {
+        Statement * statement = *allStatements[i];
+        if(statement == NULL) continue;
+        if(statement->statementType == STATEMENT_EXPRESSION && ((Expression*)statement)->expressionType == EXPRESSION_VARIABLE) {
+            Expression__Variable* variable = (Expression__Variable*) statement;
+            if(table_find(variableTable, variable->name) == NULL) {
+                UnionType * type = malloc(sizeof(UnionType));
+                *type = (UnionType){0};
+                type->isUndefined = true;
+                table_insert(variableTable, variable->name, type);
+            }
+        }
+    }
+    getStatementVarType(functionTable, currentFunction->body, variableTable, resultTable);
+    table_free(variableTable);
+}
+
+void generateResultsTypeForProgram(Table * functionTable, StatementList * program, Function * currentFunction, PointerTable * resultTable) {
+    Table * variableTable = table_init();
+    size_t statementCount;
+    Statement *** allStatements = getAllStatements((Statement*)program, &statementCount);
+    for(int i=0; i<statementCount; i++) {
+        Statement * statement = *allStatements[i];
+        if(statement == NULL) continue;
+        if(statement->statementType == STATEMENT_EXPRESSION && ((Expression*)statement)->expressionType == EXPRESSION_VARIABLE) {
+            Expression__Variable* variable = (Expression__Variable*) statement;
+            if(table_find(variableTable, variable->name) == NULL) {
+                UnionType * type = malloc(sizeof(UnionType));
+                *type = (UnionType){0};
+                type->isUndefined = true;
+                table_insert(variableTable, variable->name, type);
+            }
+        }
+    }
+    getStatementListVarType(functionTable, program, variableTable, resultTable);
+    table_free(variableTable);
+}
 
 /**
  * @brief Get variable expression type
@@ -667,53 +751,38 @@ Statement *** getAllStatements(Statement*, size_t*);
  * @param this 
  * @return Type 
  */
-UnionType Expression__Variable__getType(Expression__Variable *this, Table * functionTable, StatementList * program, Function * currentFunction) {
-    UnionType returnType;
-    Table * variableTable = table_init();
+UnionType Expression__Variable__getType(Expression__Variable *this, Table * functionTable, StatementList * program, Function * currentFunction, PointerTable * resultTable) {
     if(currentFunction != NULL) {
-        for(int i=0; i<currentFunction->arity; i++) {
-            UnionType type = typeToUnionType(currentFunction->parameterTypes[i]);
-            UnionType * typePerm = malloc(sizeof(UnionType));
-            *typePerm = type;
-            table_insert(variableTable, currentFunction->parameterNames[i], typePerm);
+        PointerTableItem * tableStatItem = table_statement_find(resultTable, (Statement*)currentFunction);
+        PointerTable * tableStat = tableStatItem != NULL ? (PointerTable*)tableStatItem->data : NULL;
+        if(tableStat == NULL) {
+            tableStat = table_statement_init();
+            table_statement_insert(resultTable, (Statement*)currentFunction, tableStat);
+            generateResultsTypeForFunction(functionTable, program, currentFunction, tableStat);
         }
-        size_t statementCount;
-        Statement *** allStatements = getAllStatements((Statement*)currentFunction->body, &statementCount);
-        for(int i=0; i<statementCount; i++) {
-            Statement * statement = *allStatements[i];
-            if(statement == NULL) continue;
-            if(statement->statementType == STATEMENT_EXPRESSION && ((Expression*)statement)->expressionType == EXPRESSION_VARIABLE) {
-                Expression__Variable* variable = (Expression__Variable*) statement;
-                if(table_find(variableTable, variable->name) == NULL) {
-                    UnionType * type = malloc(sizeof(UnionType));
-                    *type = (UnionType){0};
-                    type->isUndefined = true;
-                    table_insert(variableTable, variable->name, type);
-                }
-            }
+        PointerTableItem * typeItem = table_statement_find(tableStat, (Statement*)this);
+        if(typeItem == NULL) {
+            table_statement_remove(resultTable, (Statement*)currentFunction);
+            return Expression__Variable__getType(this, functionTable, program, currentFunction, resultTable);
         }
-        returnType = getStatementVarType(this, functionTable, currentFunction->body, variableTable);
+        UnionType * type = typeItem->data;
+        return *type;
     } else {
-        size_t statementCount;
-        Statement *** allStatements = getAllStatements((Statement*)program, &statementCount);
-        for(int i=0; i<statementCount; i++) {
-            Statement * statement = *allStatements[i];
-            if(statement == NULL) continue;
-            if(statement->statementType == STATEMENT_EXPRESSION && ((Expression*)statement)->expressionType == EXPRESSION_VARIABLE) {
-                Expression__Variable* variable = (Expression__Variable*) statement;
-                if(table_find(variableTable, variable->name) == NULL) {
-                    UnionType * type = malloc(sizeof(UnionType));
-                    *type = (UnionType){0};
-                    type->isUndefined = true;
-                    table_insert(variableTable, variable->name, type);
-                }
-            }
+        PointerTableItem * tableStatItem = table_statement_find(resultTable, (Statement*)program);
+        PointerTable * tableStat = tableStatItem != NULL ? (PointerTable*)tableStatItem->data : NULL;
+        if(tableStat == NULL) {
+            tableStat = table_statement_init();
+            table_statement_insert(resultTable, (Statement*)program, tableStat);
+            generateResultsTypeForProgram(functionTable, program, currentFunction, tableStat);
         }
-        returnType = getStatementListVarType(this, functionTable, program, variableTable);
+        PointerTableItem * typeItem = table_statement_find(tableStat, (Statement*)this);
+        if(typeItem == NULL) {
+            table_statement_remove(resultTable, (Statement*)program);
+            return Expression__Variable__getType(this, functionTable, program, currentFunction, resultTable);
+        }
+        UnionType * type = typeItem->data;
+        return *type;
     }
-    // TODO: free also content
-    table_free(variableTable);
-    return returnType;
 }
 
 /**
@@ -748,7 +817,7 @@ Expression__Variable* Expression__Variable__init() {
     this->super.super.getChildren = (struct Statement *** (*)(struct Statement *, int *))Expression__Variable__getChildren;
     this->super.super.duplicate = (struct Statement * (*)(struct Statement *))Expression__Variable__duplicate;
     this->super.super.free = (void (*)(struct Statement *))Expression__Variable__free;
-    this->super.getType = (UnionType (*)(struct Expression *, Table *, StatementList *, Function *))Expression__Variable__getType;
+    this->super.getType = (UnionType (*)(struct Expression *, Table *, StatementList *, Function *, PointerTable *))Expression__Variable__getType;
     this->name = NULL;
     return this;
 }
@@ -797,7 +866,7 @@ Statement *** Expression__FunctionCall__getChildren(Expression__FunctionCall *th
  * @param this 
  * @return Type 
  */
-UnionType Expression__FunctionCall__getType(Expression__FunctionCall *this, Table * functionTable, StatementList * program, Function * currentFunction) {
+UnionType Expression__FunctionCall__getType(Expression__FunctionCall *this, Table * functionTable, StatementList * program, Function * currentFunction, PointerTable * resultTable) {
     Type type;
     TableItem * item = table_find(functionTable, this->name);
     if(item != NULL) {
@@ -845,7 +914,7 @@ Expression__FunctionCall* Expression__FunctionCall__init() {
     Expression__FunctionCall *this = malloc(sizeof(Expression__FunctionCall));
     this->super.expressionType = EXPRESSION_FUNCTION_CALL;
     this->super.isLValue = false;
-    this->super.getType = (UnionType (*)(struct Expression *, Table *, StatementList *, Function *))Expression__FunctionCall__getType;
+    this->super.getType = (UnionType (*)(struct Expression *, Table *, StatementList *, Function *,  PointerTable *))Expression__FunctionCall__getType;
     this->super.super.statementType = STATEMENT_EXPRESSION;
     this->super.super.serialize = (void (*)(struct Statement *, StringBuilder *))Expression__FunctionCall__serialize;
     this->super.super.getChildren = (struct Statement *** (*)(struct Statement *, int *))Expression__FunctionCall__getChildren;
@@ -957,14 +1026,14 @@ Statement *** Expression__BinaryOperator__getChildren(Expression__BinaryOperator
  * @param this 
  * @return Type 
  */
-UnionType Expression__BinaryOperation__getType(Expression__BinaryOperator *this, Table * functionTable, StatementList * program, Function * currentFunction) {
+UnionType Expression__BinaryOperation__getType(Expression__BinaryOperator *this, Table * functionTable, StatementList * program, Function * currentFunction,  PointerTable * resultTable) {
     UnionType type = {0};
     switch (this->operator) {
         case TOKEN_PLUS:
         case TOKEN_MINUS:
         case TOKEN_MULTIPLY: {
-            UnionType lType = this->lSide->getType(this->lSide, functionTable, program, currentFunction);
-            UnionType rType = this->rSide->getType(this->rSide, functionTable, program, currentFunction);
+            UnionType lType = this->lSide->getType(this->lSide, functionTable, program, currentFunction, resultTable);
+            UnionType rType = this->rSide->getType(this->rSide, functionTable, program, currentFunction, resultTable);
             if(lType.isInt && rType.isInt) {
                 type.isInt = true;
             }
@@ -980,7 +1049,7 @@ UnionType Expression__BinaryOperation__getType(Expression__BinaryOperator *this,
             type.isFloat = true;
             break;
         case TOKEN_ASSIGN:
-            type = this->rSide->getType(this->rSide, functionTable, program, currentFunction);
+            type = this->rSide->getType(this->rSide, functionTable, program, currentFunction, resultTable);
             break;
         case TOKEN_EQUALS:
         case TOKEN_NOT_EQUALS:
@@ -1037,7 +1106,7 @@ Expression__BinaryOperator* Expression__BinaryOperator__init() {
     this->super.super.getChildren = (struct Statement *** (*)(struct Statement *, int *))Expression__BinaryOperator__getChildren;
     this->super.super.duplicate = (struct Statement * (*)(struct Statement *))Expression__BinaryOperator__duplicate;
     this->super.super.free = (void (*)(struct Statement *))Expression__BinaryOperator__free;
-    this->super.getType = (UnionType (*)(struct Expression *, Table *, StatementList *, Function *))Expression__BinaryOperation__getType;
+    this->super.getType = (UnionType (*)(struct Expression *, Table *, StatementList *, Function *, PointerTable *))Expression__BinaryOperation__getType;
     this->lSide = NULL;
     this->rSide = NULL;
     return this;
@@ -1085,7 +1154,7 @@ Statement *** Expression__UnaryOperator__getChildren(Expression__UnaryOperator *
  * @param this 
  * @return Type 
  */
-UnionType Expression__UnaryOperation__getType(Expression__UnaryOperator *this, Table * functionTable, StatementList * program, Function * currentFunction) {
+UnionType Expression__UnaryOperation__getType(Expression__UnaryOperator *this, Table * functionTable, StatementList * program, Function * currentFunction, PointerTable * resultTable) {
     UnionType type = {0};
     switch (this->operator) {
         case TOKEN_NEGATE:
@@ -1133,7 +1202,7 @@ Expression__UnaryOperator* Expression__UnaryOperator__init() {
     this->super.super.getChildren = (struct Statement *** (*)(struct Statement *, int *))Expression__UnaryOperator__getChildren;
     this->super.super.duplicate = (struct Statement * (*)(struct Statement *))Expression__UnaryOperator__duplicate;
     this->super.super.free = (void (*)(struct Statement *))Expression__UnaryOperator__free;
-    this->super.getType = (UnionType (*)(struct Expression *, Table *, StatementList *, Function *))Expression__UnaryOperation__getType;
+    this->super.getType = (UnionType (*)(struct Expression *, Table *, StatementList *, Function *, PointerTable *))Expression__UnaryOperation__getType;
     this->rSide = NULL;
     return this;
 }

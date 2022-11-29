@@ -50,6 +50,7 @@ typedef struct {
     bool isGlobal;
     Function * currentFunction;
     StatementList * program;
+    PointerTable * resultTable;
 } Context;
 
 void generateStatement(Statement * statement, Context ctx);
@@ -95,7 +96,7 @@ void generateVarTypeComment(Expression__Variable * statement, Context ctx) {
     StringBuilder__appendString(&sb, "Type of variable ");
     StringBuilder__appendString(&sb, statement->name);
     StringBuilder__appendString(&sb, " is ");
-    UnionType type = statement->super.getType((Expression *) statement, ctx.functionTable, ctx.program, ctx.currentFunction);
+    UnionType type = statement->super.getType((Expression *) statement, ctx.functionTable, ctx.program, ctx.currentFunction, ctx.resultTable);
     if(type.isBool) {
         StringBuilder__appendString(&sb, "bool|");
     }
@@ -199,7 +200,7 @@ Symb generateVariable(Expression__Variable * statement, Context ctx) {
     char * varId = statement->name;
     Var variable = (Var){.name = varId, .frameType = ((VariableInfo*)table_find(ctx.varTable, statement->name)->data)->isGlobal ? GF : LF};
     Symb symb = (Symb){.type = Type_variable, .value.v = variable};
-    UnionType type = statement->super.getType((Expression *) statement, ctx.functionTable, ctx.program, ctx.currentFunction);
+    UnionType type = statement->super.getType((Expression *) statement, ctx.functionTable, ctx.program, ctx.currentFunction, ctx.resultTable);
     if(type.isUndefined) {
         size_t variableCheckUID = getNextCodeGenUID();
         Var var = generateTemporaryVariable(ctx);
@@ -261,7 +262,7 @@ Statement *** getAllStatements(Statement * parent, size_t * count) {
  * @return Symb
  */
 Symb generateSymbType(Expression * expression, Symb symb, Context ctx) {
-    Type type = unionTypeToType(expression->getType(expression, ctx.functionTable, ctx.program, ctx.currentFunction));
+    Type type = unionTypeToType(expression->getType(expression, ctx.functionTable, ctx.program, ctx.currentFunction, ctx.resultTable));
     if(type.isRequired == true) {
         switch (type.type) {
             case TYPE_INT:
@@ -293,7 +294,7 @@ Symb generateSymbType(Expression * expression, Symb symb, Context ctx) {
  * @return Symb
  */
 Symb generateCastToBool(Expression * expression, Symb symb, Context ctx, bool isCondtion) {
-    UnionType unionType = expression->getType(expression, ctx.functionTable, ctx.program, ctx.currentFunction);
+    UnionType unionType = expression->getType(expression, ctx.functionTable, ctx.program, ctx.currentFunction, ctx.resultTable);
     unionType.isUndefined = false;
     Type type = unionTypeToType(unionType);
     if(type.type == TYPE_BOOL && type.isRequired == true) {
@@ -399,7 +400,7 @@ Symb generateCastToBool(Expression * expression, Symb symb, Context ctx, bool is
 }
 
 Symb generateCastToInt(Symb symb, Expression * expression, Context * ctx, Symb * typeSymb) {
-    UnionType unionType = expression->getType(expression, ctx->functionTable, ctx->program, ctx->currentFunction);
+    UnionType unionType = expression->getType(expression, ctx->functionTable, ctx->program, ctx->currentFunction, ctx->resultTable);
     unionType.isUndefined = false;
     Type type = unionTypeToType(unionType);
     if(type.type == TYPE_INT && type.isRequired == true) {
@@ -528,7 +529,7 @@ Symb generateCastToInt(Symb symb, Expression * expression, Context * ctx, Symb *
 }
 
 Symb generateCastToFloat(Symb symb, Expression * expression, Context * ctx, Symb * typeSymb) {
-    UnionType unionType = expression->getType(expression, ctx->functionTable, ctx->program, ctx->currentFunction);
+    UnionType unionType = expression->getType(expression, ctx->functionTable, ctx->program, ctx->currentFunction, ctx->resultTable);
     unionType.isUndefined = false;
     Type type = unionTypeToType(unionType);
     if(type.type == TYPE_FLOAT && type.isRequired == true) {
@@ -715,7 +716,7 @@ Symb generateCastToFloat(Symb symb, Expression * expression, Context * ctx, Symb
 
 
 Symb generateCastToString(Symb symb, Expression * expression, Context * ctx, Symb * typeSymb) {
-    UnionType unionType = expression->getType(expression, ctx->functionTable, ctx->program, ctx->currentFunction);
+    UnionType unionType = expression->getType(expression, ctx->functionTable, ctx->program, ctx->currentFunction, ctx->resultTable);
     unionType.isUndefined = false;
     Type type = unionTypeToType(unionType);
     if(type.type == TYPE_STRING && type.isRequired == true) {
@@ -961,7 +962,7 @@ Symb saveTempSymb(Symb symb, Context ctx) {
 Symb generateExpression(Expression * expression, Context ctx, bool throwaway, Var * outVar);
 
 void emitTypeCheck(Type requiredType, Expression * subTypeExpression, Symb subTypeSymbol, Context ctx, char * typeCheckFailMsg) {
-    Type subType = unionTypeToType(subTypeExpression->getType(subTypeExpression, ctx.functionTable, ctx.program, ctx.currentFunction));
+    Type subType = unionTypeToType(subTypeExpression->getType(subTypeExpression, ctx.functionTable, ctx.program, ctx.currentFunction, ctx.resultTable));
     if(requiredType.type == subType.type && (requiredType.isRequired == subType.isRequired || requiredType.isRequired == false)) {
         return;
     }
@@ -1219,8 +1220,8 @@ Symb generateFunctionCall(Expression__FunctionCall * expression, Context ctx, Va
 }
 
 void emitAddMulSubCast(Symb symb1, Symb symb2, Expression * expr1, Expression * expr2, Symb * out1, Symb * out2, Context * ctx) {
-    UnionType unionType1 = expr1->getType(expr1, ctx->functionTable, ctx->program, ctx->currentFunction);
-    UnionType unionType2 = expr2->getType(expr2, ctx->functionTable, ctx->program, ctx->currentFunction);
+    UnionType unionType1 = expr1->getType(expr1, ctx->functionTable, ctx->program, ctx->currentFunction, ctx->resultTable);
+    UnionType unionType2 = expr2->getType(expr2, ctx->functionTable, ctx->program, ctx->currentFunction, ctx->resultTable);
     bool canBeFloat = unionType1.isFloat || unionType2.isFloat || unionType1.isString || unionType2.isString;
     bool isType1Float = !unionType1.isBool && unionType1.isFloat && !unionType1.isInt && !unionType1.isNull && !unionType1.isString;
     bool isType2Float = !unionType2.isBool && unionType2.isFloat && !unionType2.isInt && !unionType2.isNull && !unionType2.isString;
@@ -1264,8 +1265,8 @@ void emitAddMulSubCast(Symb symb1, Symb symb2, Expression * expr1, Expression * 
 }
 
 void relationalOperatorCast(Symb symb1, Symb symb2, Expression * expr1, Expression * expr2, Symb * out1, Symb * out2, Context * ctx) {
-    UnionType unionType1 = expr1->getType(expr1, ctx->functionTable, ctx->program, ctx->currentFunction);
-    UnionType unionType2 = expr2->getType(expr2, ctx->functionTable, ctx->program, ctx->currentFunction);
+    UnionType unionType1 = expr1->getType(expr1, ctx->functionTable, ctx->program, ctx->currentFunction, ctx->resultTable);
+    UnionType unionType2 = expr2->getType(expr2, ctx->functionTable, ctx->program, ctx->currentFunction, ctx->resultTable);
     Symb type1 = generateSymbType(expr1, symb1, *ctx);
     Symb type2 = generateSymbType(expr2, symb2, *ctx);
     if(type1.type != Type_variable && type2.type != Type_variable && strcmp(type1.value.s, type2.value.s) == 0 && strcmp(type1.value.s, "nil") != 0) {
@@ -1414,8 +1415,8 @@ Symb generateBinaryOperator(Expression__BinaryOperator * expression, Context ctx
             break;
         }
         case TOKEN_EQUALS: {
-            Type typeL = unionTypeToType(expression->lSide->getType(expression->lSide, ctx.functionTable, ctx.program, ctx.currentFunction));
-            Type typeR = unionTypeToType(expression->rSide->getType(expression->rSide, ctx.functionTable, ctx.program, ctx.currentFunction));
+            Type typeL = unionTypeToType(expression->lSide->getType(expression->lSide, ctx.functionTable, ctx.program, ctx.currentFunction, ctx.resultTable));
+            Type typeR = unionTypeToType(expression->rSide->getType(expression->rSide, ctx.functionTable, ctx.program, ctx.currentFunction, ctx.resultTable));
             if(typeL.type != TYPE_UNKNOWN && typeR.type != TYPE_UNKNOWN) {
                 if(typeL.type == typeR.type || (typeL.type == TYPE_NULL && !typeR.isRequired) || (typeR.type == TYPE_NULL && !typeL.isRequired)) {
                     emit_EQ(outVar, left, right);
@@ -1446,8 +1447,8 @@ Symb generateBinaryOperator(Expression__BinaryOperator * expression, Context ctx
             break;
         }
         case TOKEN_NOT_EQUALS: {
-            Type typeL = unionTypeToType(expression->lSide->getType(expression->lSide, ctx.functionTable, ctx.program, ctx.currentFunction));
-            Type typeR = unionTypeToType(expression->rSide->getType(expression->rSide, ctx.functionTable, ctx.program, ctx.currentFunction));
+            Type typeL = unionTypeToType(expression->lSide->getType(expression->lSide, ctx.functionTable, ctx.program, ctx.currentFunction, ctx.resultTable));
+            Type typeR = unionTypeToType(expression->rSide->getType(expression->rSide, ctx.functionTable, ctx.program, ctx.currentFunction, ctx.resultTable));
             if(typeL.type != TYPE_UNKNOWN && typeR.type != TYPE_UNKNOWN) {
                 if(typeL.type == typeR.type || (typeL.type == TYPE_NULL && !typeR.isRequired) || (typeR.type == TYPE_NULL && !typeL.isRequired)) {
                     emit_EQ(outVar, left, right);
@@ -1774,7 +1775,7 @@ void generateReturn(StatementReturn * statement, Context ctx) {
         Symb expr = generateExpression(statement->expression, ctx, ctx.isGlobal, ctx.isGlobal ? NULL : &returnValue);
         if(!ctx.isGlobal) {
             Type functionType = ctx.currentFunction->returnType;
-            UnionType returnUnionType = statement->expression->getType(statement->expression, ctx.functionTable, ctx.program, ctx.currentFunction);
+            UnionType returnUnionType = statement->expression->getType(statement->expression, ctx.functionTable, ctx.program, ctx.currentFunction, ctx.resultTable);
             Type returnType = unionTypeToType(returnUnionType);
             if(returnType.type != functionType.type || (returnType.isRequired != functionType.isRequired && functionType.isRequired) ) {
                 StringBuilder typeCheckFailMsg;
@@ -1846,7 +1847,7 @@ void generateStatement(Statement * statement, Context ctx) {
  * @param function 
  * @param ctx 
  */
-void generateFunction(Function* function, Table * functionTable) {
+void generateFunction(Function* function, Table * functionTable, PointerTable * resultTable) {
     if(function->body == NULL) return;
     Table* localTable = table_init();
     char * functionLabel = join_strings("function&", function->name);
@@ -1898,6 +1899,7 @@ void generateFunction(Function* function, Table * functionTable) {
     ctx.isGlobal = false;
     ctx.currentFunction = function;
     ctx.program = NULL;
+    ctx.resultTable = resultTable;
     generateStatement(function->body, ctx);
     if(function->body->statementType != STATEMENT_LIST || ((StatementList*)function->body)->listSize == 0 || ((StatementList*)function->body)->statements[((StatementList*)function->body)->listSize-1]->statementType != STATEMENT_RETURN) {
         if(function->returnType.type != TYPE_VOID) {
@@ -1987,6 +1989,7 @@ void generateCode(StatementList * program, Table * functionTable) {
     optimize(program, functionTable);
     emit_header();
     emit_DEFVAR_start();
+    PointerTable * resultTable = table_statement_init();
     Table * globalTable = table_init();
     size_t statementCount;
     Statement *** allStatements = getAllStatements((Statement*)program, &statementCount);
@@ -2014,6 +2017,7 @@ void generateCode(StatementList * program, Table * functionTable) {
     ctx.isGlobal = true;
     ctx.currentFunction = NULL;
     ctx.program = program;
+    ctx.resultTable = resultTable;
     generateStatementList(program, ctx);
     emit_DEFVAR_end();
     emit_instruction_end();
@@ -2022,7 +2026,7 @@ void generateCode(StatementList * program, Table * functionTable) {
         while(item != NULL) {
             Function* function = (Function*) item->data;
             if(function->body != NULL) {
-                generateFunction(function, functionTable);
+                generateFunction(function, functionTable, resultTable);
             }
             item = item->next;
         }

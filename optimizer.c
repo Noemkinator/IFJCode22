@@ -483,7 +483,7 @@ bool removeCodeAfterReturn(StatementList * in) {
     return false;
 }
 
-int getExpressionError(Expression * expression, Table * functionTable, StatementList * program, Function * currentFunction) {
+int getExpressionError(Expression * expression, Table * functionTable, StatementList * program, Function * currentFunction, PointerTable * resultTable) {
     if(expression == NULL) {
         return -1;
     }
@@ -491,7 +491,7 @@ int getExpressionError(Expression * expression, Table * functionTable, Statement
         case EXPRESSION_CONSTANT: 
             return 0;
         case EXPRESSION_VARIABLE: {
-            UnionType type =  expression->getType(expression, functionTable, program, currentFunction);
+            UnionType type =  expression->getType(expression, functionTable, program, currentFunction, resultTable);
             if(!type.isBool && !type.isFloat && !type.isInt && !type.isNull && !type.isString && type.isUndefined) {
                 return 5;
             }
@@ -506,7 +506,7 @@ int getExpressionError(Expression * expression, Table * functionTable, Statement
         case EXPRESSION_BINARY_OPERATOR: {
             Expression__BinaryOperator * op = (Expression__BinaryOperator *) expression;
             if(op->operator != TOKEN_ASSIGN) {
-                int leftError = getExpressionError(op->lSide, functionTable, program, currentFunction);
+                int leftError = getExpressionError(op->lSide, functionTable, program, currentFunction, resultTable);
                 if(leftError != 0) {
                     return leftError;
                 }
@@ -514,11 +514,11 @@ int getExpressionError(Expression * expression, Table * functionTable, Statement
                 if(op->lSide->expressionType != EXPRESSION_VARIABLE) {
                     return 2;
                 } else {
-                    return getExpressionError(op->rSide, functionTable, program, currentFunction);
+                    return getExpressionError(op->rSide, functionTable, program, currentFunction, resultTable);
                 }
             }
 
-            int rightError = getExpressionError(op->rSide, functionTable, program, currentFunction);
+            int rightError = getExpressionError(op->rSide, functionTable, program, currentFunction, resultTable);
             if(rightError != 0) {
                 return rightError;
             }
@@ -526,38 +526,38 @@ int getExpressionError(Expression * expression, Table * functionTable, Statement
         }
         case EXPRESSION_UNARY_OPERATOR: {
             Expression__UnaryOperator * op = (Expression__UnaryOperator *) expression;
-            return getExpressionError(op->rSide, functionTable, program, currentFunction);
+            return getExpressionError(op->rSide, functionTable, program, currentFunction, resultTable);
         }
     }
     return -1;
 }
 
-bool replaceErrorsWithExit(Statement ** statement, Table * functionTable, StatementList * program, Function * currentFunction) {
+bool replaceErrorsWithExit(Statement ** statement, Table * functionTable, StatementList * program, Function * currentFunction, PointerTable * resultTable) {
     if((*statement)->statementType == STATEMENT_IF) {
         StatementIf * ifStatement = (StatementIf *) *statement;
-        int error = getExpressionError(ifStatement->condition, functionTable, program, currentFunction);
+        int error = getExpressionError(ifStatement->condition, functionTable, program, currentFunction, resultTable);
         if(error > 0) {
             StatementExit * exitStatement = StatementExit__init();
             exitStatement->exitCode = error;
             *statement = (Statement*)exitStatement;
             return true;
         }
-        bool ret = replaceErrorsWithExit(&ifStatement->ifBody, functionTable, program, currentFunction);
-        ret |= replaceErrorsWithExit(&ifStatement->elseBody, functionTable, program, currentFunction);
+        bool ret = replaceErrorsWithExit(&ifStatement->ifBody, functionTable, program, currentFunction, resultTable);
+        ret |= replaceErrorsWithExit(&ifStatement->elseBody, functionTable, program, currentFunction, resultTable);
         return ret;
     } else if((*statement)->statementType == STATEMENT_WHILE) {
         StatementWhile * whileStatement = (StatementWhile *) *statement;
-        int error = getExpressionError(whileStatement->condition, functionTable, program, currentFunction);
+        int error = getExpressionError(whileStatement->condition, functionTable, program, currentFunction, resultTable);
         if(error > 0) {
             StatementExit * exitStatement = StatementExit__init();
             exitStatement->exitCode = error;
             *statement = (Statement*)exitStatement;
             return true;
         }
-        return replaceErrorsWithExit(&whileStatement->body, functionTable, program, currentFunction);
+        return replaceErrorsWithExit(&whileStatement->body, functionTable, program, currentFunction, resultTable);
     } else if((*statement)->statementType == STATEMENT_RETURN) {
         StatementReturn * returnStatement = (StatementReturn *) *statement;
-        int error = getExpressionError(returnStatement->expression, functionTable, program, currentFunction);
+        int error = getExpressionError(returnStatement->expression, functionTable, program, currentFunction, resultTable);
         if(error > 0) {
             StatementExit * exitStatement = StatementExit__init();
             exitStatement->exitCode = error;
@@ -566,7 +566,7 @@ bool replaceErrorsWithExit(Statement ** statement, Table * functionTable, Statem
         }
     } else if((*statement)->statementType == STATEMENT_EXPRESSION) {
         Expression * expression = ((Expression *) *statement);
-        int error = getExpressionError(expression, functionTable, program, currentFunction);
+        int error = getExpressionError(expression, functionTable, program, currentFunction, resultTable);
         if(error > 0) {
             StatementExit * exitStatement = StatementExit__init();
             exitStatement->exitCode = error;
@@ -577,13 +577,13 @@ bool replaceErrorsWithExit(Statement ** statement, Table * functionTable, Statem
         StatementList * list = (StatementList *) *statement;
         bool ret = false;
         for(int i = 0; i < list->listSize; i++) {
-            ret |= replaceErrorsWithExit(&list->statements[i], functionTable, program, currentFunction);
+            ret |= replaceErrorsWithExit(&list->statements[i], functionTable, program, currentFunction, resultTable);
         }
         return ret;
     } else if((*statement)->statementType == STATEMENT_FUNCTION) {
         Function * function = (Function *) *statement;
         if(function->body != NULL) {
-            return replaceErrorsWithExit(&function->body, functionTable, program, currentFunction);
+            return replaceErrorsWithExit(&function->body, functionTable, program, currentFunction, resultTable);
         }
     }
     return false;
@@ -610,7 +610,7 @@ typedef struct {
     Expression__BinaryOperator ** latestUnaccessedAssignment;
 } OptimizerVarInfo;
 
-bool optimizeStatement(Statement ** statement, Table * functionTable, StatementList * program, Function * currentFunction, Table * optimizerVarInfo) {
+bool optimizeStatement(Statement ** statement, Table * functionTable, StatementList * program, Function * currentFunction, Table * optimizerVarInfo, PointerTable * resultTable) {
     if(statement == NULL) return false;
     if(*statement == NULL) return false;
     Statement * foldedStatement = performStatementFolding(*statement);
@@ -638,7 +638,7 @@ bool optimizeStatement(Statement ** statement, Table * functionTable, StatementL
                 }
             }
         } else if(expression->expressionType == EXPRESSION_VARIABLE) {
-            UnionType type = expression->getType(expression, functionTable, program, currentFunction);
+            UnionType type = expression->getType(expression, functionTable, program, currentFunction, resultTable);
             if(type.constant != NULL) {
                 // TODO free
                 *statement = (Statement *) type.constant;
@@ -696,15 +696,15 @@ void buildNestedStatementVarUsages(Statement * parent, Table * optimizerVarInfo)
     free(children);
 }
 
-bool optimizeNestedStatements(Statement ** parent, Table * functionTable, StatementList * program, Function * currentFunction, Table * optimizerVarInfo) {
+bool optimizeNestedStatements(Statement ** parent, Table * functionTable, StatementList * program, Function * currentFunction, Table * optimizerVarInfo, PointerTable * resultTable) {
     if(parent == NULL || *parent == NULL) return false;
     bool optimized = false;
-    optimized |= optimizeStatement(parent, functionTable, program, currentFunction, optimizerVarInfo);
+    optimized |= optimizeStatement(parent, functionTable, program, currentFunction, optimizerVarInfo, resultTable);
     int childrenCount = 0;
     Statement *** children = (*parent)->getChildren(*parent, &childrenCount);
     if(childrenCount == 0) return optimized;
     for(int i=0; i<childrenCount; i++) {
-        optimized |= optimizeNestedStatements(children[i], functionTable, program, currentFunction, optimizerVarInfo);
+        optimized |= optimizeNestedStatements(children[i], functionTable, program, currentFunction, optimizerVarInfo, resultTable);
     }
     free(children);
     return optimized;
@@ -714,7 +714,7 @@ bool expandStatement(Statement ** statement, Table * functionTable, StatementLis
     if(statement == NULL) return false;
     if(*statement == NULL) return false;
     if((*statement)->statementType == STATEMENT_WHILE) {
-        unrollWhile(statement, 1);
+        unrollWhile(statement, 3);
         return true;
     }
     return false;
@@ -735,25 +735,33 @@ bool performNestedStatementsExpansion(Statement ** parent, Table * functionTable
 }
 
 void optimize(StatementList * program, Table * functionTable) {
-    //performNestedStatementsExpansion((Statement**)&program, functionTable, program, NULL);
+    performNestedStatementsExpansion((Statement**)&program, functionTable, program, NULL);
     bool continueOptimizing = true;
-    while(continueOptimizing) {
-        continueOptimizing = false;
-        Table * optimizerVarInfo = table_init();
-        buildNestedStatementVarUsages((Statement*)program, optimizerVarInfo);
-        continueOptimizing |= optimizeNestedStatements((Statement**)&program, functionTable, program, NULL, optimizerVarInfo);
-        table_free(optimizerVarInfo);
-        continueOptimizing |= replaceErrorsWithExit((Statement**)&program, functionTable, program, NULL);
-        for(int i = 0; i < TB_SIZE; i++) {
-            TableItem* item = functionTable->tb[i];
-            while(item != NULL) {
-                optimizerVarInfo = table_init();
-                buildNestedStatementVarUsages((Statement*)item->data, optimizerVarInfo);
-                continueOptimizing |= optimizeNestedStatements((Statement**)&item->data, functionTable, program, (Function*)item->data, optimizerVarInfo);
-                table_free(optimizerVarInfo);
-                continueOptimizing |= replaceErrorsWithExit((Statement**)&item->data, functionTable, program, (Function*)item->data);
-                item = item->next;
+    bool continueUpdatingTypes = true;
+    while(continueUpdatingTypes) {
+        PointerTable * resultTable = table_statement_init();
+        continueUpdatingTypes = false;
+        while(continueOptimizing) {
+            continueOptimizing = false;
+            Table * optimizerVarInfo = table_init();
+            buildNestedStatementVarUsages((Statement*)program, optimizerVarInfo);
+            continueOptimizing |= optimizeNestedStatements((Statement**)&program, functionTable, program, NULL, optimizerVarInfo, resultTable);
+            table_free(optimizerVarInfo);
+            continueOptimizing |= replaceErrorsWithExit((Statement**)&program, functionTable, program, NULL, resultTable);
+            for(int i = 0; i < TB_SIZE; i++) {
+                TableItem* item = functionTable->tb[i];
+                while(item != NULL) {
+                    optimizerVarInfo = table_init();
+                    buildNestedStatementVarUsages((Statement*)item->data, optimizerVarInfo);
+                    continueOptimizing |= optimizeNestedStatements((Statement**)&item->data, functionTable, program, (Function*)item->data, optimizerVarInfo, resultTable);
+                    table_free(optimizerVarInfo);
+                    continueOptimizing |= replaceErrorsWithExit((Statement**)&item->data, functionTable, program, (Function*)item->data, resultTable);
+                    item = item->next;
+                }
             }
+            if(continueOptimizing) continueUpdatingTypes = true;
         }
+        table_statement_free(resultTable);
+        continueOptimizing = true;
     }
 }

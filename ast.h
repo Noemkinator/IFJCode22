@@ -8,6 +8,7 @@
 #include "lexer.h"
 #include "string_builder.h"
 #include "symtable.h"
+#include "hashtable_Statement.h"
 #include <stdbool.h>
 #include <string.h>
 
@@ -103,7 +104,7 @@ typedef struct Expression {
     Statement super;/*<Superclass>*/
     ExpressionType expressionType;/*<Expression type>*/
     bool isLValue;/*<Is the expression an lvalue>*/
-    UnionType (*getType)(struct Expression * expression, Table * functionTable, StatementList * program, struct Function * currentFunction);/*<Get type function pointer>*/
+    UnionType (*getType)(struct Expression * expression, Table * functionTable, StatementList * program, struct Function * currentFunction, PointerTable * resultTable);/*<Get type function pointer>*/
 } Expression;
 
 typedef struct Expression__Constant {
