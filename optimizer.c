@@ -626,6 +626,40 @@ bool optimizeStatement(Statement ** statement, Table * functionTable, StatementL
     }
     if((*statement)->statementType == STATEMENT_LIST) {
         if(removeCodeAfterReturn((StatementList *) *statement)) return true;
+        bool containsUselessStatements = false;
+        for(int i=0; i<((StatementList *) *statement)->listSize; i++) {
+            Statement * statementItem = ((StatementList *) *statement)->statements[i];
+            if(statementItem->statementType == STATEMENT_EXPRESSION) {
+                Expression * expression = (Expression *) statementItem;
+                if(expression->expressionType == EXPRESSION_CONSTANT) {
+                    containsUselessStatements = true;
+                    break;
+                }
+            } else if(statementItem->statementType == STATEMENT_LIST && ((StatementList *) statementItem)->listSize == 0) {
+                containsUselessStatements = true;
+                break;
+            }
+        }
+        if(containsUselessStatements) {
+            int newIndex = 0;
+            for(int i=0; i<((StatementList *) *statement)->listSize; i++) {
+                Statement * statementItem = ((StatementList *) *statement)->statements[i];
+                if(statementItem->statementType == STATEMENT_EXPRESSION) {
+                    Expression * expression = (Expression *) statementItem;
+                    if(expression->expressionType == EXPRESSION_CONSTANT) {
+                        //statementItem->free(statementItem);
+                        continue;
+                    }
+                } else if(statementItem->statementType == STATEMENT_LIST && ((StatementList *) statementItem)->listSize == 0) {
+                    //statementItem->free(statementItem);
+                    continue;
+                }
+                ((StatementList *) *statement)->statements[newIndex] = statementItem;
+                newIndex++;
+            }
+            ((StatementList *) *statement)->listSize = newIndex;
+        }
+        return containsUselessStatements;
     }
     if((*statement)->statementType == STATEMENT_EXPRESSION) {
         Expression * expression = (Expression *) *statement;
