@@ -12,10 +12,12 @@ Expression__Constant * performConstantCast(Expression__Constant * in, Type targe
         return in;
     }
     if(in->type.type != TYPE_INT && in->type.type != TYPE_FLOAT && in->type.type != TYPE_STRING && in->type.type != TYPE_BOOL && in->type.type != TYPE_NULL) {
-        return in;
+        fprintf(stderr, "Bad type of constant for cast\n");
+        return NULL;
     }
     if(targetType.type != TYPE_INT && targetType.type != TYPE_FLOAT && targetType.type != TYPE_STRING && targetType.type != TYPE_BOOL) {
-        return in;
+        fprintf(stderr, "Bad target type for cast\n");
+        return NULL;
     }
     Expression__Constant * result = Expression__Constant__init();
     result->type = targetType;
@@ -120,7 +122,8 @@ Expression__Constant * performConstantCastCondition(Expression__Constant * in) {
         return in;
     }
     if(in->type.type != TYPE_INT && in->type.type != TYPE_FLOAT && in->type.type != TYPE_STRING && in->type.type != TYPE_BOOL && in->type.type != TYPE_NULL) {
-        return in;
+        fprintf(stderr, "Bad constant cast for condition\n");
+        return NULL;
     }
     Expression__Constant * result = Expression__Constant__init();
     result->type.isRequired = true;
@@ -138,6 +141,45 @@ Expression__Constant * performConstantCastCondition(Expression__Constant * in) {
         case TYPE_VOID:
         case TYPE_NULL:
             result->value.boolean = false;
+            break;
+        default:
+            fprintf(stderr, "Bad constant cast");
+            exit(99);
+            break;
+    }
+    return result;
+}
+
+Expression__Constant * performConstantCastWriteArg(Expression__Constant * in) {
+    if(in->type.type == TYPE_STRING) {
+        in->type.isRequired = true;
+        return in;
+    }
+    if(in->type.type != TYPE_INT && in->type.type != TYPE_FLOAT && in->type.type != TYPE_STRING && in->type.type != TYPE_BOOL && in->type.type != TYPE_NULL) {
+        fprintf(stderr, "Bad constant cast for condition\n");
+        return NULL;
+    }
+    Expression__Constant * result = Expression__Constant__init();
+    result->type.isRequired = true;
+    result->type.type = TYPE_STRING;
+    switch(in->type.type) {
+        case TYPE_INT:
+            result->value.string = malloc(128);
+            sprintf(result->value.string, "%lld", in->value.integer);
+            break;
+        case TYPE_FLOAT:
+            result->value.string = malloc(128);
+            sprintf(result->value.string, "%a", in->value.real);
+            break;
+            break;
+        case TYPE_BOOL:
+            result->value.string = malloc(2);
+            sprintf(result->value.string, "%s", in->value.boolean ? "1" : "");
+            break;
+        case TYPE_VOID:
+        case TYPE_NULL:
+            result->value.string = malloc(1);
+            result->value.string[0] = '\0';
             break;
         default:
             fprintf(stderr, "Bad constant cast");
@@ -651,6 +693,54 @@ bool optimizeStatement(Statement ** statement, Table * functionTable, StatementL
                 return true;
             }
         }
+        bool isPrevStatementWrite = false;
+        Expression__FunctionCall * prevFunctionCall = NULL;
+        bool mergedWrites = false;
+        for(int i=0; i<((StatementList *) *statement)->listSize; i++) {
+            Statement * statementItem = ((StatementList *) *statement)->statements[i];
+            if(statementItem->statementType == STATEMENT_EXPRESSION && ((Expression*)statementItem)->expressionType == EXPRESSION_FUNCTION_CALL) {
+                Expression__FunctionCall * funcCall = (Expression__FunctionCall *) statementItem;
+                if(strcmp(funcCall->name, "write") == 0) {
+                    if(isPrevStatementWrite) {
+                        int copied = 0;
+                        for(int j=0; j<funcCall->arity; j++) {
+                            Expression * arg = funcCall->arguments[j];
+                            // we need to copy only stuff that doesnt causes side effects, otherwise oof
+                            if(arg->expressionType == EXPRESSION_CONSTANT) {
+                                Expression__FunctionCall__addArgument(prevFunctionCall, arg);
+                                copied++;
+                            } else {
+                                break;
+                            }
+                        }
+                        for(int j=copied; j<funcCall->arity; j++) {
+                            funcCall->arguments[j-copied] = funcCall->arguments[j];
+                        }
+                        funcCall->arity -= copied;
+                        mergedWrites |= copied > 0 || funcCall->arity == 0;
+                        if(copied == funcCall->arity) {
+                            for(int j=i; j<((StatementList *) *statement)->listSize-1; j++) {
+                                ((StatementList *) *statement)->statements[j] = ((StatementList *) *statement)->statements[j+1];
+                            }
+                            ((StatementList *) *statement)->listSize--;
+                            i--;
+                        } else {
+                            prevFunctionCall = funcCall;
+                        }
+                    } else {
+                        prevFunctionCall = funcCall;
+                    }
+                    isPrevStatementWrite = true;
+                } else {
+                    isPrevStatementWrite = false;
+                    prevFunctionCall = NULL;
+                }
+            } else {
+                isPrevStatementWrite = false;
+                prevFunctionCall = NULL;
+            }
+        }
+        if(mergedWrites) return true;
         bool containsUselessStatements = false;
         for(int i=0; i<((StatementList *) *statement)->listSize; i++) {
             Statement * statementItem = ((StatementList *) *statement)->statements[i];
@@ -706,7 +796,7 @@ bool optimizeStatement(Statement ** statement, Table * functionTable, StatementL
             UnionType type = expression->getType(expression, functionTable, program, currentFunction, resultTable);
             if(type.constant != NULL) {
                 // TODO free
-                *statement = (Statement *) type.constant;
+                *statement = type.constant->super.duplicate((Statement *) type.constant);
                 return true;
             }
         } else if(expression->expressionType == EXPRESSION_FUNCTION_CALL) {
@@ -716,6 +806,33 @@ bool optimizeStatement(Statement ** statement, Table * functionTable, StatementL
             if(constant != NULL) {
                 *statement = (Statement *) constant;
                 return true;
+            }
+            if(strcmp(call->name, "write") == 0) {
+                bool merged = false;
+                Expression__Constant * previousConstant = NULL;
+                for(int i=0; i<call->arity; i++) {
+                    if(call->arguments[i]->expressionType == EXPRESSION_CONSTANT) {
+                        Expression__Constant * constant = performConstantCastWriteArg((Expression__Constant *) call->arguments[i]);
+                        call->arguments[i] = (Expression*) constant;
+                        if(previousConstant != NULL) {
+                            char * newString = malloc(strlen(previousConstant->value.string) + strlen(constant->value.string) + 1);
+                            strcpy(newString, previousConstant->value.string);
+                            strcat(newString, constant->value.string);
+                            previousConstant->value.string = newString;
+                            for(int j=i; j<call->arity-1; j++) {
+                                call->arguments[j] = call->arguments[j+1];
+                            }
+                            call->arity--;
+                            i--;
+                            merged = true;
+                        } else {
+                            previousConstant = constant;
+                        }
+                    } else {
+                        previousConstant = NULL;
+                    }
+                }
+                return merged;
             }
         }
     }
