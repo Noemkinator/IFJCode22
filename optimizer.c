@@ -626,6 +626,25 @@ bool optimizeStatement(Statement ** statement, Table * functionTable, StatementL
     }
     if((*statement)->statementType == STATEMENT_LIST) {
         if(removeCodeAfterReturn((StatementList *) *statement)) return true;
+        /*for(int i=0; i<((StatementList *) *statement)->listSize; i++) {
+            Statement * statementItem = ((StatementList *) *statement)->statements[i];
+            if(statementItem->statementType == STATEMENT_LIST) {
+                // inject the list into the parent list
+                StatementList * parentList = (StatementList *) *statement;
+                StatementList * list = (StatementList *) statementItem;
+                int additionalListSize = list->listSize;
+                int oldListSize = parentList->listSize;
+                parentList->listSize += additionalListSize - 1;
+                parentList->statements = realloc(parentList->statements, sizeof(Statement*) * (parentList->listSize + 1));
+                for(int j = oldListSize-1; j > i; j--) {
+                    parentList->statements[j+additionalListSize-1] = parentList->statements[j];
+                }
+                for(int j = 0; j < additionalListSize; j++) {
+                    parentList->statements[i+j] = list->statements[j];
+                }
+                return true;
+            }
+        }*/ // TODO: find why this doesnt work
         bool containsUselessStatements = false;
         for(int i=0; i<((StatementList *) *statement)->listSize; i++) {
             Statement * statementItem = ((StatementList *) *statement)->statements[i];
@@ -786,7 +805,7 @@ void optimize(StatementList * program, Table * functionTable) {
     bool continueOptimizing = true;
     bool continueUpdatingTypes = true;
     while(continueUpdatingTypes) {
-        performNestedStatementsExpansion((Statement**)&program, functionTable, program, NULL);
+        //performNestedStatementsExpansion((Statement**)&program, functionTable, program, NULL);
         PointerTable * resultTable = table_statement_init();
         continueUpdatingTypes = false;
         while(continueOptimizing) {
