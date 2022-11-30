@@ -457,6 +457,27 @@ Statement * performStatementFolding(Statement * in) {
     return NULL;
 }
 
+Expression__Constant * performBuiltinFolding(Expression__FunctionCall * in, Function * function) {
+    if(in->arity != function->arity) return NULL;
+    if(function->body != NULL) return NULL;
+    if(strcmp(in->name, "chr") == 0) {
+        Expression * arg = in->arguments[0];
+        if(arg->expressionType == EXPRESSION_CONSTANT) {
+            Expression__Constant * argC = (Expression__Constant *) arg;
+            if(argC->type.type == TYPE_INT && argC->value.integer > 0 && argC->value.integer < 256) {
+                Expression__Constant * result = Expression__Constant__init();
+                result->type.type = TYPE_STRING;
+                result->type.isRequired = true;
+                result->value.string = (char *) malloc(2);
+                result->value.string[0] = (char) argC->value.integer;
+                result->value.string[1] = '\0';
+                return result;
+            }
+        }
+    }
+    return NULL;
+}
+
 bool removeCodeAfterReturn(StatementList * in) {
     for(int i = 0; i < in->listSize-1; i++) {
         Statement * statement = in->statements[i];
@@ -629,6 +650,14 @@ bool optimizeStatement(Statement ** statement, Table * functionTable, StatementL
                 *statement = (Statement *) type.constant;
                 return true;
             }
+        } else if(expression->expressionType == EXPRESSION_FUNCTION_CALL) {
+            Expression__FunctionCall * call = (Expression__FunctionCall *) expression;
+            Function * function = table_find(functionTable, call->name)->data;
+            Expression__Constant * constant = performBuiltinFolding(call, function);
+            if(constant != NULL) {
+                *statement = (Statement *) constant;
+                return true;
+            }
         }
     }
     return false;
@@ -699,7 +728,7 @@ bool expandStatement(Statement ** statement, Table * functionTable, StatementLis
     if(statement == NULL) return false;
     if(*statement == NULL) return false;
     if((*statement)->statementType == STATEMENT_WHILE) {
-        unrollWhile(statement, 3);
+        unrollWhile(statement, 1);
         return true;
     }
     return false;
@@ -720,10 +749,10 @@ bool performNestedStatementsExpansion(Statement ** parent, Table * functionTable
 }
 
 void optimize(StatementList * program, Table * functionTable) {
-    performNestedStatementsExpansion((Statement**)&program, functionTable, program, NULL);
     bool continueOptimizing = true;
     bool continueUpdatingTypes = true;
     while(continueUpdatingTypes) {
+        performNestedStatementsExpansion((Statement**)&program, functionTable, program, NULL);
         PointerTable * resultTable = table_statement_init();
         continueUpdatingTypes = false;
         while(continueOptimizing) {
