@@ -644,27 +644,28 @@ UnionType getStatementVarType(Table * functionTable, Statement * statement, Tabl
             if(forStatement->init != NULL) {
                 getExpressionVarType(functionTable, forStatement->init, variableTable, NULL, resultTable);
             }
+             // get variable type of increment
+            if(forStatement->increment != NULL) {
+                getExpressionVarType(functionTable, forStatement->increment, variableTable, NULL, resultTable);
+            }
             // get variable type of condition
             if(forStatement->condition != NULL) {
                 getExpressionVarType(functionTable, forStatement->condition, variableTable, NULL, resultTable);
             }
-            // get variable type of increment
-            if(forStatement->increment != NULL) {
-                getExpressionVarType(functionTable, forStatement->increment, variableTable, NULL, resultTable);
-            }
+           
             PointerTable * duplResultTable = duplicateTableStatement(resultTable);
             bool changed = true;
             while(changed) {
                 changed = false;
+                // get variable type of increment
+                if(forStatement->increment != NULL) {
+                    getExpressionVarType(functionTable, forStatement->increment, duplTable, NULL, duplResultTable);
+                }
                 // get variable type of body
                 getStatementVarType(functionTable, forStatement->body, duplTable, duplResultTable);
                 // get variable type of condition
                 if(forStatement->condition != NULL) {
                     getExpressionVarType(functionTable, forStatement->condition, duplTable, NULL, duplResultTable);
-                }
-                // get variable type of increment
-                if(forStatement->increment != NULL) {
-                    getExpressionVarType(functionTable, forStatement->increment, duplTable, NULL, duplResultTable);
                 }
                 // or the tables
                 for(int j=0; j<TB_SIZE; j++) {
@@ -1536,6 +1537,7 @@ StatementContinue* StatementContinue__init() {
     this->super.getChildren = (struct Statement *** (*)(struct Statement *, int *))StatementContinue__getChildren;
     this->super.duplicate = (struct Statement * (*)(struct Statement *))StatementContinue__duplicate;
     this->super.free = (void (*)(struct Statement *))StatementContinue__free;
+    this->depth = 1;
     return this;
 }
 

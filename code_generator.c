@@ -74,9 +74,9 @@ typedef struct {
  */
 StringArray * string_init() {
     StringArray * array = malloc(sizeof(StringArray));
-    array->strings = malloc(sizeof(char *) * 10);
+    array->strings = malloc(sizeof(char *) * 16);
     array->size = 0;
-    array->capacity = 10;
+    array->capacity = 16;
     return array;
 }
 
@@ -107,28 +107,13 @@ char * stringArrayGet(StringArray * array, size_t index) {
 }
 
 /**
- * @brief Free one string from array
- * 
- * @param array
- * @param index  
- */
-void stringArrayFreeOne(StringArray * array, size_t index) {
-    free(array->strings[index]);
-}
-
-/**
- * @brief Free string array
+ * @brief String array remove string
  * 
  * @param array 
  */
-void stringArrayFree(StringArray * array) {
-    for(size_t i = 0; i < array->size; i++) {
-        free(array->strings[i]);
-    }
-    free(array->strings);
-    free(array);
+void stringArrayRemove(StringArray * array) {
+    array->size--;
 }
-
 
 void generateStatement(Statement * statement, Context ctx);
 
@@ -1757,6 +1742,7 @@ void generateWhile(StatementWhile * statement, Context ctx) {
     StringBuilder__appendInt(&whileEndSb, whileUID);
 
     emit_LABEL(whileStartSb.text);
+
     Symb condition = generateExpression(statement->condition, ctx, false, NULL);
     condition = generateCastToBool(statement->condition, condition, ctx, true);
     emit_JUMPIFNEQ(whileEndSb.text, condition, (Symb){.type=Type_bool, .value.b = true});
@@ -1766,8 +1752,12 @@ void generateWhile(StatementWhile * statement, Context ctx) {
     stringArrayAdd(ctx.continueLabels, whileStartSb.text);
 
     generateStatement(statement->body, ctx);
+
     emit_JUMP(whileStartSb.text);
     emit_LABEL(whileEndSb.text);
+
+    stringArrayRemove(ctx.breakLabels);
+    stringArrayRemove(ctx.continueLabels);
 
     StringBuilder__free(&whileStartSb);
     StringBuilder__free(&whileEndSb);
@@ -1791,23 +1781,30 @@ void generateFor(StatementFor * statement, Context ctx) {
     StringBuilder__appendInt(&forEndSb, forUID);
 
     if (statement->init != NULL) generateExpression(statement->init, ctx, true, NULL);
+
     emit_LABEL(forStartSb.text);
+
     if (statement->condition != NULL) {
         Symb condition = generateExpression(statement->condition, ctx, false, NULL);
         condition = generateCastToBool(statement->condition, condition, ctx, true);
         emit_JUMPIFNEQ(forEndSb.text, condition, (Symb){.type=Type_bool, .value.b = true});
         freeTemporarySymbol(condition, ctx);
     }else {
-        emit_COMMENT("No condition in for statement");
+        emit_COMMENT("No condition for for statement");
     }
 
     stringArrayAdd(ctx.breakLabels, forEndSb.text);
     stringArrayAdd(ctx.continueLabels, forStartSb.text);
-    
+
     generateStatement(statement->body, ctx);
+
     if (statement->increment != NULL) generateExpression(statement->increment, ctx, false, NULL);
+
     emit_JUMP(forStartSb.text);
     emit_LABEL(forEndSb.text);
+
+    stringArrayRemove (ctx.breakLabels);
+    stringArrayRemove (ctx.continueLabels);
 
     StringBuilder__free(&forStartSb);
     StringBuilder__free(&forEndSb);
@@ -1825,19 +1822,11 @@ void generateContinue(StatementContinue * statement, Context ctx) {
         fprintf(stderr, "Continue statement outside of loop\n");
         exit(99);
     }
-    if (statement->depth == -1) {
-        for (int i = 0; i < ctx.continueLabels->size; i++) {
-            emit_JUMP(stringArrayGet(ctx.continueLabels, i));
-        }
+    if (statement->depth > ctx.continueLabels->size) {
+        fprintf(stderr, "Trying to continue %d loops, but there are only %ld loops\n", statement->depth, ctx.continueLabels->size);
+        exit(99);
     }
-    else {
-        if (statement->depth > ctx.continueLabels->size) {
-            fprintf(stderr, "Trying to continue %d loops, but there are only %ld loops\n", statement->depth, ctx.continueLabels->size);
-            exit(99);
-        }
-        emit_JUMP(stringArrayGet(ctx.continueLabels, statement->depth));
-    }
-    stringArrayFree(ctx.continueLabels);
+    emit_JUMP(stringArrayGet(ctx.continueLabels,ctx.continueLabels->size - (size_t)statement->depth));
 }
 
 /**
@@ -1854,18 +1843,15 @@ void generateBreak(StatementBreak * statement, Context ctx) {
         exit(99);
     }
     if (statement->depth == -1) {
-        for (int i = 0; i < ctx.breakLabels->size; i++) {
-            emit_JUMP(stringArrayGet(ctx.breakLabels, i));
-        }
+        emit_JUMP(stringArrayGet(ctx.breakLabels, 0));
     }
     else {
         if (statement->depth > ctx.breakLabels->size) {
             fprintf(stderr, "Trying to break %d loops, but there are only %ld loops\n", statement->depth, ctx.breakLabels->size);
             exit(99);
         }
-        emit_JUMP(stringArrayGet(ctx.breakLabels, statement->depth));
+        emit_JUMP(stringArrayGet(ctx.breakLabels, ctx.breakLabels->size - (size_t)statement->depth));
     }
-    stringArrayFree(ctx.breakLabels);
 }
 
 
@@ -2007,6 +1993,8 @@ void generateFunction(Function* function, Table * functionTable, PointerTable * 
     ctx.currentFunction = function;
     ctx.program = NULL;
     ctx.resultTable = resultTable;
+    ctx.breakLabels = string_init();
+    ctx.continueLabels = string_init();
     generateStatement(function->body, ctx);
     if(function->body->statementType != STATEMENT_LIST || ((StatementList*)function->body)->listSize == 0 || ((StatementList*)function->body)->statements[((StatementList*)function->body)->listSize-1]->statementType != STATEMENT_RETURN) {
         if(function->returnType.type != TYPE_VOID) {

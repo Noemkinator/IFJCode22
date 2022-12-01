@@ -497,17 +497,6 @@ Statement * performStatementFolding(Statement * in) {
             }
             break;
         }
-        case STATEMENT_FOR: {
-            StatementFor* forStatement = (StatementFor *) in;
-            if(forStatement->condition->expressionType == EXPRESSION_CONSTANT) {
-                Expression__Constant * condition = (Expression__Constant *) forStatement->condition;
-                condition = performConstantCastCondition(condition);
-                if(!condition->value.boolean) {
-                    return (Statement*)StatementList__init();
-                }
-            }
-            break;
-        }
         default:
             break;
     }
@@ -940,6 +929,7 @@ bool performNestedStatementsExpansion(Statement ** parent, Table * functionTable
 }
 
 void optimize(StatementList * program, Table * functionTable) {
+    return;
     bool continueOptimizing = true;
     bool continueUpdatingTypes = true;
     while(continueUpdatingTypes) {
