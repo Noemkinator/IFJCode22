@@ -502,7 +502,25 @@ Statement * performStatementFolding(Statement * in) {
 Expression__Constant * performBuiltinFolding(Expression__FunctionCall * in, Function * function) {
     if(in->arity != function->arity) return NULL;
     if(function->body != NULL) return NULL;
-    if(strcmp(in->name, "strlen") == 0) {
+    if(strcmp(in->name, "floatval") == 0) {
+        Expression * arg = in->arguments[0];
+        if(arg->expressionType == EXPRESSION_CONSTANT) {
+            Expression__Constant * constant = (Expression__Constant *) arg;
+            return performConstantCast(constant, (Type){.type = TYPE_FLOAT, .isRequired = true});
+        }
+    } else if(strcmp(in->name, "intval") == 0) {
+        Expression * arg = in->arguments[0];
+        if(arg->expressionType == EXPRESSION_CONSTANT) {
+            Expression__Constant * constant = (Expression__Constant *) arg;
+            return performConstantCast(constant, (Type){.type = TYPE_INT, .isRequired = true});
+        }
+    } else if(strcmp(in->name, "strval") == 0) {
+        Expression * arg = in->arguments[0];
+        if(arg->expressionType == EXPRESSION_CONSTANT) {
+            Expression__Constant * constant = (Expression__Constant *) arg;
+            return performConstantCast(constant, (Type){.type = TYPE_STRING, .isRequired = true});
+        }
+    } else if(strcmp(in->name, "strlen") == 0) {
         Expression * arg = in->arguments[0];
         if(arg->expressionType == EXPRESSION_CONSTANT) {
             Expression__Constant * argC = (Expression__Constant *) arg;
@@ -587,6 +605,18 @@ Expression__Constant * performBuiltinFolding(Expression__FunctionCall * in, Func
                 result->value.string = malloc(endC->value.integer - startC->value.integer + 1);
                 memcpy(result->value.string, strC->value.string + startC->value.integer, endC->value.integer - startC->value.integer);
                 result->value.string[endC->value.integer - startC->value.integer] = '\0';
+                return result;
+            }
+        }
+    } else if(strcmp(in->name, "ord") == 0) {
+        Expression * arg = in->arguments[0];
+        if(arg->expressionType == EXPRESSION_CONSTANT) {
+            Expression__Constant * argC = (Expression__Constant *) arg;
+            if(argC->type.type == TYPE_STRING) {
+                Expression__Constant * result = Expression__Constant__init();
+                result->type.type = TYPE_INT;
+                result->type.isRequired = true;
+                result->value.integer = (unsigned int)(unsigned char)argC->value.string[0];
                 return result;
             }
         }
