@@ -379,6 +379,7 @@ bool parse_for(StatementFor ** statementForRet) {
     nextToken = getNextToken();
     return true;
 }
+
 /**
  * @brief Parses continue statement
  * 
@@ -390,23 +391,27 @@ bool parse_continue(StatementContinue ** statementContinueRet) {
     StatementContinue * statementContinue = StatementContinue__init();
     *statementContinueRet = statementContinue;
     nextToken = getNextToken();
-    if(nextToken.type == TOKEN_SEMICOLON) {
+    // optional parameter
+    if(nextToken.type != TOKEN_SEMICOLON) {
+        // parameter must be integer
+        if(nextToken.type !=  TOKEN_INTEGER) {
+            printParserError(nextToken, "Continue parameter must be integer");
+            return false;
+        }
+        // if parameter is integer, get next token
+        nextToken = getNextToken();
+        if(nextToken.type != TOKEN_SEMICOLON) {
+            printParserError(nextToken, "Missing ; after continue");
+            return false;
+        }
         nextToken = getNextToken();
         return true;
-    }else {
-       if(parse_statement(&statementContinue->depth, NULL)) {
-            if(nextToken.type == TOKEN_SEMICOLON) {
-                nextToken = getNextToken();
-                return true;
-            }else if(nextToken.type == TOKEN_CLOSE_CURLY_BRACKET) {
-                return true;
-            }else {
-                printParserError(nextToken, "Missing ; after continue");
-                return false;
-            }
-        }
     }
-    printParserError(nextToken, "Error parsing continue");
+    if (nextToken.type == TOKEN_SEMICOLON) {
+        nextToken = getNextToken();
+        return true;
+    }
+    printParserError(nextToken, "Missing ; after continue");
     return false;
 }
 
@@ -414,23 +419,27 @@ bool parse_break(StatementBreak ** statementBreakRet) {
     StatementBreak * statementBreak = StatementBreak__init();
     *statementBreakRet = statementBreak;
     nextToken = getNextToken();
-    if(nextToken.type == TOKEN_SEMICOLON) {
+    // optional parameter
+    if(nextToken.type != TOKEN_SEMICOLON) {
+        // parameter must be integer
+        if(nextToken.type != TOKEN_INTEGER) {
+            printParserError(nextToken, "Break parameter must be integer");
+            return false;
+        }
+        // if parameter is integer, get next token
+        nextToken = getNextToken();
+        if(nextToken.type != TOKEN_SEMICOLON) {
+            printParserError(nextToken, "Missing ; after break");
+            return false;
+        }
         nextToken = getNextToken();
         return true;
-    }else {
-        if(parse_statement(&statementBreak->depth, NULL)){
-            if(nextToken.type == TOKEN_SEMICOLON) {
-                nextToken = getNextToken();
-                return true;
-            }else if(nextToken.type == TOKEN_CLOSE_CURLY_BRACKET) {
-                return true;
-            }else {
-                printParserError(nextToken, "Missing ; after break");
-                return false;
-            }
-        }
     }
-    printParserError(nextToken, "Error parsing break");
+    if (nextToken.type == TOKEN_SEMICOLON) {
+        nextToken = getNextToken();
+        return true;
+    }
+    printParserError(nextToken, "Missing ; after break");
     return false;
 }
 
