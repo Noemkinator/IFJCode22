@@ -1013,13 +1013,16 @@ Symb generateFunctionCall(Expression__FunctionCall * expression, Context ctx, Va
         fprintf(stderr, "Trying to call undefined function\n");
         exit(3);
     }
+    Symb * arguments = malloc(sizeof(Symb) * expression->arity);
+    for(int i=0; i<expression->arity; i++) {
+        arguments[i] = saveTempSymb(generateExpression(expression->arguments[i], ctx, false, NULL), ctx);
+    }
     Function * function = (Function*)tableItem->data;
     if(function->body == NULL) {
         // this is built in function
         if(strcmp(function->name, "write") == 0) {
             for(int i=0; i<expression->arity; i++) {
-                Symb symb = generateExpression(expression->arguments[i], ctx, false, NULL);
-                emit_WRITE(symb);
+                emit_WRITE(arguments[i]);
             }
 
             // TODO add return void
@@ -1049,37 +1052,29 @@ Symb generateFunctionCall(Expression__FunctionCall * expression, Context ctx, Va
         emit_READ(var, Type_float);
         return (Symb){.type = Type_variable, .value.v=var};
     } else if(strcmp(function->name, "floatval") == 0) {
-        Symb symb = generateExpression(expression->arguments[0], ctx, false, NULL);
-        Symb retSymb = generateCastToFloat(symb, expression->arguments[0], &ctx, NULL);
-        if(symb.type != Type_variable || retSymb.type != Type_variable || symb.value.v.frameType != retSymb.value.v.frameType || strcmp(symb.value.v.name, retSymb.value.v.name) != 0) {
-            freeTemporarySymbol(symb, ctx);
+        Symb retSymb = generateCastToFloat(arguments[0], expression->arguments[0], &ctx, NULL);
+        if(arguments[0].type != Type_variable || retSymb.type != Type_variable || arguments[0].value.v.frameType != retSymb.value.v.frameType || strcmp(arguments[0].value.v.name, retSymb.value.v.name) != 0) {
+            freeTemporarySymbol(arguments[0], ctx);
         }
         return retSymb;
     } else if(strcmp(function->name, "intval") == 0) {
-        Symb symb = generateExpression(expression->arguments[0], ctx, false, NULL);
-        Symb retSymb = generateCastToInt(symb, expression->arguments[0], &ctx, NULL);
-        if(symb.type != Type_variable || retSymb.type != Type_variable || symb.value.v.frameType != retSymb.value.v.frameType || strcmp(symb.value.v.name, retSymb.value.v.name) != 0) {
-            freeTemporarySymbol(symb, ctx);
+        Symb retSymb = generateCastToInt(arguments[0], expression->arguments[0], &ctx, NULL);
+        if(arguments[0].type != Type_variable || retSymb.type != Type_variable || arguments[0].value.v.frameType != retSymb.value.v.frameType || strcmp(arguments[0].value.v.name, retSymb.value.v.name) != 0) {
+            freeTemporarySymbol(arguments[0], ctx);
         }
         return retSymb;
     } else if(strcmp(function->name, "boolval") == 0) {
-        Symb symb = generateExpression(expression->arguments[0], ctx, false, NULL);
-        Symb retSymb = generateCastToBool(expression->arguments[0], symb, ctx, false);
-        if(symb.type != Type_variable || retSymb.type != Type_variable || symb.value.v.frameType != retSymb.value.v.frameType || strcmp(symb.value.v.name, retSymb.value.v.name) != 0) {
-            freeTemporarySymbol(symb, ctx);
+        Symb retSymb = generateCastToBool(expression->arguments[0], arguments[0], ctx, false);
+        if(arguments[0].type != Type_variable || retSymb.type != Type_variable || arguments[0].value.v.frameType != retSymb.value.v.frameType || strcmp(arguments[0].value.v.name, retSymb.value.v.name) != 0) {
+            freeTemporarySymbol(arguments[0], ctx);
         }
         return retSymb;
     } else if(strcmp(function->name, "strval") == 0) {
-        Symb symb = generateExpression(expression->arguments[0], ctx, false, NULL);
-        Symb retSymb = generateCastToString(symb, expression->arguments[0], &ctx, NULL);
-        if(symb.type != Type_variable || retSymb.type != Type_variable || symb.value.v.frameType != retSymb.value.v.frameType || strcmp(symb.value.v.name, retSymb.value.v.name) != 0) {
-            freeTemporarySymbol(symb, ctx);
+        Symb retSymb = generateCastToString(arguments[0], expression->arguments[0], &ctx, NULL);
+        if(arguments[0].type != Type_variable || retSymb.type != Type_variable || arguments[0].value.v.frameType != retSymb.value.v.frameType || strcmp(arguments[0].value.v.name, retSymb.value.v.name) != 0) {
+            freeTemporarySymbol(arguments[0], ctx);
         }
         return retSymb;
-    }
-    Symb * arguments = malloc(sizeof(Symb) * expression->arity);
-    for(int i=0; i<expression->arity; i++) {
-        arguments[i] = saveTempSymb(generateExpression(expression->arguments[i], ctx, false, NULL), ctx);
     }
     for(int i=0; i<expression->arity; i++) {
         Type expectedType = function->parameterTypes[i];
