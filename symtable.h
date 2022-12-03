@@ -1,4 +1,5 @@
 /**
+ * Implementace překladače imperativního jazyka IFJ22
  * @file symtable.h
  * @authors Jakub Kratochvíl (xkrato67), Jiří Gallo (xgallo04)
  * @brief Hlavičkový soubor pro implementaci tabulky symbolů (symtable.c) 

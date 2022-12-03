@@ -1,4 +1,5 @@
 /**
+ * Implementace překladače imperativního jazyka IFJ22
  * @file stack.c
  * @author Jakub Kratochvíl (xkrato67)
  * @brief Stack implementation

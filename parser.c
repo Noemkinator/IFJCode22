@@ -1,4 +1,5 @@
 /**
+ * Implementace překladače imperativního jazyka IFJ22
  * @file parser.c
  * @authors Jiří Gallo (xgallo04), Jakub Kratochvíl (xkrato67), Michal Cejpek (xcejpe05), Jan Zajíček (xzajic22)
  * @brief Parser for IFJcode22
@@ -407,6 +408,7 @@ bool parse_continue(StatementContinue ** statementContinueRet) {
         nextToken = getNextToken();
         return true;
     }
+    statementContinue->depth = 1;
     if (nextToken.type == TOKEN_SEMICOLON) {
         nextToken = getNextToken();
         return true;
@@ -435,6 +437,7 @@ bool parse_break(StatementBreak ** statementBreakRet) {
         nextToken = getNextToken();
         return true;
     }
+    statementBreak->depth = 1;
     if (nextToken.type == TOKEN_SEMICOLON) {
         nextToken = getNextToken();
         return true;

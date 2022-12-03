@@ -1,4 +1,5 @@
 /**
+ * Implementace překladače imperativního jazyka IFJ22
  * @file code_generator.c
  * @authors Jiří Gallo (xgallo04), Jan Zajíček (xzajic22)
  * @brief Code generator for IFJcode22
@@ -1817,6 +1818,10 @@ void generateFor(StatementFor * statement, Context ctx) {
  * @param ctx 
  */
 void generateContinue(StatementContinue * statement, Context ctx) {
+    if(statement->depth < 1) {
+        fprintf(stderr, "Continue statement depth must be at least 1\n");
+        exit(99);
+    }
     emit_COMMENT("Continue statement");
     if (ctx.continueLabels->size == 0) {
         fprintf(stderr, "Continue statement outside of loop\n");
@@ -1837,21 +1842,20 @@ void generateContinue(StatementContinue * statement, Context ctx) {
     * @param ctx
     */
 void generateBreak(StatementBreak * statement, Context ctx) {
+    if(statement->depth < 1) {
+        fprintf(stderr, "Break statement depth must be at least 1\n");
+        exit(99);
+    }
     emit_COMMENT("Break statement");
     if(ctx.breakLabels->size == 0) {
         fprintf(stderr, "Break statement outside of loop\n");
         exit(99);
     }
-    if (statement->depth == -1) {
-        emit_JUMP(stringArrayGet(ctx.breakLabels, 0));
+    if (statement->depth > ctx.breakLabels->size) {
+        fprintf(stderr, "Trying to break %d loops, but there are only %ld loops\n", statement->depth, ctx.breakLabels->size);
+        exit(99);
     }
-    else {
-        if (statement->depth > ctx.breakLabels->size) {
-            fprintf(stderr, "Trying to break %d loops, but there are only %ld loops\n", statement->depth, ctx.breakLabels->size);
-            exit(99);
-        }
-        emit_JUMP(stringArrayGet(ctx.breakLabels, ctx.breakLabels->size - (size_t)statement->depth));
-    }
+    emit_JUMP(stringArrayGet(ctx.breakLabels, ctx.breakLabels->size - (size_t)statement->depth));
 }
 
 

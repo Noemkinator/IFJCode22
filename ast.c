@@ -1,4 +1,5 @@
 /**
+ * Implementace překladače imperativního jazyka IFJ22
  * @file ast.c
  * @author Jiří Gallo (xgallo04), Jakub Kratochvíl (xkrato67)
  * @brief Abstract syntax tree
@@ -1588,7 +1589,6 @@ StatementBreak* StatementBreak__init() {
     this->super.getChildren = (struct Statement *** (*)(struct Statement *, int *))StatementBreak__getChildren;
     this->super.duplicate = (struct Statement * (*)(struct Statement *))StatementBreak__duplicate;
     this->super.free = (void (*)(struct Statement *))StatementBreak__free;
-    this->depth = 1;
     return this;
 }
 

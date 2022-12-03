@@ -1,4 +1,5 @@
 /**
+ * Implementace překladače imperativního jazyka IFJ22
  * @file lexer.h
  * @author Jiří Gallo (xgallo04)
  * @brief Lexical analyzer library

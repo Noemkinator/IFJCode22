@@ -1,4 +1,5 @@
 /**
+ * Implementace překladače imperativního jazyka IFJ22
  * @file emitter.c
  * @author Jiří Gallo (xgallo04)
  * @brief Emitter for IFJcode22

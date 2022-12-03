@@ -1,4 +1,5 @@
 /**
+ * Implementace překladače imperativního jazyka IFJ22
  * @file ast.h
  * @author Jiří Gallo (xgallo04), Jakub Kratochvíl (xkrato67)
  * @brief Abstract syntax tree library
