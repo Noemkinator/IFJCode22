@@ -399,6 +399,7 @@ bool parse_continue(StatementContinue ** statementContinueRet) {
             printParserError(nextToken, "Continue parameter must be integer");
             return false;
         }
+        statementContinue->depth = atoll(getTokenText(nextToken));
         // if parameter is integer, get next token
         nextToken = getNextToken();
         if(nextToken.type != TOKEN_SEMICOLON) {
@@ -428,6 +429,7 @@ bool parse_break(StatementBreak ** statementBreakRet) {
             printParserError(nextToken, "Break parameter must be integer");
             return false;
         }
+        statementBreak->depth = atoll(getTokenText(nextToken));
         // if parameter is integer, get next token
         nextToken = getNextToken();
         if(nextToken.type != TOKEN_SEMICOLON) {
