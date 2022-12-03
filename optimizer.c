@@ -520,6 +520,12 @@ Expression__Constant * performBuiltinFolding(Expression__FunctionCall * in, Func
             Expression__Constant * constant = (Expression__Constant *) arg;
             return performConstantCast(constant, (Type){.type = TYPE_STRING, .isRequired = true});
         }
+    } else if(strcmp(in->name, "boolval") == 0) {
+        Expression * arg = in->arguments[0];
+        if(arg->expressionType == EXPRESSION_CONSTANT) {
+            Expression__Constant * constant = (Expression__Constant *) arg;
+            return performConstantCast(constant, (Type){.type = TYPE_BOOL, .isRequired = true});
+        }
     } else if(strcmp(in->name, "strlen") == 0) {
         Expression * arg = in->arguments[0];
         if(arg->expressionType == EXPRESSION_CONSTANT) {
