@@ -1,5 +1,7 @@
-#include "ast.h"
-#include "symtable.h"
+// Implementace překladače imperativního jazyka IFJ22
+// Authors: Jiří Gallo (xgallo04)
+
+#include "code_generator.h"
 #include "emitter.h"
 #include "string_builder.h"
 #include "optimizer.h"
