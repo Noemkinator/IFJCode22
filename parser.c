@@ -2,6 +2,7 @@
 // Authors: Jiří Gallo (xgallo04), Jakub Kratochvíl (xkrato67)
 
 #include "parser.h"
+#include "code_generator.h"
 
 Token nextToken;
 
@@ -476,8 +477,6 @@ bool parse_function(Function ** retFunction) {
     nextToken = getNextToken();
     return true;
 }
-
-#include "code_generator.c"
 
 void loadBuiltinFunctions(Table * functionTable) {
     Function * reads = Function__init();
