@@ -1600,7 +1600,9 @@ void generateConditionJump(Expression * expression, Context ctx, char * label, b
     Symb condition = generateExpression(expression, ctx, false, NULL);
     Symb conditionBool = generateCastToBool(expression, condition, ctx, true);
     emit_JUMPIFEQ(label, conditionBool, (Symb){.type=Type_bool, .value.b=valueToJump});
-    freeTemporarySymbol(conditionBool, ctx);
+    if(conditionBool.type != Type_variable || condition.type != Type_variable || conditionBool.value.v.frameType != condition.value.v.frameType || strcmp(conditionBool.value.v.name, condition.value.v.name) != 0) {
+        freeTemporarySymbol(conditionBool, ctx);
+    }
     freeTemporarySymbol(condition, ctx);
 }
 
