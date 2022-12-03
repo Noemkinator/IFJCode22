@@ -1596,6 +1596,40 @@ void generateStatementList(StatementList* statementList, Context ctx) {
     }
 }
 
+void generateConditionJump(Expression * expression, Context ctx, char * label, bool valueToJump) {
+    if(expression->expressionType == EXPRESSION_BINARY_OPERATOR) {
+        Expression__BinaryOperator * binaryOperator = (Expression__BinaryOperator*)expression;
+        Type typeL = unionTypeToType(binaryOperator->lSide->getType(binaryOperator->lSide, ctx.functionTable, ctx.program, ctx.currentFunction, ctx.resultTable));
+        Type typeR = unionTypeToType(binaryOperator->rSide->getType(binaryOperator->rSide, ctx.functionTable, ctx.program, ctx.currentFunction, ctx.resultTable));
+        if(typeL.type != TYPE_UNKNOWN && typeR.type != TYPE_UNKNOWN) {
+            if(binaryOperator->operator == TOKEN_EQUALS || binaryOperator->operator == TOKEN_NOT_EQUALS) {
+                if(binaryOperator->operator == TOKEN_NOT_EQUALS) {
+                    valueToJump = !valueToJump;
+                }
+                if(typeL.type == typeR.type || (typeL.type == TYPE_NULL && !typeR.isRequired) || (typeR.type == TYPE_NULL && !typeL.isRequired)) {
+                    Symb left = generateExpression(binaryOperator->lSide, ctx, false, NULL);
+                    Symb right = generateExpression(binaryOperator->rSide, ctx, false, NULL);
+                    if(valueToJump) {
+                        emit_JUMPIFEQ(label, left, right);
+                    } else {
+                        emit_JUMPIFNEQ(label, left, right);
+                    }
+                } else {
+                    if(!valueToJump) {
+                        emit_JUMP(label);
+                    }
+                }
+                return;
+            }
+        }
+    }
+    Symb condition = generateExpression(expression, ctx, false, NULL);
+    Symb conditionBool = generateCastToBool(expression, condition, ctx, true);
+    emit_JUMPIFEQ(label, conditionBool, (Symb){.type=Type_bool, .value.b=valueToJump});
+    freeTemporarySymbol(conditionBool, ctx);
+    freeTemporarySymbol(condition, ctx);
+}
+
 /**
  * @brief Generates code for if statement
  * 
@@ -1613,10 +1647,7 @@ void generateIf(StatementIf * statement, Context ctx) {
     StringBuilder__appendString(&ifEndSb, "ifEnd&");
     StringBuilder__appendInt(&ifEndSb, ifUID);
     bool isElseEmpty = statement->elseBody == NULL || (statement->elseBody->statementType == STATEMENT_LIST && ((StatementList*)statement->elseBody)->listSize == 0);
-    Symb condition = generateExpression(statement->condition, ctx, false, NULL);
-    condition = generateCastToBool(statement->condition, condition, ctx, true);
-    emit_JUMPIFNEQ(ifElseSb.text, condition, (Symb){.type=Type_bool, .value.b = true});
-    freeTemporarySymbol(condition, ctx);
+    generateConditionJump(statement->condition, ctx, ifElseSb.text, false);
     generateStatement(statement->ifBody, ctx);
     if(!isElseEmpty) emit_JUMP(ifEndSb.text);
     emit_LABEL(ifElseSb.text);
@@ -1646,10 +1677,7 @@ void generateWhile(StatementWhile * statement, Context ctx) {
     StringBuilder__appendInt(&whileEndSb, whileUID);
 
     emit_LABEL(whileStartSb.text);
-    Symb condition = generateExpression(statement->condition, ctx, false, NULL);
-    condition = generateCastToBool(statement->condition, condition, ctx, true);
-    emit_JUMPIFNEQ(whileEndSb.text, condition, (Symb){.type=Type_bool, .value.b = true});
-    freeTemporarySymbol(condition, ctx);
+    generateConditionJump(statement->condition, ctx, whileEndSb.text, false);
     generateStatement(statement->body, ctx);
     emit_JUMP(whileStartSb.text);
     emit_LABEL(whileEndSb.text);
