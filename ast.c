@@ -8,6 +8,34 @@
 #include "ast.h"
 
 /**
+ * @brief Get all statements in a block
+ * 
+ * @param statement
+ * @param count
+ * @return Statement**
+ */
+Statement *** getAllStatements(Statement * parent, size_t * count) {
+    int childrenCount = 0;
+    *count = childrenCount;
+    if(parent == NULL) return NULL;
+    Statement *** children = parent->getChildren(parent, &childrenCount);
+    *count = childrenCount;
+    if(childrenCount == 0) return NULL;
+    for(int i=0; i<childrenCount; i++) {
+        size_t subchildrenCount = 0;
+        if(*children[i] == NULL) continue;
+        Statement *** subchildren = getAllStatements(*children[i], &subchildrenCount);
+        if(subchildren == NULL) continue;
+        *count += subchildrenCount;
+        if(subchildrenCount == 0) continue;
+        children = realloc(children, sizeof(Statement**) * (*count));
+        memcpy(children + *count - subchildrenCount, subchildren, sizeof(Statement**) * subchildrenCount);
+        free(subchildren);
+    }
+    return children;
+}
+
+/**
  * @brief Statement list serializer
  * 
  * @param this 
@@ -651,9 +679,6 @@ void getStatementListVarType(Table * functionTable, StatementList * statementLis
         getStatementVarType(functionTable, statementList->statements[i], variableTable, resultTable);
     }
 }
-
-// TODO: move the function elsewhere...
-Statement *** getAllStatements(Statement*, size_t*);
 
 void generateResultsTypeForFunction(Table * functionTable, StatementList * program, Function * currentFunction, PointerTable * resultTable) {
     Table * variableTable = table_init();

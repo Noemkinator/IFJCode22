@@ -39,6 +39,8 @@ typedef struct Statement {
     void (*free)(struct Statement *this);
 } Statement;
 
+Statement *** getAllStatements(Statement * parent, size_t * count);
+
 /**
  * @brief Statement list structure
  */
