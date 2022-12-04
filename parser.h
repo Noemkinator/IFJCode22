@@ -21,7 +21,7 @@ extern bool precedence_tb[PREC_TB_SIZE][PREC_TB_SIZE];
 bool parse();
 void initParser();
 void freeParser();
-bool is_operator(Token token);
+bool is_binary_operator(Token token);
 int get_prec_tb_indx(TokenType type);
 
 #endif
