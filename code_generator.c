@@ -559,6 +559,7 @@ Symb generateCastToFloat(Symb symb, Expression * expression, Context * ctx, Symb
         char* skip_exponent_loop = create_label("skip_exponent_loop&", castUID);
         char* operator_is_minus = create_label("operator_is_minus&", castUID);
         char* operator_is_plus = create_label("operator_is_plus&", castUID);
+        char* skip_fix_no_operator = create_label("skip_fix_no_operator&", castUID);
         emit_JUMPIFNEQ(not_string, symbType, (Symb){.type = Type_string, .value.s = "string"});
         // initialization of values
         emit_MOVE(index, (Symb){.type = Type_int, .value.i = 0});
@@ -622,8 +623,11 @@ Symb generateCastToFloat(Symb symb, Expression * expression, Context * ctx, Symb
         // get exponent_parameter if current char isn't invalid and has_exponent is true
         emit_JUMPIFEQ(skip_exponent_parameter, (Symb){.type = Type_variable, .value.v = is_invalid}, (Symb){.type = Type_bool, .value.b = true});
         emit_JUMPIFEQ(skip_exponent_parameter, (Symb){.type = Type_variable, .value.v = has_exponent}, (Symb){.type = Type_bool, .value.b = false});
-        emit_MOVE(exponent_parameter, (Symb){.type = Type_variable, .value.v = temp_value});
-        emit_SUB(exponent_parameter, (Symb){.type = Type_variable, .value.v = exponent_parameter}, (Symb){.type = Type_int, .value.i = 48});
+        emit_JUMPIFEQ(skip_exponent_parameter, (Symb){.type = Type_variable, .value.v = has_operator}, (Symb){.type = Type_bool, .value.b = false});
+        emit_SUB(temp_value, (Symb){.type = Type_variable, .value.v = temp_value}, (Symb){.type = Type_int, .value.i = 48});
+        emit_MUL(exponent_parameter, (Symb){.type = Type_variable, .value.v = exponent_parameter}, (Symb){.type = Type_int, .value.i = 10});
+        emit_ADD(exponent_parameter, (Symb){.type = Type_variable, .value.v = exponent_parameter}, (Symb){.type = Type_variable, .value.v = temp_value});
+        emit_JUMPIFNEQ(floatval_loop, (Symb){.type = Type_variable, .value.v = index}, (Symb){.type = Type_variable, .value.v = length});
         emit_JUMP(floatval_loop_end);
         emit_LABEL(skip_exponent_parameter);
         // increment decimal_places_counter
@@ -666,6 +670,11 @@ Symb generateCastToFloat(Symb symb, Expression * expression, Context * ctx, Symb
         emit_LABEL(skip_exponent_loop);
         // divide result by exponent_divider to move the result x decimal spaces (x=exponent_parameter)
         emit_DIV(result, (Symb){.type = Type_variable, .value.v = result}, (Symb){.type = Type_variable, .value.v = exponent_divider});
+        // move one more decimal place to the left because there was no exponent operator used
+        emit_JUMPIFEQ(skip_fix_no_operator, (Symb){.type = Type_variable, .value.v = has_exponent}, (Symb){.type = Type_bool, .value.b = false});
+        emit_JUMPIFEQ(skip_fix_no_operator, (Symb){.type = Type_variable, .value.v = has_operator}, (Symb){.type = Type_bool, .value.b = true});
+        emit_ADD(decimal_places_counter, (Symb){.type = Type_variable, .value.v = decimal_places_counter}, (Symb){.type = Type_int, .value.i = 1});
+        emit_LABEL(skip_fix_no_operator);
         // skip divider loop if decimal_places_counter < 1
         emit_PUSHS((Symb){.type = Type_variable, .value.v = decimal_places_counter});
         emit_PUSHS((Symb){.type = Type_int, .value.i = 1});
@@ -696,6 +705,7 @@ Symb generateCastToFloat(Symb symb, Expression * expression, Context * ctx, Symb
         free(skip_exponent_loop);
         free(operator_is_minus);
         free(operator_is_plus);
+        free(skip_fix_no_operator);
     }
     emit_LABEL(castEnd);
     free(castEnd);
