@@ -1530,6 +1530,7 @@ StatementFor* StatementFor__init() {
  */
 void StatementContinue__serialize(StatementContinue *this, StringBuilder * stringBuilder) {
     StringBuilder__appendString(stringBuilder, "{\"statementType\": \"STATEMENT_CONTINUE\", \"depth\": }");
+    StringBuilder__appendInt(stringBuilder, this->depth);
 }
 
 /**
@@ -1581,7 +1582,8 @@ StatementContinue* StatementContinue__init() {
  * @param stringBuilder 
  */
 void StatementBreak__serialize(StatementBreak *this, StringBuilder * stringBuilder) {
-    StringBuilder__appendString(stringBuilder, "{\"statementType\": \"STATEMENT_BREAK\", \"depth\"}");
+    StringBuilder__appendString(stringBuilder, "{\"statementType\": \"STATEMENT_BREAK\", \"depth\": }");
+    StringBuilder__appendInt(stringBuilder, this->depth);
 }
 
 /**
