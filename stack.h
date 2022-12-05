@@ -1,6 +1,9 @@
 /**
- * @brief Hlavičkový soubor pro implementaci zasobniku (stack.c) 
+ * Implementace překladače imperativního jazyka IFJ22
+ * @file stack.h
  * @author Jakub Kratochvíl (xkrato67)
+ * @brief Header file for the stack implementation
+ * @date 2022-10-22
  */
 
 #ifndef __STACK_H__

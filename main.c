@@ -1,4 +1,5 @@
 /**
+ * Implementace překladače imperativního jazyka IFJ22
  * @file main.c
  * @author Jiří Gallo (xgallo04)
  * @brief Main file of the program

@@ -1,5 +1,10 @@
-// Implementace překladače imperativního jazyka IFJ22
-// Authors: Jiří Gallo (xgallo04)
+/**
+ * Implementace překladače imperativního jazyka IFJ22
+ * @file emitter.h
+ * @author Jiří Gallo (xgallo04)
+ * @brief Emitter library
+ * @date 2022-09-25
+ */
 
 #ifndef __EMITTER_H__
 #define __EMITTER_H__

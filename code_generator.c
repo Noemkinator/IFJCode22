@@ -1,5 +1,10 @@
-// Implementace překladače imperativního jazyka IFJ22
-// Authors: Jiří Gallo (xgallo04), Jakub Kratochvíl (xkrato67)
+/**
+ * Implementace překladače imperativního jazyka IFJ22
+ * @file code_generator.c
+ * @authors Jiří Gallo (xgallo04), Jan Zajíček (xzajic22)
+ * @brief Code generator for IFJcode22
+ * @date 2022-10-25
+ */
 
 #include "code_generator.h"
 #include "emitter.h"
@@ -54,6 +59,18 @@ typedef struct {
     bool isTemporary;
 } VariableInfo;
 
+/**
+ * @brief struct for string array
+
+ * 
+ */
+typedef struct {
+    char ** strings;
+    size_t size;
+    size_t capacity;
+} StringArray;
+
+
 typedef struct {
     Table * varTable;
     Table * functionTable;
@@ -61,7 +78,57 @@ typedef struct {
     Function * currentFunction;
     StatementList * program;
     PointerTable * resultTable;
+    StringArray * breakLabels;
+    StringArray * continueLabels;
 } Context;
+
+/**
+ * @brief Create new string array
+ * 
+ * @return StringArray* 
+ */
+StringArray * string_init() {
+    StringArray * array = malloc(sizeof(StringArray));
+    array->strings = malloc(sizeof(char *) * 16);
+    array->size = 0;
+    array->capacity = 16;
+    return array;
+}
+
+/**
+ * @brief Add string to array
+ * 
+ * @param array 
+ * @param str 
+ */
+void stringArrayAdd(StringArray * array, char * str) {
+    if(array->size == array->capacity) {
+        array->capacity *= 2;
+        array->strings = realloc(array->strings, sizeof(char *) * array->capacity);
+    }
+    array->strings[array->size] = str;
+    array->size++;
+}
+
+/**
+ * @brief Get string from array
+ * 
+ * @param array 
+ * @param index 
+ * @return char* 
+ */
+char * stringArrayGet(StringArray * array, size_t index) {
+    return array->strings[index];
+}
+
+/**
+ * @brief String array remove string
+ * 
+ * @param array 
+ */
+void stringArrayRemove(StringArray * array) {
+    array->size--;
+}
 
 void generateStatement(Statement * statement, Context ctx);
 
@@ -1635,13 +1702,104 @@ void generateWhile(StatementWhile * statement, Context ctx) {
 
     emit_LABEL(whileStart);
     generateConditionJump(statement->condition, ctx, whileEnd, false);
+    stringArrayAdd(ctx.breakLabels, whileEnd);
+    stringArrayAdd(ctx.continueLabels, whileStart);
     generateStatement(statement->body, ctx);
     emit_JUMP(whileStart);
     emit_LABEL(whileEnd);
+    stringArrayRemove(ctx.breakLabels);
+    stringArrayRemove(ctx.continueLabels);
 
     free(whileStart);
     free(whileEnd);
 }
+
+/**
+ * @brief Generates code for for statement
+ * 
+ * @param statement 
+ * @param ctx 
+ */
+void generateFor(StatementFor * statement, Context ctx) {   
+    size_t forUID = getNextCodeGenUID();
+    char* forStart = create_label("forStart&", forUID);
+    char* forEnd = create_label("forEnd&", forUID);
+
+    if (statement->init != NULL) generateExpression(statement->init, ctx, true, NULL);
+
+    emit_LABEL(forStart);
+
+    if (statement->condition != NULL) {
+        generateConditionJump(statement->condition, ctx, forEnd, false);
+    }else {
+        emit_COMMENT("No condition for for statement");
+    }
+
+    stringArrayAdd(ctx.breakLabels, forEnd);
+    stringArrayAdd(ctx.continueLabels, forStart);
+
+    generateStatement(statement->body, ctx);
+
+    if (statement->increment != NULL) generateExpression(statement->increment, ctx, false, NULL);
+
+    emit_JUMP(forStart);
+    emit_LABEL(forEnd);
+
+    stringArrayRemove (ctx.breakLabels);
+    stringArrayRemove (ctx.continueLabels);
+
+    free(forStart);
+    free(forEnd);
+}
+
+/**
+ * @brief Generates code for continue statement
+ * 
+ * @param statement 
+ * @param ctx 
+ */
+void generateContinue(StatementContinue * statement, Context ctx) {
+    if(statement->depth < 1) {
+        fprintf(stderr, "Continue statement depth must be at least 1\n");
+        exit(99);
+    }
+    emit_COMMENT("Continue statement");
+    if (ctx.continueLabels->size == 0) {
+        fprintf(stderr, "Continue statement outside of loop\n");
+        exit(99);
+    }
+    if (statement->depth > ctx.continueLabels->size) {
+        fprintf(stderr, "Trying to continue %d loops, but there are only %ld loops\n", statement->depth, ctx.continueLabels->size);
+        exit(99);
+    }
+    emit_JUMP(stringArrayGet(ctx.continueLabels,ctx.continueLabels->size - (size_t)statement->depth));
+}
+
+/**
+ * @brief Generates interpreter code for break statement that breaks out of the for and while loop with the given depth (0 is the innermost loop)
+  if the depth is -1, it breaks out of all loops
+    *
+    * @param statement
+    * @param ctx
+    */
+void generateBreak(StatementBreak * statement, Context ctx) {
+    if(statement->depth < 1) {
+        fprintf(stderr, "Break statement depth must be at least 1\n");
+        exit(99);
+    }
+    emit_COMMENT("Break statement");
+    if(ctx.breakLabels->size == 0) {
+        fprintf(stderr, "Break statement outside of loop\n");
+        exit(99);
+    }
+    if (statement->depth > ctx.breakLabels->size) {
+        fprintf(stderr, "Trying to break %d loops, but there are only %ld loops\n", statement->depth, ctx.breakLabels->size);
+        exit(99);
+    }
+    emit_JUMP(stringArrayGet(ctx.breakLabels, ctx.breakLabels->size - (size_t)statement->depth));
+}
+
+
 
 /**
  * @brief Generates code for return statement
@@ -1699,6 +1857,15 @@ void generateStatement(Statement * statement, Context ctx) {
             break;
         case STATEMENT_WHILE:
             generateWhile((StatementWhile*)statement, ctx);
+            break;
+        case STATEMENT_FOR:
+            generateFor((StatementFor*)statement, ctx);
+            break;
+        case STATEMENT_CONTINUE:
+            generateContinue((StatementContinue*)statement, ctx);
+            break;
+        case STATEMENT_BREAK:
+            generateBreak((StatementBreak*)statement, ctx);
             break;
         case STATEMENT_RETURN:
             generateReturn((StatementReturn*)statement, ctx);
@@ -1771,6 +1938,8 @@ void generateFunction(Function* function, Table * functionTable, PointerTable * 
     ctx.currentFunction = function;
     ctx.program = NULL;
     ctx.resultTable = resultTable;
+    ctx.breakLabels = string_init();
+    ctx.continueLabels = string_init();
     generateStatement(function->body, ctx);
     if(function->body->statementType != STATEMENT_LIST || ((StatementList*)function->body)->listSize == 0 || ((StatementList*)function->body)->statements[((StatementList*)function->body)->listSize-1]->statementType != STATEMENT_RETURN) {
         if(function->returnType.type != TYPE_VOID) {
@@ -1889,6 +2058,8 @@ void generateCode(StatementList * program, Table * functionTable) {
     ctx.currentFunction = NULL;
     ctx.program = program;
     ctx.resultTable = resultTable;
+    ctx.breakLabels = string_init();
+    ctx.continueLabels = string_init();
     generateStatementList(program, ctx);
     emit_DEFVAR_end();
     emit_instruction_end();

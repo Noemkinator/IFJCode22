@@ -2,8 +2,14 @@ ifj22
 tester
 *.zip
 doc/Doxygen
+*.out
+temp_out
 ic22int
 /test
 /x
 /x2
 .vscode
+*.asm
+ic22int
+.git*
+*.sh

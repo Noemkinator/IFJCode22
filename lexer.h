@@ -1,4 +1,5 @@
 /**
+ * Implementace překladače imperativního jazyka IFJ22
  * @file lexer.h
  * @author Jiří Gallo (xgallo04)
  * @brief Lexical analyzer library
@@ -63,6 +64,9 @@ typedef enum {
     TOKEN_FLOAT,
     TOKEN_VARIABLE,
     TOKEN_ERROR,
+    TOKEN_FOR,
+    TOKEN_CONTINUE,
+    TOKEN_BREAK,
     TOKEN_NEGATE,
     TOKEN_BOOL,
     TOKEN_ELSEIF,

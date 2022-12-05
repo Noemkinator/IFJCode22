@@ -1,4 +1,5 @@
 /**
+ * Implementace překladače imperativního jazyka IFJ22
  * @file string_builder.c
  * @author Jiří Gallo (xgallo04)
  * @brief String builder
