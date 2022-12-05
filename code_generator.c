@@ -429,6 +429,7 @@ Symb generateCastToInt(Symb symb, Expression * expression, Context * ctx, Symb *
         Var temp_value = generateTemporaryVariable(*ctx);
         Var index = generateTemporaryVariable(*ctx);
         Var length = generateTemporaryVariable(*ctx);
+        Var is_invalid = generateTemporaryVariable(*ctx);
         Var is_builtin = generateTemporaryVariable(*ctx);
         char* notString = create_label("not_string&", castUID);
         char* intval_loop = create_label("intval_loop&", castUID);
@@ -460,9 +461,9 @@ Symb generateCastToInt(Symb symb, Expression * expression, Context * ctx, Symb *
         emit_PUSHS((Symb){.type = Type_int, .value.i = 57});
         emit_GTS();
         emit_ORS();
-        emit_PUSHS((Symb){.type = Type_bool, .value.b = true});
+        emit_POPS(is_invalid);
         // if char != digit then break
-        emit_JUMPIFEQS(throw_error);
+        emit_JUMPIFEQ(throw_error, (Symb){.type = Type_variable, .value.v = is_invalid}, (Symb){.type = Type_bool, .value.b = true});
         // get the actual number from char
         emit_SUB(temp_value, (Symb){.type = Type_variable, .value.v = temp_value}, (Symb){.type = Type_int, .value.i = 48});
         // multiply result by 10
@@ -472,6 +473,7 @@ Symb generateCastToInt(Symb symb, Expression * expression, Context * ctx, Symb *
         emit_JUMPIFNEQ(intval_loop, (Symb){.type = Type_variable, .value.v = index}, (Symb){.type = Type_variable, .value.v = length});
         emit_LABEL(throw_error);
         emit_JUMPIFEQ(skip_throw_error, (Symb){.type = Type_variable, .value.v = is_builtin}, (Symb){.type = Type_bool, .value.b = true});
+        emit_JUMPIFEQ(skip_throw_error, (Symb){.type = Type_variable, .value.v = is_invalid}, (Symb){.type = Type_bool, .value.b = false});
         emit_JUMPIFNEQ(skip_throw_error, (Symb){.type = Type_variable, .value.v = index}, (Symb){.type = Type_int, .value.i = 1});
         emit_EXIT((Symb){.type = Type_int, .value.i = 7});
         emit_LABEL(skip_throw_error);
