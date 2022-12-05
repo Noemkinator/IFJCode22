@@ -431,6 +431,8 @@ Symb generateCastToInt(Symb symb, Expression * expression, Context * ctx, Symb *
         Var length = generateTemporaryVariable(*ctx);
         char* notString = create_label("not_string&", castUID);
         char* intval_loop = create_label("intval_loop&", castUID);
+        char* throw_error = create_label("throw_error&", castUID);
+        char* skip_throw_error = create_label("skip_throw_error&", castUID);
         emit_JUMPIFNEQ(notString, symbType, (Symb){.type = Type_string, .value.s = "string"});
         emit_MOVE(index, (Symb){.type = Type_int, .value.i = 0});
         emit_MOVE(result, (Symb){.type = Type_int, .value.i = 0});
@@ -452,7 +454,7 @@ Symb generateCastToInt(Symb symb, Expression * expression, Context * ctx, Symb *
         emit_ORS();
         emit_PUSHS((Symb){.type = Type_bool, .value.b = true});
         // if char != digit then break
-        emit_JUMPIFEQS(castEnd);
+        emit_JUMPIFEQS(throw_error);
         // get the actual number from char
         emit_SUB(temp_value, (Symb){.type = Type_variable, .value.v = temp_value}, (Symb){.type = Type_int, .value.i = 48});
         // multiply result by 10
@@ -460,10 +462,16 @@ Symb generateCastToInt(Symb symb, Expression * expression, Context * ctx, Symb *
         // add current digit into result
         emit_ADD(result, (Symb){.type = Type_variable, .value.v = result}, (Symb){.type = Type_variable, .value.v = temp_value});
         emit_JUMPIFNEQ(intval_loop, (Symb){.type = Type_variable, .value.v = index}, (Symb){.type = Type_variable, .value.v = length});
+        emit_LABEL(throw_error);
+        emit_JUMPIFNEQ(skip_throw_error, (Symb){.type = Type_variable, .value.v = index}, (Symb){.type = Type_int, .value.i = 1});
+        emit_EXIT((Symb){.type = Type_int, .value.i = 7});
+        emit_LABEL(skip_throw_error);
         emit_JUMP(castEnd);
         emit_LABEL(notString);
         free(notString);
         free(intval_loop);
+        free(throw_error);
+        free(skip_throw_error);
     }
     emit_LABEL(castEnd);
     free(castEnd);
@@ -560,6 +568,7 @@ Symb generateCastToFloat(Symb symb, Expression * expression, Context * ctx, Symb
         char* operator_is_minus = create_label("operator_is_minus&", castUID);
         char* operator_is_plus = create_label("operator_is_plus&", castUID);
         char* skip_fix_no_operator = create_label("skip_fix_no_operator&", castUID);
+        char* skip_throw_error = create_label("skip_throw_error&", castUID);
         emit_JUMPIFNEQ(not_string, symbType, (Symb){.type = Type_string, .value.s = "string"});
         // initialization of values
         emit_MOVE(index, (Symb){.type = Type_int, .value.i = 0});
@@ -689,6 +698,10 @@ Symb generateCastToFloat(Symb symb, Expression * expression, Context * ctx, Symb
         emit_LABEL(skip_divider_loop);
         // divide result by divider to move the result x decimal spaces (x=decimal_places_counter)
         emit_DIV(result, (Symb){.type = Type_variable, .value.v = result}, (Symb){.type = Type_variable, .value.v = divider});
+        emit_JUMPIFEQ(skip_throw_error, (Symb){.type = Type_variable, .value.v = is_invalid}, (Symb){.type = Type_bool, .value.b = false});
+        emit_JUMPIFNEQ(skip_throw_error, (Symb){.type = Type_variable, .value.v = index}, (Symb){.type = Type_int, .value.i = 1});
+        emit_EXIT((Symb){.type = Type_int, .value.i = 7});
+        emit_LABEL(skip_throw_error);
         emit_JUMP(castEnd);
         emit_LABEL(not_string);
         free(not_string);
@@ -706,6 +719,7 @@ Symb generateCastToFloat(Symb symb, Expression * expression, Context * ctx, Symb
         free(operator_is_minus);
         free(operator_is_plus);
         free(skip_fix_no_operator);
+        free(skip_throw_error);
     }
     emit_LABEL(castEnd);
     free(castEnd);
