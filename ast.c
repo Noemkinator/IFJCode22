@@ -426,6 +426,55 @@ UnionType orUnionType(UnionType type1, UnionType type2) {
     return ret;
 }
 
+bool orVariableTables(Table * variableTable, Table * duplTable) {
+    bool changed = false;
+    for(int j=0; j<TB_SIZE; j++) {
+        TableItem * item1 = variableTable->tb[j];
+        TableItem * item2 = duplTable->tb[j];
+        while(item1 != NULL && item2 != NULL) {
+            if(strcmp(item1->name, item2->name) != 0) {
+                fprintf(stderr, "Error: merging of variable tables failed");
+                exit(99);
+            }
+            UnionType * type1 = (UnionType*)item1->data;
+            UnionType * type2 = (UnionType*)item2->data;
+            if(type1->constant != type2->constant) {
+                if(type1->constant != NULL) {
+                    type1->constant = NULL;
+                    changed = true;
+                }
+                type2->constant = NULL;
+            }
+            changed |= (!type1->isBool && type2->isBool) || (!type1->isFloat && type2->isFloat) || (!type1->isInt && type2->isInt) || (!type1->isString && type2->isString) || (!type1->isUndefined && type2->isUndefined);
+            *type1 = orUnionType(*type1, *type2);
+            item1 = item1->next;
+            item2 = item2->next;
+        }
+        if(item1 != NULL || item2 != NULL) {
+            fprintf(stderr, "Error: merging of variable tables failed");
+            exit(99);
+        }
+    }
+    return changed;
+}
+
+void orResultTables(PointerTable * resultTable, PointerTable * duplResultTable) {
+    for(int j=0; j<TB_SIZE; j++) {
+        PointerTableItem * itemB = duplResultTable->tb[j];
+        while(itemB != NULL) {
+            PointerTableItem * itemA = table_statement_find(resultTable, itemB->name);
+            if(itemA == NULL) {
+                table_statement_insert(resultTable, itemB->name, itemB->data);
+            } else {
+                UnionType * typeA = (UnionType*)itemA->data;
+                UnionType * typeB = (UnionType*)itemB->data;
+                *typeA = orUnionType(*typeA, *typeB);
+            }
+            itemB = itemB->next;
+        }
+    }
+}
+
 void getExpressionVarType(Table * functionTable, Expression * expression, Table * variableTable, UnionType * exprTypeRet, PointerTable * resultTable) {
     switch (expression->expressionType) {
         case EXPRESSION_CONSTANT:
@@ -570,41 +619,8 @@ UnionType getStatementVarType(Table * functionTable, Statement * statement, Tabl
             PointerTable * duplResultTable = duplicateTableStatement(resultTable);
             getStatementVarType(functionTable, ifStatement->ifBody, variableTable, resultTable);
             getStatementVarType(functionTable, ifStatement->elseBody, duplTable, duplResultTable);
-            // or the tables
-            for(int j=0; j<TB_SIZE; j++) {
-                TableItem * itemA = variableTable->tb[j];
-                TableItem * itemB = duplTable->tb[j];
-                while(itemA != NULL && itemB != NULL) {
-                    if(strcmp(itemA->name, itemB->name) != 0) {
-                        fprintf(stderr, "Error: merging of variable tables failed");
-                        exit(99);
-                    }
-                    UnionType * typeA = (UnionType*)itemA->data;
-                    UnionType * typeB = (UnionType*)itemB->data;
-                    *typeA = orUnionType(*typeA, *typeB);
-                    itemA = itemA->next;
-                    itemB = itemB->next;
-                }
-                if(itemA != NULL || itemB != NULL) {
-                    fprintf(stderr, "Error: merging of variable tables failed");
-                    exit(99);
-                }
-            }
-            // or the result tables
-            for(int j=0; j<TB_SIZE; j++) {
-                PointerTableItem * itemB = duplResultTable->tb[j];
-                while(itemB != NULL) {
-                    PointerTableItem * itemA = table_statement_find(resultTable, itemB->name);
-                    if(itemA == NULL) {
-                        table_statement_insert(resultTable, itemB->name, itemB->data);
-                    } else {
-                        UnionType * typeA = (UnionType*)itemA->data;
-                        UnionType * typeB = (UnionType*)itemB->data;
-                        *typeA = orUnionType(*typeA, *typeB);
-                    }
-                    itemB = itemB->next;
-                }
-            }
+            orVariableTables(variableTable, duplTable);
+            orResultTables(resultTable, duplResultTable);
             // TODO: free also content
             table_free(duplTable);
             //table_statement_free(duplResultTable);
@@ -620,49 +636,8 @@ UnionType getStatementVarType(Table * functionTable, Statement * statement, Tabl
                 changed = false;
                 getStatementVarType(functionTable, whileStatement->body, duplTable, duplResultTable);
                 getExpressionVarType(functionTable, whileStatement->condition, duplTable, NULL, duplResultTable);
-                // or the tables
-                for(int j=0; j<TB_SIZE; j++) {
-                    TableItem * item1 = variableTable->tb[j];
-                    TableItem * item2 = duplTable->tb[j];
-                    while(item1 != NULL && item2 != NULL) {
-                        if(strcmp(item1->name, item2->name) != 0) {
-                            fprintf(stderr, "Error: merging of variable tables failed");
-                            exit(99);
-                        }
-                        UnionType * type1 = (UnionType*)item1->data;
-                        UnionType * type2 = (UnionType*)item2->data;
-                        if(type1->constant != type2->constant) {
-                            if(type1->constant != NULL) {
-                                type1->constant = NULL;
-                                changed = true;
-                            }
-                            type2->constant = NULL;
-                        }
-                        changed |= (!type1->isBool && type2->isBool) || (!type1->isFloat && type2->isFloat) || (!type1->isInt && type2->isInt) || (!type1->isString && type2->isString) || (!type1->isUndefined && type2->isUndefined);
-                        *type1 = orUnionType(*type1, *type2);
-                        item1 = item1->next;
-                        item2 = item2->next;
-                    }
-                    if(item1 != NULL || item2 != NULL) {
-                        fprintf(stderr, "Error: merging of variable tables failed");
-                        exit(99);
-                    }
-                }
-                // or the result tables
-                for(int j=0; j<TB_SIZE; j++) {
-                    PointerTableItem * itemB = duplResultTable->tb[j];
-                    while(itemB != NULL) {
-                        PointerTableItem * itemA = table_statement_find(resultTable, itemB->name);
-                        if(itemA == NULL) {
-                            table_statement_insert(resultTable, itemB->name, itemB->data);
-                        } else {
-                            UnionType * typeA = (UnionType*)itemA->data;
-                            UnionType * typeB = (UnionType*)itemB->data;
-                            *typeA = orUnionType(*typeA, *typeB);
-                        }
-                        itemB = itemB->next;
-                    }
-                }
+                changed |= orVariableTables(variableTable, duplTable);
+                orResultTables(resultTable, duplResultTable);
             }
             // TODO: free also content
             table_free(duplTable);
@@ -694,51 +669,20 @@ UnionType getStatementVarType(Table * functionTable, Statement * statement, Tabl
                 if(forStatement->condition != NULL) {
                     getExpressionVarType(functionTable, forStatement->condition, duplTable, NULL, duplResultTable);
                 }
-                // or the tables
-                for(int j=0; j<TB_SIZE; j++) {
-                    TableItem * item1 = variableTable->tb[j];
-                    TableItem * item2 = duplTable->tb[j];
-                    while(item1 != NULL && item2 != NULL) {
-                        if(strcmp(item1->name, item2->name) != 0) {
-                            fprintf(stderr, "Error: merging of variable tables failed");
-                            exit(99);
-                        }
-                        UnionType * type1 = (UnionType*)item1->data;
-                        UnionType * type2 = (UnionType*)item2->data;
-                        if(type1->constant != type2->constant) {
-                            if(type1->constant != NULL) {
-                                type1->constant = NULL;
-                                changed = true;
-                            }
-                            type2->constant = NULL;
-                        }
-                        changed |= (!type1->isBool && type2->isBool) || (!type1->isFloat && type2->isFloat) || (!type1->isInt && type2->isInt) || (!type1->isString && type2->isString) || (!type1->isUndefined && type2->isUndefined);
-                        *type1 = orUnionType(*type1, *type2);
-                        item1 = item1->next;
-                        item2 = item2->next;
-                    }
-                    if(item1 != NULL || item2 != NULL) {
-                        fprintf(stderr, "Error: merging of variable tables failed");
-                        exit(99);
-                    }
-                }
-                // or the result tables
-                for(int j=0; j<TB_SIZE; j++) {
-                    PointerTableItem * itemB = duplResultTable->tb[j];
-                    while(itemB != NULL) {
-                        PointerTableItem * itemA = table_statement_find(resultTable, itemB->name);
-                        if(itemA == NULL) {
-                            table_statement_insert(resultTable, itemB->name, itemB->data);
-                        } else {
-                            UnionType * typeA = (UnionType*)itemA->data;
-                            UnionType * typeB = (UnionType*)itemB->data;
-                            *typeA = orUnionType(*typeA, *typeB);
-                        }
-                        itemB = itemB->next;
-                    }
-                }
+                changed |= orVariableTables(variableTable, duplTable);
+                orResultTables(resultTable, duplResultTable);
             }
+            // TODO: free also content
             table_free(duplTable);
+            //table_statement_free(duplResultTable);
+            break;
+        }
+        case STATEMENT_BREAK: {
+            // TODO
+            break;
+        }
+        case STATEMENT_CONTINUE: {
+            // TODO
             break;
         }
         case STATEMENT_LIST:
