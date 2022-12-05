@@ -60,6 +60,15 @@ int getPrecedence(TokenType type) {
     }
 }
 
+bool is_constant(TokenType tokenType) {
+    return 
+        tokenType == TOKEN_BOOL ||
+        tokenType == TOKEN_FLOAT ||
+        tokenType == TOKEN_INTEGER ||
+        tokenType == TOKEN_NULL ||
+        tokenType == TOKEN_STRING;
+}
+
 bool is_binary_operator(Token token) {
     return token.type == TOKEN_PLUS || token.type == TOKEN_MINUS || token.type == TOKEN_MULTIPLY || token.type == TOKEN_DIVIDE || token.type == TOKEN_CONCATENATE || token.type == TOKEN_LESS || token.type == TOKEN_LESS_OR_EQUALS || token.type == TOKEN_GREATER || token.type == TOKEN_GREATER_OR_EQUALS || token.type == TOKEN_EQUALS || token.type == TOKEN_NOT_EQUALS || token.type == TOKEN_ASSIGN || token.type == TOKEN_PLUS_ASSIGN || token.type == TOKEN_MINUS_ASSIGN || token.type == TOKEN_CONCATENATE_ASSIGN || token.type == TOKEN_MULTIPLY_ASSIGN || token.type == TOKEN_DIVIDE_ASSIGN || token.type == TOKEN_AND || token.type == TOKEN_OR;
 }
@@ -145,116 +154,62 @@ char * decodeString(char * text) {
     return retAddr;
 }
 
-bool is_first_if(TokenType tokenType) {
-    return tokenType == TOKEN_IF;
-}
-
-bool is_first_while(TokenType tokenType) {
-    return tokenType == TOKEN_WHILE;
-}
-
-bool is_first_open_bracket(TokenType tokenType) {
-    return tokenType == TOKEN_OPEN_BRACKET;
-}
-
-bool is_first_close_bracket(TokenType tokenType) {
-    return tokenType == TOKEN_CLOSE_BRACKET;
-}
-
-bool is_first_open_curly_bracket(TokenType tokenType) {
-    return tokenType == TOKEN_OPEN_CURLY_BRACKET;
-}
-
-bool is_first_close_curly_bracket(TokenType tokenType) {
-    return tokenType == TOKEN_CLOSE_CURLY_BRACKET;
-}
-
-bool is_first_identifier(TokenType tokenType) {
-    return tokenType == TOKEN_IDENTIFIER;
-}
-
-bool is_first_constant_string(TokenType tokenType) {
-    return tokenType == TOKEN_STRING;
-}
-
-bool is_first_constant_integer(TokenType tokenType) {
-    return tokenType == TOKEN_INTEGER;
-}
-
-bool is_first_constant_float(TokenType tokenType) {
-    return tokenType == TOKEN_FLOAT;
-}
-
-bool is_first_constant_bool(TokenType tokenType) {
-    return tokenType == TOKEN_BOOL;
-}
-
-bool is_first_constant_null(TokenType tokenType) {
-    return tokenType == TOKEN_NULL;
-}
-
-bool is_first_variable(TokenType tokenType) {
-    return nextToken.type == TOKEN_VARIABLE;
-}
-
-bool is_first_constant(TokenType tokenType) {
+bool is_first_terminal_expression(TokenType tokenType) {
     return 
-        is_first_constant_bool(tokenType) ||
-        is_first_constant_float(tokenType) ||
-        is_first_constant_integer(tokenType) ||
-        is_first_constant_null(tokenType) ||
-        is_first_constant_string(tokenType);
+        tokenType == TOKEN_OPEN_BRACKET ||
+        tokenType == TOKEN_IDENTIFIER ||
+        tokenType == TOKEN_VARIABLE ||
+        is_constant(tokenType);
 }
-
-bool is_first_constant_or_variable(TokenType tokenType) {
-    return is_first_variable(tokenType) || is_first_constant(tokenType);
-}
-
-
 
 bool parse_terminal_expression(Expression ** expression) {
+    if(! is_first_expression(nextToken.type)) {
+        printParserError(nextToken, "Expected terminal expression");
+        return false;
+    }
+    
     *expression = NULL;
-    if(is_first_open_bracket(nextToken.type)) {
+    if(nextToken.type == TOKEN_OPEN_BRACKET) {
         nextToken = getNextToken();
         if(!parse_expression(expression, 0)) return false;
         (*expression)->isLValue = false;
-        if(! is_first_close_bracket) {
+        if(nextToken.type != TOKEN_CLOSE_BRACKET) {
             printParserError(nextToken, "Expected closing bracket");
             return false;
         }
         nextToken = getNextToken();
         return true;
     }
-    if(is_first_identifier(nextToken.type)) {
+    if(nextToken.type == TOKEN_IDENTIFIER) {
         if(!parse_function_call(expression)) return false;
         return true;
     }
-    if(! is_first_constant_or_variable(nextToken.type)) {
+    if(nextToken.type != TOKEN_VARIABLE && nextToken.type != TOKEN_INTEGER && nextToken.type != TOKEN_FLOAT && nextToken.type != TOKEN_STRING && nextToken.type != TOKEN_NULL && nextToken.type != TOKEN_BOOL) {
         printParserError(nextToken, "Expected expression");
         return false;
     }
-    if(is_first_variable(nextToken.type)) {
+    if(nextToken.type == TOKEN_VARIABLE) {
         Expression__Variable * variable = Expression__Variable__init();
         *expression = (Expression*)variable;
         variable->name = getTokenTextPermanent(nextToken);
-    } else if(is_first_constant(nextToken.type)) {
+    } else if(nextToken.type == TOKEN_INTEGER || nextToken.type == TOKEN_FLOAT || nextToken.type == TOKEN_STRING || nextToken.type == TOKEN_BOOL || nextToken.type == TOKEN_NULL) {
         Expression__Constant * constant = Expression__Constant__init();
         *expression = (Expression*)constant;
         Type type;
         type.isRequired = true;
-        if(is_first_constant_integer(nextToken.type)) {
+        if(nextToken.type == TOKEN_INTEGER) {
             type.type = TYPE_INT;
             constant->type = type;
             constant->value.integer = atoll(getTokenText(nextToken));
-        } else if(is_first_constant_float(nextToken.type)) {
+        } else if(nextToken.type == TOKEN_FLOAT) {
             type.type = TYPE_FLOAT;
             constant->type = type;
             constant->value.real = atof(getTokenText(nextToken));
-        } else if(is_first_constant_string(nextToken.type)) {
+        } else if(nextToken.type == TOKEN_STRING) {
             type.type = TYPE_STRING;
             constant->type = type;
             constant->value.string = decodeString(getTokenText(nextToken));
-        } else if(is_first_constant_bool(nextToken.type)) {
+        } else if(nextToken.type == TOKEN_BOOL) {
             type.type = TYPE_BOOL;
             constant->type = type;
             char* tokenText = getTokenText(nextToken);
@@ -263,7 +218,7 @@ bool parse_terminal_expression(Expression ** expression) {
             } else {
                 constant->value.boolean = false;
             }
-        } else if(is_first_constant_null(nextToken.type)) {
+        } else if(nextToken.type == TOKEN_NULL) {
             type.type = TYPE_NULL;
             constant->type = type;
         }
@@ -272,7 +227,22 @@ bool parse_terminal_expression(Expression ** expression) {
     return true;
 }
 
+bool is_first_expression(TokenType tokenType) {
+    return 
+        tokenType == TOKEN_PLUS ||
+        tokenType == TOKEN_MINUS ||
+        tokenType == TOKEN_INCREMENT ||
+        tokenType == TOKEN_DECREMENT ||
+        tokenType == TOKEN_NEGATE ||
+        is_first_terminal_expression(tokenType);
+}
+
 bool parse_expression(Expression ** expression, int previousPrecedence) {
+    if(! is_first_expression(nextToken.type)) {
+        printParserError(nextToken, "Expected expression");
+        return false;
+    }
+
     if(is_unary_operator(nextToken)) {
         Token operatorToken = nextToken;
         if(nextToken.type == TOKEN_PLUS) {
@@ -424,7 +394,16 @@ bool parse_statement_list(StatementList ** statementListRet) {
     return true;
 }
 
+bool is_first_if(TokenType tokenType) {
+    return tokenType == TOKEN_IF;     
+}
+
 bool parse_if(StatementIf ** statementIfRet) {
+    if(! is_first_if(nextToken.type)) {
+        printParserError(nextToken, "Expected if statement");
+        return false;
+    }
+
     StatementIf * statementIf = StatementIf__init();
     *statementIfRet = statementIf;
     nextToken = getNextToken();
@@ -471,7 +450,17 @@ bool parse_if(StatementIf ** statementIfRet) {
     return true;
 }
 
+
+bool is_first_while(TokenType tokenType) {
+    return tokenType == TOKEN_WHILE;     
+}
+
 bool parse_while(StatementWhile ** statementWhileRet) {
+    if(! is_first_while(nextToken.type)) {
+        printParserError(nextToken, "Expected while");
+        return false;
+    }
+
     StatementWhile * statementWhile = StatementWhile__init();
     *statementWhileRet = statementWhile;
     nextToken = getNextToken();
@@ -500,7 +489,18 @@ bool parse_while(StatementWhile ** statementWhileRet) {
     return true;
 }
 
+bool is_first_function_call_arguments(TokenType tokenType) {
+    return 
+        tokenType == TOKEN_CLOSE_BRACKET ||
+        is_first_expression(tokenType);  
+}
+
 bool parse_function_arguments(Expression__FunctionCall * functionCall) {
+    if(! is_first_function_call_arguments(nextToken.type)) {
+        printParserError(nextToken, "Expected expression or closing bracket");
+        return false;
+    }
+    
     if(nextToken.type == TOKEN_CLOSE_BRACKET) return true;
     Expression * expression;
     bool success = parse_expression(&expression, 0);
@@ -515,8 +515,12 @@ bool parse_function_arguments(Expression__FunctionCall * functionCall) {
     return true;
 }
 
+bool is_first_function_call(TokenType tokenType) {
+    return tokenType == TOKEN_IDENTIFIER;
+}
+
 bool parse_function_call(Expression__FunctionCall ** functionCallRet) {
-    if(nextToken.type != TOKEN_IDENTIFIER) {
+    if(! is_first_function_call(nextToken.type)) {
         printParserError(nextToken, "Expected function name");
         return false;
     }
@@ -538,7 +542,15 @@ bool parse_function_call(Expression__FunctionCall ** functionCallRet) {
     return true;
 }
 
+bool is_first_return(TokenType tokenType) {
+    return tokenType == TOKEN_RETURN;
+}
+
 bool parse_return(StatementReturn ** statementReturnRet) {
+    if(! is_first_return(nextToken.type)) {
+        printParserError(nextToken, "Expected return");
+        return false;
+    }
     StatementReturn * statementReturn = StatementReturn__init();
     *statementReturnRet = statementReturn;
     nextToken = getNextToken();
@@ -554,7 +566,22 @@ bool parse_return(StatementReturn ** statementReturnRet) {
     return true;
 }
 
+bool is_first_statement(TokenType tokenType) {
+    return 
+        tokenType == TOKEN_IF ||
+        tokenType == TOKEN_WHILE ||
+        tokenType == TOKEN_RETURN ||
+        tokenType == TOKEN_OPEN_BRACKET ||
+        tokenType == TOKEN_NEGATE ||
+        is_first_terminal_expression(tokenType);
+}
+
 bool parse_statement(Statement ** retStatement) {
+    if(! is_first_statement(nextToken.type)) {
+        printParserError(nextToken, "Expected return");
+        return false;
+    }
+
     switch (nextToken.type) {
         case TOKEN_IF:
             return parse_if((StatementIf**)retStatement);

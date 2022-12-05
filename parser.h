@@ -24,4 +24,14 @@ void freeParser();
 bool is_binary_operator(Token token);
 int get_prec_tb_indx(TokenType type);
 
+bool is_constant(TokenType tokenType);
+bool is_first_terminal_expression(TokenType tokenType);
+bool is_first_expression(TokenType tokenType);
+bool is_first_if(TokenType tokenType);
+bool is_first_while(TokenType tokenType);
+bool is_first_function_call_arguments(TokenType tokenType);
+bool is_first_function_call(TokenType tokenType);
+bool is_first_return(TokenType tokenType);
+bool is_first_statement(TokenType tokenType);
+
 #endif
