@@ -436,14 +436,16 @@ void getExpressionVarType(Table * functionTable, Expression * expression, Table 
             break;
         case EXPRESSION_VARIABLE: {
             Expression__Variable* var = (Expression__Variable*)expression;
-            UnionType type = *(UnionType*)table_find(variableTable, var->name)->data;
+            UnionType * type = (UnionType*)table_find(variableTable, var->name)->data;
             if(exprTypeRet != NULL) {
-                *exprTypeRet = type;
+                *exprTypeRet = *type;
                 exprTypeRet->constant = expression;
             }
             UnionType * typePtr = malloc(sizeof(UnionType));
-            *typePtr = type;
+            *typePtr = *type;
             table_statement_insert(resultTable, (Statement*)var, typePtr);
+            // access to undefined variable causes crash, this means that after first access we can say that variable is defined
+            type->isUndefined = false;
             break;
         }
         case EXPRESSION_FUNCTION_CALL: {
@@ -459,11 +461,9 @@ void getExpressionVarType(Table * functionTable, Expression * expression, Table 
         }
         case EXPRESSION_BINARY_OPERATOR: {
             Expression__BinaryOperator* binOp = (Expression__BinaryOperator*)expression;
-            UnionType lType;
-            UnionType rType;
-            getExpressionVarType(functionTable, binOp->rSide, variableTable, &rType, resultTable);
             if(binOp->operator == TOKEN_ASSIGN && binOp->lSide->expressionType == EXPRESSION_VARIABLE) {
-                UnionType assignedType = rType;
+                UnionType assignedType;
+                getExpressionVarType(functionTable, binOp->rSide, variableTable, &assignedType, resultTable);
                 assignedType.isUndefined = false;
                 for(int i = 0; i < TB_SIZE; i++) {
                     TableItem * item = variableTable->tb[i];
@@ -484,7 +484,10 @@ void getExpressionVarType(Table * functionTable, Expression * expression, Table 
                 table_statement_insert(resultTable, binOp->lSide, emptyType);
                 return;
             }
+            UnionType lType;
+            UnionType rType;
             getExpressionVarType(functionTable, binOp->lSide, variableTable, &lType, resultTable);
+            getExpressionVarType(functionTable, binOp->rSide, variableTable, &rType, resultTable);
             if(exprTypeRet == NULL) {
                 return;
             }
