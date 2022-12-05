@@ -13,3 +13,4 @@ ic22int
 ic22int
 .git*
 *.sh
+/tests
