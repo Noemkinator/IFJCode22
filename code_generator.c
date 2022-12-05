@@ -363,7 +363,7 @@ Symb generateCastToBool(Expression * expression, Symb symb, Context ctx, bool is
     return (Symb){.type=Type_variable, .value.v=result};
 }
 
-Symb generateCastToInt(Symb symb, Expression * expression, Context * ctx, Symb * typeSymb) {
+Symb generateCastToInt(Symb symb, Expression * expression, Context * ctx, Symb * typeSymb, bool isBuiltin) {
     UnionType unionType = expression->getType(expression, ctx->functionTable, ctx->program, ctx->currentFunction, ctx->resultTable);
     unionType.isUndefined = false;
     Type type = unionTypeToType(unionType);
@@ -429,6 +429,7 @@ Symb generateCastToInt(Symb symb, Expression * expression, Context * ctx, Symb *
         Var temp_value = generateTemporaryVariable(*ctx);
         Var index = generateTemporaryVariable(*ctx);
         Var length = generateTemporaryVariable(*ctx);
+        Var is_builtin = generateTemporaryVariable(*ctx);
         char* notString = create_label("not_string&", castUID);
         char* intval_loop = create_label("intval_loop&", castUID);
         char* throw_error = create_label("throw_error&", castUID);
@@ -436,8 +437,15 @@ Symb generateCastToInt(Symb symb, Expression * expression, Context * ctx, Symb *
         emit_JUMPIFNEQ(notString, symbType, (Symb){.type = Type_string, .value.s = "string"});
         emit_MOVE(index, (Symb){.type = Type_int, .value.i = 0});
         emit_MOVE(result, (Symb){.type = Type_int, .value.i = 0});
+        if(isBuiltin) {
+            emit_MOVE(is_builtin, (Symb){.type = Type_bool, .value.b = true});
+        } else {
+            emit_MOVE(is_builtin, (Symb){.type = Type_bool, .value.b = false});
+        }
         emit_STRLEN(length, symb);
-        emit_JUMPIFEQ(castEnd, (Symb){.type = Type_variable, .value.v = length}, (Symb){.type = Type_int, .value.i = 0});
+        emit_JUMPIFNEQ(intval_loop, (Symb){.type = Type_variable, .value.v = length}, (Symb){.type = Type_int, .value.i = 0});
+        emit_JUMPIFEQ(intval_loop, (Symb){.type = Type_variable, .value.v = is_builtin}, (Symb){.type = Type_bool, .value.b = true});
+        emit_EXIT((Symb){.type = Type_int, .value.i = 7});
         emit_LABEL(intval_loop);
         // temp_value = symb[i]
         emit_STRI2INT(temp_value, symb, (Symb){.type = Type_variable, .value.v = index});
@@ -463,6 +471,7 @@ Symb generateCastToInt(Symb symb, Expression * expression, Context * ctx, Symb *
         emit_ADD(result, (Symb){.type = Type_variable, .value.v = result}, (Symb){.type = Type_variable, .value.v = temp_value});
         emit_JUMPIFNEQ(intval_loop, (Symb){.type = Type_variable, .value.v = index}, (Symb){.type = Type_variable, .value.v = length});
         emit_LABEL(throw_error);
+        emit_JUMPIFEQ(skip_throw_error, (Symb){.type = Type_variable, .value.v = is_builtin}, (Symb){.type = Type_bool, .value.b = true});
         emit_JUMPIFNEQ(skip_throw_error, (Symb){.type = Type_variable, .value.v = index}, (Symb){.type = Type_int, .value.i = 1});
         emit_EXIT((Symb){.type = Type_int, .value.i = 7});
         emit_LABEL(skip_throw_error);
@@ -478,7 +487,7 @@ Symb generateCastToInt(Symb symb, Expression * expression, Context * ctx, Symb *
     return (Symb){.type=Type_variable, .value.v=result};
 }
 
-Symb generateCastToFloat(Symb symb, Expression * expression, Context * ctx, Symb * typeSymb) {
+Symb generateCastToFloat(Symb symb, Expression * expression, Context * ctx, Symb * typeSymb, bool isBuiltin) {
     UnionType unionType = expression->getType(expression, ctx->functionTable, ctx->program, ctx->currentFunction, ctx->resultTable);
     unionType.isUndefined = false;
     Type type = unionTypeToType(unionType);
@@ -553,6 +562,7 @@ Symb generateCastToFloat(Symb symb, Expression * expression, Context * ctx, Symb
         Var exponent_operator = generateTemporaryVariable(*ctx);
         Var divider = generateTemporaryVariable(*ctx);
         Var exponent_divider = generateTemporaryVariable(*ctx);
+        Var is_builtin = generateTemporaryVariable(*ctx);
         char* not_string = create_label("not_string&", castUID);
         char* floatval_loop = create_label("floatval_loop&", castUID);
         char* floatval_loop_end = create_label("floatval_loop_end&", castUID);
@@ -570,6 +580,11 @@ Symb generateCastToFloat(Symb symb, Expression * expression, Context * ctx, Symb
         char* skip_fix_no_operator = create_label("skip_fix_no_operator&", castUID);
         char* skip_throw_error = create_label("skip_throw_error&", castUID);
         emit_JUMPIFNEQ(not_string, symbType, (Symb){.type = Type_string, .value.s = "string"});
+        if(isBuiltin) {
+            emit_MOVE(is_builtin, (Symb){.type = Type_bool, .value.b = true});
+        } else {
+            emit_MOVE(is_builtin, (Symb){.type = Type_bool, .value.b = false});
+        }
         // initialization of values
         emit_MOVE(index, (Symb){.type = Type_int, .value.i = 0});
         emit_MOVE(has_decimal, (Symb){.type = Type_bool, .value.b = false});
@@ -583,7 +598,9 @@ Symb generateCastToFloat(Symb symb, Expression * expression, Context * ctx, Symb
         emit_MOVE(result, (Symb){.type = Type_int, .value.i = 0});
         // get length of string
         emit_STRLEN(length, symb);
-        emit_JUMPIFEQ(castEnd, (Symb){.type = Type_variable, .value.v = length}, (Symb){.type = Type_int, .value.i = 0});
+        emit_JUMPIFNEQ(floatval_loop, (Symb){.type = Type_variable, .value.v = length}, (Symb){.type = Type_int, .value.i = 0});
+        emit_JUMPIFEQ(floatval_loop, (Symb){.type = Type_variable, .value.v = is_builtin}, (Symb){.type = Type_bool, .value.b = true});
+        emit_EXIT((Symb){.type = Type_int, .value.i = 7});
         // floatval loop
         emit_LABEL(floatval_loop);
         emit_STRI2INT(temp_value, symb, (Symb){.type = Type_variable, .value.v = index});                                                   
@@ -698,6 +715,7 @@ Symb generateCastToFloat(Symb symb, Expression * expression, Context * ctx, Symb
         emit_LABEL(skip_divider_loop);
         // divide result by divider to move the result x decimal spaces (x=decimal_places_counter)
         emit_DIV(result, (Symb){.type = Type_variable, .value.v = result}, (Symb){.type = Type_variable, .value.v = divider});
+        emit_JUMPIFEQ(skip_throw_error, (Symb){.type = Type_variable, .value.v = is_builtin}, (Symb){.type = Type_bool, .value.b = true});
         emit_JUMPIFEQ(skip_throw_error, (Symb){.type = Type_variable, .value.v = is_invalid}, (Symb){.type = Type_bool, .value.b = false});
         emit_JUMPIFNEQ(skip_throw_error, (Symb){.type = Type_variable, .value.v = index}, (Symb){.type = Type_int, .value.i = 1});
         emit_EXIT((Symb){.type = Type_int, .value.i = 7});
@@ -1028,13 +1046,13 @@ Symb generateFunctionCall(Expression__FunctionCall * expression, Context ctx, Va
         emit_READ(var, Type_float);
         return (Symb){.type = Type_variable, .value.v=var};
     } else if(strcmp(function->name, "floatval") == 0) {
-        Symb retSymb = generateCastToFloat(arguments[0], expression->arguments[0], &ctx, NULL);
+        Symb retSymb = generateCastToFloat(arguments[0], expression->arguments[0], &ctx, NULL, true);
         if(arguments[0].type != Type_variable || retSymb.type != Type_variable || arguments[0].value.v.frameType != retSymb.value.v.frameType || strcmp(arguments[0].value.v.name, retSymb.value.v.name) != 0) {
             freeTemporarySymbol(arguments[0], ctx);
         }
         return retSymb;
     } else if(strcmp(function->name, "intval") == 0) {
-        Symb retSymb = generateCastToInt(arguments[0], expression->arguments[0], &ctx, NULL);
+        Symb retSymb = generateCastToInt(arguments[0], expression->arguments[0], &ctx, NULL, true);
         if(arguments[0].type != Type_variable || retSymb.type != Type_variable || arguments[0].value.v.frameType != retSymb.value.v.frameType || strcmp(arguments[0].value.v.name, retSymb.value.v.name) != 0) {
             freeTemporarySymbol(arguments[0], ctx);
         }
@@ -1164,8 +1182,8 @@ void emitAddMulSubCast(Symb symb1, Symb symb2, Expression * expr1, Expression * 
     bool isType2Float = !unionType2.isBool && unionType2.isFloat && !unionType2.isInt && !unionType2.isNull && !unionType2.isString;
     bool isGuaranteedFloat = isType1Float || isType2Float;
     if(isGuaranteedFloat) {
-        *out1 = generateCastToFloat(symb1, expr1, ctx, NULL);
-        *out2 = generateCastToFloat(symb2, expr2, ctx, NULL);
+        *out1 = generateCastToFloat(symb1, expr1, ctx, NULL, false);
+        *out2 = generateCastToFloat(symb2, expr2, ctx, NULL, false);
     } else if(canBeFloat) {
         Symb type1 = generateSymbType(expr1, symb1, *ctx);
         Symb type2 = generateSymbType(expr2, symb2, *ctx);
@@ -1178,20 +1196,20 @@ void emitAddMulSubCast(Symb symb1, Symb symb2, Expression * expr1, Expression * 
         char* isFloat = create_label("is_float&", castUID);
         emit_JUMPIFEQ(isFloat, type1, (Symb){.type = Type_string, .value.s = "float"});
         emit_JUMPIFEQ(isFloat, type2, (Symb){.type = Type_string, .value.s = "float"});
-        emit_MOVE(result1, generateCastToInt(symb1, expr1, ctx, &type1));
-        emit_MOVE(result2, generateCastToInt(symb2, expr2, ctx, &type2));
+        emit_MOVE(result1, generateCastToInt(symb1, expr1, ctx, &type1, false));
+        emit_MOVE(result2, generateCastToInt(symb2, expr2, ctx, &type2, false));
         emit_JUMP(castEnd);
         emit_LABEL(isFloat);
-        emit_MOVE(result1, generateCastToFloat(symb1, expr1, ctx, &type1));
-        emit_MOVE(result2, generateCastToFloat(symb2, expr2, ctx, &type2));
+        emit_MOVE(result1, generateCastToFloat(symb1, expr1, ctx, &type1, false));
+        emit_MOVE(result2, generateCastToFloat(symb2, expr2, ctx, &type2, false));
         emit_LABEL(castEnd);
         free(castEnd);
         free(isFloat);
         freeTemporarySymbol(type1, *ctx);
         freeTemporarySymbol(type2, *ctx);
     } else {
-        *out1 = generateCastToInt(symb1, expr1, ctx, NULL);
-        *out2 = generateCastToInt(symb2, expr2, ctx, NULL);
+        *out1 = generateCastToInt(symb1, expr1, ctx, NULL, false);
+        *out2 = generateCastToInt(symb2, expr2, ctx, NULL, false);
     }
 }
 
@@ -1231,8 +1249,8 @@ void relationalOperatorCast(Symb symb1, Symb symb2, Expression * expr1, Expressi
         emit_JUMPIFEQ(isFloat, type1, (Symb){.type = Type_string, .value.s = "float"});
         emit_JUMPIFEQ(isFloat, type2, (Symb){.type = Type_string, .value.s = "float"});
     }
-    emit_MOVE(result1, generateCastToInt(symb1, expr1, ctx, &type1));
-    emit_MOVE(result2, generateCastToInt(symb2, expr2, ctx, &type2));
+    emit_MOVE(result1, generateCastToInt(symb1, expr1, ctx, &type1, false));
+    emit_MOVE(result2, generateCastToInt(symb2, expr2, ctx, &type2, false));
     emit_JUMP(castEnd);
     if(unionType1.isNull || unionType2.isNull) {
         emit_LABEL(isNull);
@@ -1242,8 +1260,8 @@ void relationalOperatorCast(Symb symb1, Symb symb2, Expression * expr1, Expressi
     }
     if(unionType1.isFloat || unionType2.isFloat) {
         emit_LABEL(isFloat);
-        emit_MOVE(result1, generateCastToFloat(symb1, expr1, ctx, &type1));
-        emit_MOVE(result2, generateCastToFloat(symb2, expr2, ctx, &type2));
+        emit_MOVE(result1, generateCastToFloat(symb1, expr1, ctx, &type1, false));
+        emit_MOVE(result2, generateCastToFloat(symb2, expr2, ctx, &type2, false));
         emit_JUMP(castEnd);
     }
     if(unionType1.isString || unionType2.isString) {
@@ -1325,8 +1343,8 @@ Symb generateBinaryOperator(Expression__BinaryOperator * expression, Context ctx
             emit_MUL(outVar, left, right);
             break;
         case TOKEN_DIVIDE: {
-            Symb left2 = generateCastToFloat(left, expression->lSide, &ctx, NULL);
-            Symb right2 = generateCastToFloat(right, expression->rSide, &ctx, NULL);
+            Symb left2 = generateCastToFloat(left, expression->lSide, &ctx, NULL, false);
+            Symb right2 = generateCastToFloat(right, expression->rSide, &ctx, NULL, false);
             emit_DIV(outVar, left2, right2);
             break;
         }
