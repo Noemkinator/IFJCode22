@@ -9,6 +9,34 @@
 #include "ast.h"
 
 /**
+ * @brief Get all statements in a block
+ * 
+ * @param statement
+ * @param count
+ * @return Statement**
+ */
+Statement *** getAllStatements(Statement * parent, size_t * count) {
+    int childrenCount = 0;
+    *count = childrenCount;
+    if(parent == NULL) return NULL;
+    Statement *** children = parent->getChildren(parent, &childrenCount);
+    *count = childrenCount;
+    if(childrenCount == 0) return NULL;
+    for(int i=0; i<childrenCount; i++) {
+        size_t subchildrenCount = 0;
+        if(*children[i] == NULL) continue;
+        Statement *** subchildren = getAllStatements(*children[i], &subchildrenCount);
+        if(subchildren == NULL) continue;
+        *count += subchildrenCount;
+        if(subchildrenCount == 0) continue;
+        children = realloc(children, sizeof(Statement**) * (*count));
+        memcpy(children + *count - subchildrenCount, subchildren, sizeof(Statement**) * subchildrenCount);
+        free(subchildren);
+    }
+    return children;
+}
+
+/**
  * @brief Statement list serializer
  * 
  * @param this 
@@ -409,14 +437,16 @@ void getExpressionVarType(Table * functionTable, Expression * expression, Table 
             break;
         case EXPRESSION_VARIABLE: {
             Expression__Variable* var = (Expression__Variable*)expression;
-            UnionType type = *(UnionType*)table_find(variableTable, var->name)->data;
+            UnionType * type = (UnionType*)table_find(variableTable, var->name)->data;
             if(exprTypeRet != NULL) {
-                *exprTypeRet = type;
+                *exprTypeRet = *type;
                 exprTypeRet->constant = expression;
             }
             UnionType * typePtr = malloc(sizeof(UnionType));
-            *typePtr = type;
+            *typePtr = *type;
             table_statement_insert(resultTable, (Statement*)var, typePtr);
+            // access to undefined variable causes crash, this means that after first access we can say that variable is defined
+            type->isUndefined = false;
             break;
         }
         case EXPRESSION_FUNCTION_CALL: {
@@ -432,11 +462,9 @@ void getExpressionVarType(Table * functionTable, Expression * expression, Table 
         }
         case EXPRESSION_BINARY_OPERATOR: {
             Expression__BinaryOperator* binOp = (Expression__BinaryOperator*)expression;
-            UnionType lType;
-            UnionType rType;
-            getExpressionVarType(functionTable, binOp->rSide, variableTable, &rType, resultTable);
             if(binOp->operator == TOKEN_ASSIGN && binOp->lSide->expressionType == EXPRESSION_VARIABLE) {
-                UnionType assignedType = rType;
+                UnionType assignedType;
+                getExpressionVarType(functionTable, binOp->rSide, variableTable, &assignedType, resultTable);
                 assignedType.isUndefined = false;
                 for(int i = 0; i < TB_SIZE; i++) {
                     TableItem * item = variableTable->tb[i];
@@ -457,7 +485,10 @@ void getExpressionVarType(Table * functionTable, Expression * expression, Table 
                 table_statement_insert(resultTable, binOp->lSide, emptyType);
                 return;
             }
+            UnionType lType;
+            UnionType rType;
             getExpressionVarType(functionTable, binOp->lSide, variableTable, &lType, resultTable);
+            getExpressionVarType(functionTable, binOp->rSide, variableTable, &rType, resultTable);
             if(exprTypeRet == NULL) {
                 return;
             }
@@ -729,9 +760,6 @@ void getStatementListVarType(Table * functionTable, StatementList * statementLis
         getStatementVarType(functionTable, statementList->statements[i], variableTable, resultTable);
     }
 }
-
-// TODO: move the function elsewhere...
-Statement *** getAllStatements(Statement*, size_t*);
 
 void generateResultsTypeForFunction(Table * functionTable, StatementList * program, Function * currentFunction, PointerTable * resultTable) {
     Table * variableTable = table_init();

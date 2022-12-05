@@ -110,8 +110,7 @@ Token getNextToken() {
                     token.length += secondToken.length;
                     return token;
                 } else {
-                    fprintf(stderr, "Expected > or type after ?\n");
-                    lexerError(secondToken);
+                    return token;
                 }
             } else if(token.type == TOKEN_IDENTIFIER) {
                 if(strcmp(getTokenText(token), "if") == 0) {

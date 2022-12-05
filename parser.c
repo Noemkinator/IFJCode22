@@ -7,6 +7,7 @@
  */
 
 #include "parser.h"
+#include "code_generator.h"
 
 Token nextToken;
 
@@ -53,18 +54,23 @@ int getPrecedence(TokenType type) {
     case TOKEN_OR:
         return 2;
     case TOKEN_ASSIGN:
+    case TOKEN_PLUS_ASSIGN:
+    case TOKEN_MINUS_ASSIGN:
+    case TOKEN_CONCATENATE_ASSIGN:
+    case TOKEN_MULTIPLY_ASSIGN:
+    case TOKEN_DIVIDE_ASSIGN:
         return 1;
     default:
         return -1;
     }
 }
 
-bool is_operator(Token token) {
-    return token.type == TOKEN_PLUS || token.type == TOKEN_MINUS || token.type == TOKEN_MULTIPLY || token.type == TOKEN_DIVIDE || token.type == TOKEN_CONCATENATE || token.type == TOKEN_LESS || token.type == TOKEN_LESS_OR_EQUALS || token.type == TOKEN_GREATER || token.type == TOKEN_GREATER_OR_EQUALS || token.type == TOKEN_EQUALS || token.type == TOKEN_NOT_EQUALS || token.type == TOKEN_ASSIGN || token.type == TOKEN_AND || token.type == TOKEN_OR || token.type == TOKEN_NEGATE;
+bool is_binary_operator(Token token) {
+    return token.type == TOKEN_PLUS || token.type == TOKEN_MINUS || token.type == TOKEN_MULTIPLY || token.type == TOKEN_DIVIDE || token.type == TOKEN_CONCATENATE || token.type == TOKEN_LESS || token.type == TOKEN_LESS_OR_EQUALS || token.type == TOKEN_GREATER || token.type == TOKEN_GREATER_OR_EQUALS || token.type == TOKEN_EQUALS || token.type == TOKEN_NOT_EQUALS || token.type == TOKEN_ASSIGN || token.type == TOKEN_PLUS_ASSIGN || token.type == TOKEN_MINUS_ASSIGN || token.type == TOKEN_CONCATENATE_ASSIGN || token.type == TOKEN_MULTIPLY_ASSIGN || token.type == TOKEN_DIVIDE_ASSIGN || token.type == TOKEN_AND || token.type == TOKEN_OR;
 }
 
 bool is_unary_operator(Token token) {
-    return token.type == TOKEN_NEGATE;
+    return token.type == TOKEN_NEGATE || token.type == TOKEN_PLUS || token.type == TOKEN_MINUS || token.type == TOKEN_INCREMENT || token.type == TOKEN_DECREMENT;
 }
 
 char * decodeString(char * text) {
@@ -207,31 +213,134 @@ bool parse_terminal_expression(Expression ** expression) {
 bool parse_expression(Expression ** expression, int previousPrecedence) {
     if(is_unary_operator(nextToken)) {
         Token operatorToken = nextToken;
-        Expression__UnaryOperator * operator = Expression__UnaryOperator__init();
-        operator->operator = operatorToken.type;
-        *expression = (Expression*)operator;
-        nextToken = getNextToken();
-        if(!parse_expression(&operator->rSide, getPrecedence(operatorToken.type))) return false;
+        if(nextToken.type == TOKEN_PLUS) {
+            Expression__BinaryOperator * binaryOperator = Expression__BinaryOperator__init();
+            *expression = (Expression*)binaryOperator;
+            binaryOperator->operator = TOKEN_PLUS;
+            nextToken = getNextToken();
+            if(!parse_expression(&binaryOperator->rSide, 8)) return false; // TODO handle priority correctly
+            Expression__Constant * constant = Expression__Constant__init();
+            binaryOperator->lSide = (Expression*)constant;
+            constant->type.type = TYPE_INT;
+            constant->type.isRequired = true;
+            constant->value.integer = 0;
+            return true;
+        } else if(nextToken.type == TOKEN_MINUS) {
+            Expression__BinaryOperator * binaryOperator = Expression__BinaryOperator__init();
+            *expression = (Expression*)binaryOperator;
+            binaryOperator->operator = TOKEN_MINUS;
+            nextToken = getNextToken();
+            if(!parse_expression(&binaryOperator->rSide, 8)) return false; // TODO handle priority correctly
+            Expression__Constant * constant = Expression__Constant__init();
+            binaryOperator->lSide = (Expression*)constant;
+            constant->type.type = TYPE_INT;
+            constant->type.isRequired = true;
+            constant->value.integer = 0;
+            return true;
+        } else if(nextToken.type == TOKEN_INCREMENT) {
+            Expression__BinaryOperator * binaryOperator = Expression__BinaryOperator__init();
+            *expression = (Expression*)binaryOperator;
+            binaryOperator->operator = TOKEN_ASSIGN;
+            nextToken = getNextToken();
+            if(!parse_expression(&binaryOperator->lSide, 8)) return false; // TODO handle priority correctly
+            if(!binaryOperator->lSide->isLValue) {
+                printParserError(operatorToken, "Expected l-value");
+                return false;
+            }
+            Expression__BinaryOperator * binaryOperator2 = Expression__BinaryOperator__init();
+            binaryOperator->rSide = (Expression*)binaryOperator2;
+            binaryOperator2->lSide = (Expression*)binaryOperator->lSide->super.duplicate(&binaryOperator->lSide->super);
+            Expression__Constant * constant = Expression__Constant__init();
+            binaryOperator->lSide = (Expression*)constant;
+            constant->type.type = TYPE_INT;
+            constant->type.isRequired = true;
+            constant->value.integer = 1;
+            binaryOperator2->rSide = (Expression*)constant->super.super.duplicate(&constant->super.super);
+            binaryOperator2->operator = TOKEN_PLUS;
+            return true;
+        } else if(nextToken.type == TOKEN_DECREMENT) {
+            Expression__BinaryOperator * binaryOperator = Expression__BinaryOperator__init();
+            *expression = (Expression*)binaryOperator;
+            binaryOperator->operator = TOKEN_ASSIGN;
+            nextToken = getNextToken();
+            if(!parse_expression(&binaryOperator->lSide, 8)) return false; // TODO handle priority correctly
+            if(!binaryOperator->lSide->isLValue) {
+                printParserError(operatorToken, "Expected l-value");
+                return false;
+            }
+            Expression__BinaryOperator * binaryOperator2 = Expression__BinaryOperator__init();
+            binaryOperator->rSide = (Expression*)binaryOperator2;
+            binaryOperator2->lSide = (Expression*)binaryOperator->lSide->super.duplicate(&binaryOperator->lSide->super);
+            Expression__Constant * constant = Expression__Constant__init();
+            binaryOperator->lSide = (Expression*)constant;
+            constant->type.type = TYPE_INT;
+            constant->type.isRequired = true;
+            constant->value.integer = 1;
+            binaryOperator2->rSide = (Expression*)constant->super.super.duplicate(&constant->super.super);
+            binaryOperator2->operator = TOKEN_MINUS;
+            return true;
+        } else {
+            Expression__UnaryOperator * operator = Expression__UnaryOperator__init();
+            operator->operator = operatorToken.type;
+            *expression = (Expression*)operator;
+            nextToken = getNextToken();
+            if(!parse_expression(&operator->rSide, getPrecedence(operatorToken.type))) return false;
+        }
         return true;
     }
     if(!parse_terminal_expression(expression)) return false;
-    while(is_operator(nextToken)) {
+    while(is_binary_operator(nextToken)) {
         Token operatorToken = nextToken;
-        bool isRightAssociative = operatorToken.type == TOKEN_ASSIGN;
+        bool isRightAssociative = operatorToken.type == TOKEN_ASSIGN || operatorToken.type == TOKEN_PLUS_ASSIGN || operatorToken.type == TOKEN_MINUS_ASSIGN || operatorToken.type == TOKEN_CONCATENATE_ASSIGN || operatorToken.type == TOKEN_MULTIPLY_ASSIGN || operatorToken.type == TOKEN_DIVIDE_ASSIGN;
         int nextPrecedence = getPrecedence(operatorToken.type);
         if(previousPrecedence < nextPrecedence || (previousPrecedence == nextPrecedence && isRightAssociative)) {
-            if(!is_unary_operator(nextToken)) {
-                Expression__BinaryOperator * operator = Expression__BinaryOperator__init();
-                operator->operator = operatorToken.type;
-                operator->lSide = *expression;
-                if(operator->operator == TOKEN_ASSIGN && !operator->lSide->isLValue) {
-                    printParserError(nextToken, "Cannot assign to non-lvalue");
-                    return false;
-                }
-                *expression = (Expression*)operator;
-                nextToken = getNextToken();
-                if(!parse_expression(&operator->rSide, nextPrecedence)) return false;
+            Expression__BinaryOperator * operator = Expression__BinaryOperator__init();
+            operator->operator = operatorToken.type;
+            operator->lSide = *expression;
+            Expression ** rSide = &operator->rSide;
+            if(operatorToken.type == TOKEN_PLUS_ASSIGN) {
+                Expression__BinaryOperator * virtualOperator = Expression__BinaryOperator__init();
+                virtualOperator->operator = TOKEN_PLUS;
+                virtualOperator->lSide = (Expression*) operator->lSide->super.duplicate(&operator->lSide->super);
+                *rSide = (Expression*) virtualOperator;
+                rSide = &virtualOperator->rSide;
+                operator->operator = TOKEN_ASSIGN;
+            } else if(operatorToken.type == TOKEN_MINUS_ASSIGN) {
+                Expression__BinaryOperator * virtualOperator = Expression__BinaryOperator__init();
+                virtualOperator->operator = TOKEN_MINUS;
+                virtualOperator->lSide = (Expression*) operator->lSide->super.duplicate(&operator->lSide->super);
+                *rSide = (Expression*) virtualOperator;
+                rSide = &virtualOperator->rSide;
+                operator->operator = TOKEN_ASSIGN;
+            } else if(operatorToken.type == TOKEN_CONCATENATE_ASSIGN) {
+                Expression__BinaryOperator * virtualOperator = Expression__BinaryOperator__init();
+                virtualOperator->operator = TOKEN_CONCATENATE;
+                virtualOperator->lSide = (Expression*) operator->lSide->super.duplicate(&operator->lSide->super);
+                *rSide = (Expression*) virtualOperator;
+                rSide = &virtualOperator->rSide;
+                operator->operator = TOKEN_ASSIGN;
+            } else if(operatorToken.type == TOKEN_MULTIPLY_ASSIGN) {
+                Expression__BinaryOperator * virtualOperator = Expression__BinaryOperator__init();
+                virtualOperator->operator = TOKEN_MULTIPLY;
+                virtualOperator->lSide = (Expression*) operator->lSide->super.duplicate(&operator->lSide->super);
+                *rSide = (Expression*) virtualOperator;
+                rSide = &virtualOperator->rSide;
+                operator->operator = TOKEN_ASSIGN;
+            } else if(operatorToken.type == TOKEN_DIVIDE_ASSIGN) {
+                Expression__BinaryOperator * virtualOperator = Expression__BinaryOperator__init();
+                virtualOperator->operator = TOKEN_DIVIDE;
+                virtualOperator->lSide = (Expression*) operator->lSide->super.duplicate(&operator->lSide->super);
+                *rSide = (Expression*) virtualOperator;
+                rSide = &virtualOperator->rSide;
+                operator->operator = TOKEN_ASSIGN;
             }
+            if(operator->operator == TOKEN_ASSIGN && !operator->lSide->isLValue) {
+                printParserError(nextToken, "Cannot assign to non-lvalue");
+                return false;
+            }
+            *expression = (Expression*)operator;
+            nextToken = getNextToken();
+            if(!parse_expression(rSide, nextPrecedence)) return false;
         } else {
             break;
         }
@@ -606,8 +715,6 @@ bool parse_function(Function ** retFunction) {
     nextToken = getNextToken();
     return true;
 }
-
-#include "code_generator.c"
 
 void loadBuiltinFunctions(Table * functionTable) {
     Function * reads = Function__init();

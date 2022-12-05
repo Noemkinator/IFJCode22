@@ -126,15 +126,52 @@ Token getNextUnprocessedToken() {
     else if(isspace(c)) TOKEN(WHITESPACE)
     else if(c == ';') TOKEN(SEMICOLON)
     else if(c == '$') TOKEN(DOLAR)
-    else if(c == '?') TOKEN(QUESTIONMARK)
+    else if(c == '?') {
+        char nextChar = getNextChar();
+        if(nextChar == '?') TOKEN(NULL_COALESCING)
+        else {
+            undoChar();
+            TOKEN(QUESTIONMARK)
+        }
+    }
     else if(c == '(') TOKEN(OPEN_BRACKET)
     else if(c == ')') TOKEN(CLOSE_BRACKET)
     else if(c == '{') TOKEN(OPEN_CURLY_BRACKET)
     else if(c == '}') TOKEN(CLOSE_CURLY_BRACKET)
-    else if(c == '+') TOKEN(PLUS)
-    else if(c == '-') TOKEN(MINUS)
-    else if(c == '.') TOKEN(CONCATENATE)
-    else if(c == '*') TOKEN(MULTIPLY)
+    else if(c == '+') {
+        char nextChar = getNextChar();
+        if(nextChar == '+') TOKEN(INCREMENT)
+        else if(nextChar == '=') TOKEN(PLUS_ASSIGN)
+        else {
+            undoChar();
+            TOKEN(PLUS)
+        }
+    }
+    else if(c == '-') {
+        char nextChar = getNextChar();
+        if(nextChar == '-') TOKEN(DECREMENT)
+        else if(nextChar == '=') TOKEN(MINUS_ASSIGN)
+        else {
+            undoChar();
+            TOKEN(MINUS)
+        }
+    }
+    else if(c == '.') {
+        char nextChar = getNextChar();
+        if(nextChar == '=') TOKEN(CONCATENATE_ASSIGN)
+        else {
+            undoChar();
+            TOKEN(CONCATENATE)
+        }
+    }
+    else if(c == '*') {
+        char nextChar = getNextChar();
+        if(nextChar == '=') TOKEN(MULTIPLY_ASSIGN)
+        else {
+            undoChar();
+            TOKEN(MULTIPLY)
+        }
+    }
     else if(c == ',') TOKEN(COMMA)
     else if(c == ':') TOKEN(COLON)
     else if(c == '|') {
@@ -236,6 +273,8 @@ Token getNextUnprocessedToken() {
                     lexerError(token);
                 }
             } while(1);
+        } else if(nextChar == '=') {
+            TOKEN(DIVIDE_ASSIGN)
         } else {
             undoChar();
             TOKEN(DIVIDE)
