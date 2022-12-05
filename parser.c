@@ -145,49 +145,116 @@ char * decodeString(char * text) {
     return retAddr;
 }
 
+bool is_first_if(TokenType tokenType) {
+    return tokenType == TOKEN_IF;
+}
+
+bool is_first_while(TokenType tokenType) {
+    return tokenType == TOKEN_WHILE;
+}
+
+bool is_first_open_bracket(TokenType tokenType) {
+    return tokenType == TOKEN_OPEN_BRACKET;
+}
+
+bool is_first_close_bracket(TokenType tokenType) {
+    return tokenType == TOKEN_CLOSE_BRACKET;
+}
+
+bool is_first_open_curly_bracket(TokenType tokenType) {
+    return tokenType == TOKEN_OPEN_CURLY_BRACKET;
+}
+
+bool is_first_close_curly_bracket(TokenType tokenType) {
+    return tokenType == TOKEN_CLOSE_CURLY_BRACKET;
+}
+
+bool is_first_identifier(TokenType tokenType) {
+    return tokenType == TOKEN_IDENTIFIER;
+}
+
+bool is_first_constant_string(TokenType tokenType) {
+    return tokenType == TOKEN_STRING;
+}
+
+bool is_first_constant_integer(TokenType tokenType) {
+    return tokenType == TOKEN_INTEGER;
+}
+
+bool is_first_constant_float(TokenType tokenType) {
+    return tokenType == TOKEN_FLOAT;
+}
+
+bool is_first_constant_bool(TokenType tokenType) {
+    return tokenType == TOKEN_BOOL;
+}
+
+bool is_first_constant_null(TokenType tokenType) {
+    return tokenType == TOKEN_NULL;
+}
+
+bool is_first_variable(TokenType tokenType) {
+    return nextToken.type == TOKEN_VARIABLE;
+}
+
+bool is_first_constant(TokenType tokenType) {
+    return 
+        is_first_constant_bool(tokenType) ||
+        is_first_constant_float(tokenType) ||
+        is_first_constant_integer(tokenType) ||
+        is_first_constant_null(tokenType) ||
+        is_first_constant_string(tokenType);
+}
+
+bool is_first_constant_or_variable(TokenType tokenType) {
+    return is_first_variable(tokenType) || is_first_constant(tokenType);
+}
+
+
+
 bool parse_terminal_expression(Expression ** expression) {
     *expression = NULL;
-    if(nextToken.type == TOKEN_OPEN_BRACKET) {
+    if(is_first_open_bracket(nextToken.type)) {
         nextToken = getNextToken();
         if(!parse_expression(expression, 0)) return false;
         (*expression)->isLValue = false;
-        if(nextToken.type != TOKEN_CLOSE_BRACKET) {
+        if(! is_first_close_bracket) {
             printParserError(nextToken, "Expected closing bracket");
             return false;
         }
         nextToken = getNextToken();
         return true;
     }
-    if(nextToken.type == TOKEN_IDENTIFIER) {
+    if(is_first_identifier(nextToken.type)) {
         if(!parse_function_call(expression)) return false;
         return true;
     }
-    if(nextToken.type != TOKEN_VARIABLE && nextToken.type != TOKEN_INTEGER && nextToken.type != TOKEN_FLOAT && nextToken.type != TOKEN_STRING && nextToken.type != TOKEN_NULL && nextToken.type != TOKEN_BOOL) {
+    if(! is_first_constant_or_variable(nextToken.type)) {
         printParserError(nextToken, "Expected expression");
         return false;
     }
-    if(nextToken.type == TOKEN_VARIABLE) {
+    if(is_first_variable(nextToken.type)) {
         Expression__Variable * variable = Expression__Variable__init();
         *expression = (Expression*)variable;
         variable->name = getTokenTextPermanent(nextToken);
-    } else if(nextToken.type == TOKEN_INTEGER || nextToken.type == TOKEN_FLOAT || nextToken.type == TOKEN_STRING || nextToken.type == TOKEN_BOOL || nextToken.type == TOKEN_NULL) {
+    } else if(is_first_constant(nextToken.type)) {
         Expression__Constant * constant = Expression__Constant__init();
         *expression = (Expression*)constant;
         Type type;
         type.isRequired = true;
-        if(nextToken.type == TOKEN_INTEGER) {
+        if(is_first_constant_integer(nextToken.type)) {
             type.type = TYPE_INT;
             constant->type = type;
             constant->value.integer = atoll(getTokenText(nextToken));
-        } else if(nextToken.type == TOKEN_FLOAT) {
+        } else if(is_first_constant_float(nextToken.type)) {
             type.type = TYPE_FLOAT;
             constant->type = type;
             constant->value.real = atof(getTokenText(nextToken));
-        } else if(nextToken.type == TOKEN_STRING) {
+        } else if(is_first_constant_string(nextToken.type)) {
             type.type = TYPE_STRING;
             constant->type = type;
             constant->value.string = decodeString(getTokenText(nextToken));
-        } else if(nextToken.type == TOKEN_BOOL) {
+        } else if(is_first_constant_bool(nextToken.type)) {
             type.type = TYPE_BOOL;
             constant->type = type;
             char* tokenText = getTokenText(nextToken);
@@ -196,7 +263,7 @@ bool parse_terminal_expression(Expression ** expression) {
             } else {
                 constant->value.boolean = false;
             }
-        } else if(nextToken.type == TOKEN_NULL) {
+        } else if(is_first_constant_null(nextToken.type)) {
             type.type = TYPE_NULL;
             constant->type = type;
         }
