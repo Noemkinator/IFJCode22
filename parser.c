@@ -286,7 +286,7 @@ bool parse_expression(Expression ** expression, int previousPrecedence) {
     if(!parse_terminal_expression(expression)) return false;
     while(is_binary_operator(nextToken)) {
         Token operatorToken = nextToken;
-        bool isRightAssociative = operatorToken.type == TOKEN_ASSIGN;
+        bool isRightAssociative = operatorToken.type == TOKEN_ASSIGN || operatorToken.type == TOKEN_PLUS_ASSIGN || operatorToken.type == TOKEN_MINUS_ASSIGN || operatorToken.type == TOKEN_CONCATENATE_ASSIGN || operatorToken.type == TOKEN_MULTIPLY_ASSIGN || operatorToken.type == TOKEN_DIVIDE_ASSIGN;
         int nextPrecedence = getPrecedence(operatorToken.type);
         if(previousPrecedence < nextPrecedence || (previousPrecedence == nextPrecedence && isRightAssociative)) {
             Expression__BinaryOperator * operator = Expression__BinaryOperator__init();
