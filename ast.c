@@ -671,30 +671,25 @@ UnionType getStatementVarType(Table * functionTable, Statement * statement, Tabl
         }
         case STATEMENT_FOR: {
             StatementFor* forStatement = (StatementFor*)statement; // initialize for statement
-            Table * duplTable = duplicateVarTypeTable(variableTable); // duplicate variable table
             // get variable type of initialization
             if(forStatement->init != NULL) {
                 getExpressionVarType(functionTable, forStatement->init, variableTable, NULL, resultTable);
-            }
-             // get variable type of increment
-            if(forStatement->increment != NULL) {
-                getExpressionVarType(functionTable, forStatement->increment, variableTable, NULL, resultTable);
             }
             // get variable type of condition
             if(forStatement->condition != NULL) {
                 getExpressionVarType(functionTable, forStatement->condition, variableTable, NULL, resultTable);
             }
-           
+            Table * duplTable = duplicateVarTypeTable(variableTable); // duplicate variable table
             PointerTable * duplResultTable = duplicateTableStatement(resultTable);
             bool changed = true;
             while(changed) {
                 changed = false;
+                // get variable type of body
+                getStatementVarType(functionTable, forStatement->body, duplTable, duplResultTable);
                 // get variable type of increment
                 if(forStatement->increment != NULL) {
                     getExpressionVarType(functionTable, forStatement->increment, duplTable, NULL, duplResultTable);
                 }
-                // get variable type of body
-                getStatementVarType(functionTable, forStatement->body, duplTable, duplResultTable);
                 // get variable type of condition
                 if(forStatement->condition != NULL) {
                     getExpressionVarType(functionTable, forStatement->condition, duplTable, NULL, duplResultTable);
@@ -1495,10 +1490,18 @@ StatementFor* StatementFor__duplicate(StatementFor* this) {
 
 void StatementFor__free(StatementFor* this) {
     if(this == NULL) return;
-    this->body->free(this->body);
-    this->condition->super.free((Statement*)this->condition);
-    this->init->super.free((Statement*)this->init);
-    this->increment->super.free((Statement*)this->increment);
+    if(this->body != NULL){
+        this->body->free(this->body);
+    }
+    if(this->condition != NULL){
+        this->condition->super.free((Statement*)this->condition);
+    }
+    if(this->init != NULL){
+        this->init->super.free((Statement*)this->init);
+    }
+    if(this->increment != NULL){
+        this->increment->super.free((Statement*)this->increment);
+    }
     free(this);
 }
 
@@ -1526,7 +1529,7 @@ StatementFor* StatementFor__init() {
  * @param stringBuilder 
  */
 void StatementContinue__serialize(StatementContinue *this, StringBuilder * stringBuilder) {
-    StringBuilder__appendString(stringBuilder, "{\"statementType\": \"STATEMENT_CONTINUE\"}");
+    StringBuilder__appendString(stringBuilder, "{\"statementType\": \"STATEMENT_CONTINUE\", \"depth\": }");
 }
 
 /**
@@ -1548,7 +1551,9 @@ Statement *** StatementContinue__getChildren(StatementContinue *this, int * chil
  * @return StatementContinue* 
  */
 StatementContinue* StatementContinue__duplicate(StatementContinue* this) {
-    return StatementContinue__init();
+    StatementContinue* duplicate = StatementContinue__init();
+    duplicate->depth = this->depth;
+    return duplicate;
 }
 
 void StatementContinue__free(StatementContinue* this) {
@@ -1566,7 +1571,6 @@ StatementContinue* StatementContinue__init() {
     this->super.getChildren = (struct Statement *** (*)(struct Statement *, int *))StatementContinue__getChildren;
     this->super.duplicate = (struct Statement * (*)(struct Statement *))StatementContinue__duplicate;
     this->super.free = (void (*)(struct Statement *))StatementContinue__free;
-    this->depth = 1;
     return this;
 }
 
@@ -1577,7 +1581,7 @@ StatementContinue* StatementContinue__init() {
  * @param stringBuilder 
  */
 void StatementBreak__serialize(StatementBreak *this, StringBuilder * stringBuilder) {
-    StringBuilder__appendString(stringBuilder, "{\"statementType\": \"STATEMENT_BREAK\"}");
+    StringBuilder__appendString(stringBuilder, "{\"statementType\": \"STATEMENT_BREAK\", \"depth\"}");
 }
 
 /**
@@ -1599,7 +1603,9 @@ Statement *** StatementBreak__getChildren(StatementBreak *this, int * childrenCo
  * @return StatementBreak* 
  */
 StatementBreak* StatementBreak__duplicate(StatementBreak* this) {
-    return StatementBreak__init();
+    StatementBreak* duplicate = StatementBreak__init();
+    duplicate->depth = this->depth;
+    return duplicate;
 }
 
 void StatementBreak__free(StatementBreak* this) {
