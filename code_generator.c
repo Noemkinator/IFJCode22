@@ -1761,16 +1761,16 @@ void generateFor(StatementFor * statement, Context ctx) {
 void generateContinue(StatementContinue * statement, Context ctx) {
     if(statement->depth < 1) {
         fprintf(stderr, "Continue statement depth must be at least 1\n");
-        exit(99);
+        exit(8);
     }
     emit_COMMENT("Continue statement");
     if (ctx.continueLabels->size == 0) {
         fprintf(stderr, "Continue statement outside of loop\n");
-        exit(99);
+        exit(8);
     }
     if (statement->depth > ctx.continueLabels->size) {
         fprintf(stderr, "Trying to continue %d loops, but there are only %ld loops\n", statement->depth, ctx.continueLabels->size);
-        exit(99);
+        exit(8);
     }
     emit_JUMP(stringArrayGet(ctx.continueLabels,ctx.continueLabels->size - (size_t)statement->depth));
 }
@@ -1785,16 +1785,16 @@ void generateContinue(StatementContinue * statement, Context ctx) {
 void generateBreak(StatementBreak * statement, Context ctx) {
     if(statement->depth < 1) {
         fprintf(stderr, "Break statement depth must be at least 1\n");
-        exit(99);
+        exit(8);
     }
     emit_COMMENT("Break statement");
     if(ctx.breakLabels->size == 0) {
         fprintf(stderr, "Break statement outside of loop\n");
-        exit(99);
+        exit(8);
     }
     if (statement->depth > ctx.breakLabels->size) {
         fprintf(stderr, "Trying to break %d loops, but there are only %ld loops\n", statement->depth, ctx.breakLabels->size);
-        exit(99);
+        exit(8);
     }
     emit_JUMP(stringArrayGet(ctx.breakLabels, ctx.breakLabels->size - (size_t)statement->depth));
 }
