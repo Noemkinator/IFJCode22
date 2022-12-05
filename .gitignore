@@ -9,3 +9,8 @@ ic22int
 /x
 /x2
 .vscode
+*.asm
+ic22int
+.git*
+*.sh
+tests/*
