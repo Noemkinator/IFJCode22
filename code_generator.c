@@ -1688,8 +1688,8 @@ void generateWhile(StatementWhile * statement, Context ctx) {
 
     emit_LABEL(whileStart);
     generateConditionJump(statement->condition, ctx, whileEnd, false);
-    stringArrayAdd(ctx.breakLabels, whileEndSb.text);
-    stringArrayAdd(ctx.continueLabels, whileStartSb.text);
+    stringArrayAdd(ctx.breakLabels, whileEnd);
+    stringArrayAdd(ctx.continueLabels, whileStart);
     generateStatement(statement->body, ctx);
     emit_JUMP(whileStart);
     emit_LABEL(whileEnd);
@@ -1708,43 +1708,34 @@ void generateWhile(StatementWhile * statement, Context ctx) {
  */
 void generateFor(StatementFor * statement, Context ctx) {   
     size_t forUID = getNextCodeGenUID();
-    StringBuilder forStartSb;
-    StringBuilder__init(&forStartSb);
-    StringBuilder__appendString(&forStartSb, "forStart&");
-    StringBuilder__appendInt(&forStartSb, forUID);
-    StringBuilder forEndSb;
-    StringBuilder__init(&forEndSb);
-    StringBuilder__appendString(&forEndSb, "forEnd&");
-    StringBuilder__appendInt(&forEndSb, forUID);
+    char* forStart = create_label("forStart&", forUID);
+    char* forEnd = create_label("forEnd&", forUID);
 
     if (statement->init != NULL) generateExpression(statement->init, ctx, true, NULL);
 
-    emit_LABEL(forStartSb.text);
+    emit_LABEL(forStart);
 
     if (statement->condition != NULL) {
-        Symb condition = generateExpression(statement->condition, ctx, false, NULL);
-        condition = generateCastToBool(statement->condition, condition, ctx, true);
-        emit_JUMPIFNEQ(forEndSb.text, condition, (Symb){.type=Type_bool, .value.b = true});
-        freeTemporarySymbol(condition, ctx);
+        generateConditionJump(statement->condition, ctx, forEnd, false);
     }else {
         emit_COMMENT("No condition for for statement");
     }
 
-    stringArrayAdd(ctx.breakLabels, forEndSb.text);
-    stringArrayAdd(ctx.continueLabels, forStartSb.text);
+    stringArrayAdd(ctx.breakLabels, forEnd);
+    stringArrayAdd(ctx.continueLabels, forStart);
 
     generateStatement(statement->body, ctx);
 
     if (statement->increment != NULL) generateExpression(statement->increment, ctx, false, NULL);
 
-    emit_JUMP(forStartSb.text);
-    emit_LABEL(forEndSb.text);
+    emit_JUMP(forStart);
+    emit_LABEL(forEnd);
 
     stringArrayRemove (ctx.breakLabels);
     stringArrayRemove (ctx.continueLabels);
 
-    StringBuilder__free(&forStartSb);
-    StringBuilder__free(&forEndSb);
+    free(forStart);
+    free(forEnd);
 }
 
 /**
