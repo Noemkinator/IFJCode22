@@ -1,4 +1,5 @@
 /**
+ * Implementace překladače imperativního jazyka IFJ22
  * @file lexer_processor.c
  * @author Jiří Gallo (xgallo04)
  * @brief Lexical processor
@@ -147,6 +148,15 @@ Token getNextToken() {
                     return token;
                 } else if(strcmp(getTokenText(token), "while") == 0) {
                     token.type = TOKEN_WHILE;
+                    return token;
+                } else if(strcmp(getTokenText(token), "for") == 0) {
+                    token.type = TOKEN_FOR;
+                    return token;
+                } else if(strcmp(getTokenText(token), "break") == 0) {
+                    token.type = TOKEN_BREAK;
+                    return token;
+                } else if(strcmp(getTokenText(token), "continue") == 0) {
+                    token.type = TOKEN_CONTINUE;
                     return token;
                 }
             }

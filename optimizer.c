@@ -1,5 +1,10 @@
-// Implementace překladače imperativního jazyka IFJ22
-// Authors: Jiří Gallo (xgallo04)
+/**
+ * Implementace překladače imperativního jazyka IFJ22
+ * @file optimizer.c
+ * @author Jiří Gallo (xgallo04)
+ * @brief Optimizer of IFJcode22
+ * @date 2022-10-26
+ */
 
 #include "optimizer.h"
 

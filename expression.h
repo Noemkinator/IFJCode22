@@ -1,4 +1,5 @@
 /**
+ * Implementace překladače imperativního jazyka IFJ22
  * @brief Hlavičkový soubor pro implementaci zpracovani vyrazu pomoci precedencni syntakticke analyzy (expression.h) 
  * @author Jakub Kratochvíl (xkrato67)
  */

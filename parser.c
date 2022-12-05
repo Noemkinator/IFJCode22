@@ -1,5 +1,10 @@
-// Implementace překladače imperativního jazyka IFJ22
-// Authors: Jiří Gallo (xgallo04), Jakub Kratochvíl (xkrato67)
+/**
+ * Implementace překladače imperativního jazyka IFJ22
+ * @file parser.c
+ * @authors Jiří Gallo (xgallo04), Jakub Kratochvíl (xkrato67), Michal Cejpek (xcejpe05), Jan Zajíček (xzajic22)
+ * @brief Parser for IFJcode22
+ * @date 2022-10-22
+ */
 
 #include "parser.h"
 #include "code_generator.h"
@@ -348,7 +353,7 @@ extern bool parse_statement();
 bool parse_statement_list(StatementList ** statementListRet) {
     StatementList * statementList = StatementList__init();
     *statementListRet = statementList;
-    while(nextToken.type == TOKEN_OPEN_BRACKET || nextToken.type == TOKEN_IDENTIFIER || nextToken.type == TOKEN_VARIABLE || nextToken.type == TOKEN_INTEGER || nextToken.type == TOKEN_FLOAT || nextToken.type == TOKEN_STRING || nextToken.type == TOKEN_VARIABLE || nextToken.type == TOKEN_IF || nextToken.type == TOKEN_WHILE || nextToken.type == TOKEN_IDENTIFIER || nextToken.type == TOKEN_RETURN || nextToken.type == TOKEN_NULL) {
+    while(nextToken.type == TOKEN_OPEN_BRACKET || nextToken.type == TOKEN_IDENTIFIER || nextToken.type == TOKEN_VARIABLE || nextToken.type == TOKEN_INTEGER || nextToken.type == TOKEN_FLOAT || nextToken.type == TOKEN_STRING || nextToken.type == TOKEN_VARIABLE || nextToken.type == TOKEN_IF || nextToken.type == TOKEN_WHILE || nextToken.type == TOKEN_IDENTIFIER || nextToken.type == TOKEN_RETURN || nextToken.type == TOKEN_NULL || nextToken.type == TOKEN_BREAK || nextToken.type == TOKEN_CONTINUE || nextToken.type == TOKEN_FOR) {
         Statement * statement;
         bool success = parse_statement(&statement);
         StatementList__addStatement(statementList, statement);
@@ -432,6 +437,125 @@ bool parse_while(StatementWhile ** statementWhileRet) {
     nextToken = getNextToken();
     return true;
 }
+bool parse_for(StatementFor ** statementForRet) {
+    StatementFor * statementFor = StatementFor__init();
+    *statementForRet = statementFor;
+    nextToken = getNextToken();
+    if(nextToken.type != TOKEN_OPEN_BRACKET) {
+        printParserError(nextToken, "Missing ( after for");
+        return false;
+    }
+    nextToken = getNextToken();
+    if(nextToken.type == TOKEN_SEMICOLON) {
+        statementFor->init = NULL;
+    } else {
+        if(!parse_expression(&statementFor->init, 0)) return false;
+    }
+    if(nextToken.type != TOKEN_SEMICOLON) {
+        printParserError(nextToken, "Missing ; after for init");
+        return false;
+    }
+    nextToken = getNextToken();
+    if(nextToken.type == TOKEN_SEMICOLON) {
+        statementFor->condition = NULL;
+    } else {
+        if(!parse_expression(&statementFor->condition, 0)) return false;
+    }
+    if(nextToken.type != TOKEN_SEMICOLON) {
+        printParserError(nextToken, "Missing ; after for condition");
+        return false;
+    }
+    nextToken = getNextToken();
+    if(nextToken.type == TOKEN_CLOSE_BRACKET) {
+        statementFor->increment = NULL;
+    } else {
+        if(!parse_expression(&statementFor->increment, 0)) return false;
+    }
+    if(nextToken.type != TOKEN_CLOSE_BRACKET) {
+        printParserError(nextToken, "Missing ) after for");
+        return false;
+    }
+    nextToken = getNextToken();
+    if(nextToken.type != TOKEN_OPEN_CURLY_BRACKET) {
+        printParserError(nextToken, "Missing { after for");
+        return false;
+    }
+    nextToken = getNextToken();
+    if(!parse_statement_list((StatementList**)&statementFor->body)) return false;
+    if(nextToken.type != TOKEN_CLOSE_CURLY_BRACKET) {
+        printParserError(nextToken, "Missing } after for");
+        return false;
+    }
+    nextToken = getNextToken();
+    return true;
+}
+
+/**
+ * @brief Parses continue statement
+ * 
+ * @param statementContinueRet 
+ * @return true 
+ * @return false 
+ */
+bool parse_continue(StatementContinue ** statementContinueRet) {
+    StatementContinue * statementContinue = StatementContinue__init();
+    *statementContinueRet = statementContinue;
+    nextToken = getNextToken();
+    // optional parameter
+    if(nextToken.type != TOKEN_SEMICOLON) {
+        // parameter must be integer
+        if(nextToken.type !=  TOKEN_INTEGER) {
+            printParserError(nextToken, "Continue parameter must be integer");
+            return false;
+        }
+        statementContinue->depth = atoll(getTokenText(nextToken));
+        // if parameter is integer, get next token
+        nextToken = getNextToken();
+        if(nextToken.type != TOKEN_SEMICOLON) {
+            printParserError(nextToken, "Missing ; after continue");
+            return false;
+        }
+        nextToken = getNextToken();
+        return true;
+    }
+    statementContinue->depth = 1;
+    if (nextToken.type == TOKEN_SEMICOLON) {
+        nextToken = getNextToken();
+        return true;
+    }
+    printParserError(nextToken, "Missing ; after continue");
+    return false;
+}
+
+bool parse_break(StatementBreak ** statementBreakRet) {
+    StatementBreak * statementBreak = StatementBreak__init();
+    *statementBreakRet = statementBreak;
+    nextToken = getNextToken();
+    // optional parameter
+    if(nextToken.type != TOKEN_SEMICOLON) {
+        // parameter must be integer
+        if(nextToken.type != TOKEN_INTEGER) {
+            printParserError(nextToken, "Break parameter must be integer");
+            return false;
+        }
+        statementBreak->depth = atoll(getTokenText(nextToken));
+        // if parameter is integer, get next token
+        nextToken = getNextToken();
+        if(nextToken.type != TOKEN_SEMICOLON) {
+            printParserError(nextToken, "Missing ; after break");
+            return false;
+        }
+        nextToken = getNextToken();
+        return true;
+    }
+    statementBreak->depth = 1;
+    if (nextToken.type == TOKEN_SEMICOLON) {
+        nextToken = getNextToken();
+        return true;
+    }
+    printParserError(nextToken, "Missing ; after break");
+    return false;
+}
 
 bool parse_function_arguments(Expression__FunctionCall * functionCall) {
     if(nextToken.type == TOKEN_CLOSE_BRACKET) return true;
@@ -495,6 +619,12 @@ bool parse_statement(Statement ** retStatement) {
             return parse_while((StatementWhile**)retStatement);
         case TOKEN_RETURN:
             return parse_return((StatementReturn**)retStatement);
+        case TOKEN_FOR:
+            return parse_for((StatementFor**)retStatement);
+        case TOKEN_BREAK:
+            return parse_break((StatementBreak**)retStatement);
+        case TOKEN_CONTINUE:
+            return parse_continue((StatementContinue**)retStatement);
         default:
             if(nextToken.type == TOKEN_OPEN_BRACKET || nextToken.type == TOKEN_IDENTIFIER || nextToken.type == TOKEN_VARIABLE || nextToken.type == TOKEN_INTEGER || nextToken.type == TOKEN_FLOAT || nextToken.type == TOKEN_STRING || nextToken.type == TOKEN_NULL) {
                 if(!parse_expression((Expression**)retStatement, 0)) return false;
@@ -694,10 +824,10 @@ bool parse() {
     }
     // https://jsoncrack.com/editor
     // https://vanya.jp.net/vtree/
-    StringBuilder stringBuilder;
-    StringBuilder__init(&stringBuilder);
-    program->super.serialize((Statement*)program, &stringBuilder);
-    fprintf(stderr, "%s\n", stringBuilder.text);
+    //StringBuilder stringBuilder;
+    //StringBuilder__init(&stringBuilder);
+    //program->super.serialize((Statement*)program, &stringBuilder);
+    //fprintf(stderr, "%s\n", stringBuilder.text);
     generateCode(program, function_table);
     return true;
 }

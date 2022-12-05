@@ -1,6 +1,9 @@
 /**
- * @brief Implementace zasobniku pro zasobnikovy automat (stack.c) 
+ * Implementace překladače imperativního jazyka IFJ22
+ * @file stack.c
  * @author Jakub Kratochvíl (xkrato67)
+ * @brief Stack implementation
+ * @date 2022-10-22
  */
 
 #include "stack.h"
