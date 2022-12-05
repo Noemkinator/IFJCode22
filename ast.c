@@ -601,7 +601,7 @@ void getExpressionVarType(Table * functionTable, Expression * expression, Table 
 
 void getStatementListVarType(Table * functionTable, StatementList * statementList, Table * variableTable, PointerTable * resultTable);
 
-UnionType getStatementVarType(Table * functionTable, Statement * statement, Table * variableTable, PointerTable * resultTable) {
+void getStatementVarType(Table * functionTable, Statement * statement, Table * variableTable, PointerTable * resultTable) {
     switch(statement->statementType) {
         case STATEMENT_EXPRESSION:
             getExpressionVarType(functionTable, (Expression*)statement, variableTable, NULL, resultTable);
@@ -691,7 +691,6 @@ UnionType getStatementVarType(Table * functionTable, Statement * statement, Tabl
         default:
             break;
     }
-    return (UnionType){0};
 }
 
 void getStatementListVarType(Table * functionTable, StatementList * statementList, Table * variableTable, PointerTable * resultTable) {
