@@ -284,7 +284,7 @@ Symb generateCastToBool(Expression * expression, Symb symb, Context ctx, bool is
     }
     if(expression->expressionType == EXPRESSION_CONSTANT) {
         if(!isCondtion) {
-            Expression__Constant * constant = performConstantCast((Expression__Constant*)expression, (Type){.type=TYPE_BOOL, .isRequired=true});
+            Expression__Constant * constant = performConstantCast((Expression__Constant*)expression, (Type){.type=TYPE_BOOL, .isRequired=true}, false);
             if(constant != NULL) {
                 return generateConstant(constant);
             } else {
@@ -371,13 +371,10 @@ Symb generateCastToInt(Symb symb, Expression * expression, Context * ctx, Symb *
         return symb;
     }
     if(expression->expressionType == EXPRESSION_CONSTANT) {
-        Expression__Constant * constant = performConstantCast((Expression__Constant*)expression, (Type){.type=TYPE_INT, .isRequired=true});
+        Expression__Constant * constant = performConstantCast((Expression__Constant*)expression, (Type){.type=TYPE_INT, .isRequired=true}, isBuiltin);
         if(constant != NULL) {
             return generateConstant(constant);
-        } else {
-            fprintf(stderr, "ERR: Failed constant cast to int, but this should always succeed\n");
-            exit(99);
-        }
+        } 
     }
     Symb symbType;
     if(typeSymb == NULL) {
@@ -433,8 +430,10 @@ Symb generateCastToInt(Symb symb, Expression * expression, Context * ctx, Symb *
         Var is_builtin = generateTemporaryVariable(*ctx);
         char* notString = create_label("not_string&", castUID);
         char* intval_loop = create_label("intval_loop&", castUID);
+        char* empty_loop = create_label("empty_loop&", castUID);
         char* throw_error = create_label("throw_error&", castUID);
         char* skip_throw_error = create_label("skip_throw_error&", castUID);
+        char* skip_beginning = create_label("skip_beginning&", castUID);
         emit_JUMPIFNEQ(notString, symbType, (Symb){.type = Type_string, .value.s = "string"});
         emit_MOVE(index, (Symb){.type = Type_int, .value.i = 0});
         emit_MOVE(result, (Symb){.type = Type_int, .value.i = 0});
@@ -444,14 +443,20 @@ Symb generateCastToInt(Symb symb, Expression * expression, Context * ctx, Symb *
             emit_MOVE(is_builtin, (Symb){.type = Type_bool, .value.b = false});
         }
         emit_STRLEN(length, symb);
-        emit_JUMPIFNEQ(intval_loop, (Symb){.type = Type_variable, .value.v = length}, (Symb){.type = Type_int, .value.i = 0});
-        emit_JUMPIFEQ(intval_loop, (Symb){.type = Type_variable, .value.v = is_builtin}, (Symb){.type = Type_bool, .value.b = true});
+        emit_JUMPIFNEQ(empty_loop, (Symb){.type = Type_variable, .value.v = length}, (Symb){.type = Type_int, .value.i = 0});
+        emit_JUMPIFEQ(empty_loop, (Symb){.type = Type_variable, .value.v = is_builtin}, (Symb){.type = Type_bool, .value.b = true});
         emit_EXIT((Symb){.type = Type_int, .value.i = 7});
-        emit_LABEL(intval_loop);
-        // temp_value = symb[i]
+        // loop for going through empty chars
+        emit_LABEL(empty_loop);
         emit_STRI2INT(temp_value, symb, (Symb){.type = Type_variable, .value.v = index});
         emit_ADD(index, (Symb){.type = Type_variable, .value.v = index}, (Symb){.type = Type_int, .value.i = 1});
-        emit_JUMPIFEQ(intval_loop, (Symb){.type = Type_variable, .value.v = temp_value}, (Symb){.type = Type_int, .value.i = 32});
+        emit_JUMPIFEQ(empty_loop, (Symb){.type = Type_variable, .value.v = temp_value}, (Symb){.type = Type_int, .value.i = 32});
+        emit_JUMP(skip_beginning);
+        // loop for calculating int value
+        emit_LABEL(intval_loop);
+        emit_STRI2INT(temp_value, symb, (Symb){.type = Type_variable, .value.v = index});
+        emit_ADD(index, (Symb){.type = Type_variable, .value.v = index}, (Symb){.type = Type_int, .value.i = 1});
+        emit_LABEL(skip_beginning);
         // check if char < '0'
         emit_PUSHS((Symb){.type = Type_variable, .value.v = temp_value});
         emit_PUSHS((Symb){.type = Type_int, .value.i = 48});
@@ -481,8 +486,10 @@ Symb generateCastToInt(Symb symb, Expression * expression, Context * ctx, Symb *
         emit_LABEL(notString);
         free(notString);
         free(intval_loop);
+        free(empty_loop);
         free(throw_error);
         free(skip_throw_error);
+        free(skip_beginning);
     }
     emit_LABEL(castEnd);
     free(castEnd);
@@ -497,13 +504,10 @@ Symb generateCastToFloat(Symb symb, Expression * expression, Context * ctx, Symb
         return symb;
     }
     if(expression->expressionType == EXPRESSION_CONSTANT) {
-        Expression__Constant * constant = performConstantCast((Expression__Constant*)expression, (Type){.type=TYPE_FLOAT, .isRequired=true});
+        Expression__Constant * constant = performConstantCast((Expression__Constant*)expression, (Type){.type=TYPE_FLOAT, .isRequired=true}, isBuiltin);
         if(constant != NULL) {
             return generateConstant(constant);
-        } else {
-            fprintf(stderr, "ERR: Failed constant cast to float, but this should always succeed\n");
-            exit(99);
-        }
+        } 
     }
     Symb symbType;
     if(typeSymb == NULL) {
@@ -567,6 +571,7 @@ Symb generateCastToFloat(Symb symb, Expression * expression, Context * ctx, Symb
         Var is_builtin = generateTemporaryVariable(*ctx);
         char* not_string = create_label("not_string&", castUID);
         char* floatval_loop = create_label("floatval_loop&", castUID);
+        char* empty_loop = create_label("empty_loop&", castUID);
         char* floatval_loop_end = create_label("floatval_loop_end&", castUID);
         char* skip_decimal_check = create_label("skip_decimal_check&", castUID);
         char* skip_decimal_counter = create_label("skip_decimal_counter&", castUID);
@@ -581,6 +586,7 @@ Symb generateCastToFloat(Symb symb, Expression * expression, Context * ctx, Symb
         char* operator_is_plus = create_label("operator_is_plus&", castUID);
         char* skip_fix_no_operator = create_label("skip_fix_no_operator&", castUID);
         char* skip_throw_error = create_label("skip_throw_error&", castUID);
+        char* skip_beginning = create_label("skip_beginning&", castUID);
         emit_JUMPIFNEQ(not_string, symbType, (Symb){.type = Type_string, .value.s = "string"});
         if(isBuiltin) {
             emit_MOVE(is_builtin, (Symb){.type = Type_bool, .value.b = true});
@@ -600,14 +606,20 @@ Symb generateCastToFloat(Symb symb, Expression * expression, Context * ctx, Symb
         emit_MOVE(result, (Symb){.type = Type_int, .value.i = 0});
         // get length of string
         emit_STRLEN(length, symb);
-        emit_JUMPIFNEQ(floatval_loop, (Symb){.type = Type_variable, .value.v = length}, (Symb){.type = Type_int, .value.i = 0});
-        emit_JUMPIFEQ(floatval_loop, (Symb){.type = Type_variable, .value.v = is_builtin}, (Symb){.type = Type_bool, .value.b = true});
+        emit_JUMPIFNEQ(empty_loop, (Symb){.type = Type_variable, .value.v = length}, (Symb){.type = Type_int, .value.i = 0});
+        emit_JUMPIFEQ(empty_loop, (Symb){.type = Type_variable, .value.v = is_builtin}, (Symb){.type = Type_bool, .value.b = true});
         emit_EXIT((Symb){.type = Type_int, .value.i = 7});
+        // loop for going through empty chars
+        emit_LABEL(empty_loop);
+        emit_STRI2INT(temp_value, symb, (Symb){.type = Type_variable, .value.v = index});
+        emit_ADD(index, (Symb){.type = Type_variable, .value.v = index}, (Symb){.type = Type_int, .value.i = 1});
+        emit_JUMPIFEQ(empty_loop, (Symb){.type = Type_variable, .value.v = temp_value}, (Symb){.type = Type_int, .value.i = 32});
+        emit_JUMP(skip_beginning);
         // floatval loop
         emit_LABEL(floatval_loop);
         emit_STRI2INT(temp_value, symb, (Symb){.type = Type_variable, .value.v = index});                                                   
         emit_ADD(index, (Symb){.type = Type_variable, .value.v = index}, (Symb){.type = Type_int, .value.i = 1});                           
-        emit_JUMPIFEQ(floatval_loop, (Symb){.type = Type_variable, .value.v = temp_value}, (Symb){.type = Type_int, .value.i = 32});
+        emit_LABEL(skip_beginning);
         // check if temp_val is decimal dot
         emit_JUMPIFEQ(skip_decimal_check, (Symb){.type = Type_variable, .value.v = has_decimal}, (Symb){.type = Type_bool, .value.b = true});
         emit_EQ(has_decimal, (Symb){.type = Type_variable, .value.v = temp_value}, (Symb){.type = Type_int, .value.i = 46});
@@ -735,11 +747,13 @@ Symb generateCastToFloat(Symb symb, Expression * expression, Context * ctx, Symb
         free(skip_exponent_operator_check);
         free(skip_exponent_parameter);
         free(exponent_loop);
+        free(empty_loop);
         free(skip_exponent_loop);
         free(operator_is_minus);
         free(operator_is_plus);
         free(skip_fix_no_operator);
         free(skip_throw_error);
+        free(skip_beginning);
     }
     emit_LABEL(castEnd);
     free(castEnd);
@@ -755,7 +769,7 @@ Symb generateCastToString(Symb symb, Expression * expression, Context * ctx, Sym
         return symb;
     }
     if(expression->expressionType == EXPRESSION_CONSTANT) {
-        Expression__Constant * constant = performConstantCast((Expression__Constant*)expression, (Type){.type=TYPE_STRING, .isRequired=true});
+        Expression__Constant * constant = performConstantCast((Expression__Constant*)expression, (Type){.type=TYPE_STRING, .isRequired=true}, false);
         if(constant != NULL) {
             return generateConstant(constant);
         } else {
