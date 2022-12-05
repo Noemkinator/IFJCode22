@@ -1054,7 +1054,6 @@ bool performNestedStatementsExpansion(Statement ** parent, Table * functionTable
 }
 
 void optimize(StatementList * program, Table * functionTable) {
-    return;
     bool continueOptimizing = true;
     bool continueUpdatingTypes = true;
     while(continueUpdatingTypes) {
