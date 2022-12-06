@@ -98,7 +98,8 @@ bool is_binary_operator(TokenType tokenType) {
         tokenType == TOKEN_MULTIPLY_ASSIGN ||
         tokenType == TOKEN_DIVIDE_ASSIGN ||
         tokenType == TOKEN_AND ||
-        tokenType == TOKEN_OR;
+        tokenType == TOKEN_OR ||
+        tokenType == TOKEN_NULL_COALESCING;
 }
 
 bool is_right_associative(TokenType tokenType) {
@@ -108,7 +109,8 @@ bool is_right_associative(TokenType tokenType) {
         tokenType == TOKEN_MINUS_ASSIGN ||
         tokenType == TOKEN_CONCATENATE_ASSIGN ||
         tokenType == TOKEN_MULTIPLY_ASSIGN ||
-        tokenType == TOKEN_DIVIDE_ASSIGN;
+        tokenType == TOKEN_DIVIDE_ASSIGN ||
+        tokenType == TOKEN_NULL_COALESCING;
 }
 
 bool is_unary_operator(TokenType tokenType) {
