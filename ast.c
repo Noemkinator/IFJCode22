@@ -1307,12 +1307,14 @@ Statement *** Expression__BinaryOperator__getChildren(Expression__BinaryOperator
  */
 UnionType Expression__BinaryOperation__getType(Expression__BinaryOperator *this, Table * functionTable, StatementList * program, Function * currentFunction,  PointerTable * resultTable) {
     UnionType type = {0};
+    UnionType lType = {0};
+    UnionType rType = {0};
     switch (this->operator) {
         case TOKEN_PLUS:
         case TOKEN_MINUS:
         case TOKEN_MULTIPLY: {
-            UnionType lType = this->lSide->getType(this->lSide, functionTable, program, currentFunction, resultTable);
-            UnionType rType = this->rSide->getType(this->rSide, functionTable, program, currentFunction, resultTable);
+            lType = this->lSide->getType(this->lSide, functionTable, program, currentFunction, resultTable);
+            rType = this->rSide->getType(this->rSide, functionTable, program, currentFunction, resultTable);
             if(lType.isInt && rType.isInt) {
                 type.isInt = true;
             }
@@ -1326,6 +1328,21 @@ UnionType Expression__BinaryOperation__getType(Expression__BinaryOperator *this,
             break;
         case TOKEN_DIVIDE:
             type.isFloat = true;
+            break;
+        case TOKEN_NULL_COALESCING:
+            lType = this->lSide->getType(this->lSide, functionTable, program, currentFunction, resultTable);
+            rType = this->rSide->getType(this->rSide, functionTable, program, currentFunction, resultTable);
+            if(lType.isUndefined && rType.isUndefined) {
+                type.isUndefined = true;
+            }
+            else if(lType.isNull || lType.isUndefined) {
+                if(!rType.isUndefined) {
+                    type = rType;
+                }
+            }
+            else {
+                type = lType;
+            }
             break;
         case TOKEN_ASSIGN:
             type = this->rSide->getType(this->rSide, functionTable, program, currentFunction, resultTable);
