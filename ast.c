@@ -844,11 +844,11 @@ ControlFlowInfo getStatementVarType(Table * functionTable, Statement * statement
             while(changed) {
                 changed = false;
                 ControlFlowInfo partialFlow = getStatementVarType(functionTable, whileStatement->body, duplTable, duplResultTable);
-                if(partialFlow.returnedEveryhere || partialFlow.returnedPartially || partialFlow.breakLevels > 0) {
+                if(partialFlow.returnedEveryhere || partialFlow.returnedPartially || partialFlow.breakLevels > 0 || partialFlow.continueLevels > 0) {
                     Table * duplTable2 = duplicateVarTypeTable(duplTable);
                     PointerTable * duplResultTable2 = duplicateTableStatement(resultTable);
-                    getExpressionVarType(functionTable, whileStatement->condition, duplTable, NULL, duplResultTable);
-                    changed |= orVariableTables(duplTable, duplTable2);
+                    getExpressionVarType(functionTable, whileStatement->condition, duplTable2, NULL, duplResultTable2);
+                    orVariableTables(duplTable, duplTable2);
                     orResultTables(duplResultTable, duplResultTable2);
                     table_free(duplTable2);
                     table_statement_free(duplResultTable2);
@@ -870,6 +870,8 @@ ControlFlowInfo getStatementVarType(Table * functionTable, Statement * statement
                     } else {
                         getExpressionVarType(functionTable, whileStatement->condition, duplTable, NULL, duplResultTable);
                     }
+                    rType.constant = NULL;
+                    lType.constant = NULL;
 
                     if(performTypeComparison && operator == TOKEN_EQUALS) {
                         if(lSide->expressionType == EXPRESSION_VARIABLE) {
@@ -913,18 +915,24 @@ ControlFlowInfo getStatementVarType(Table * functionTable, Statement * statement
                 changed = false;
                 // get variable type of body
                 ControlFlowInfo partialFlow = getStatementVarType(functionTable, forStatement->body, duplTable, duplResultTable);
-                if(partialFlow.returnedEveryhere || partialFlow.returnedPartially || partialFlow.breakLevels > 0) {
+                if(partialFlow.returnedEveryhere || partialFlow.returnedPartially || partialFlow.breakLevels > 0 || partialFlow.continueLevels > 0) {
                     Table * duplTable2 = duplicateVarTypeTable(duplTable);
                     PointerTable * duplResultTable2 = duplicateTableStatement(resultTable);
                     // get variable type of increment
                     if(forStatement->increment != NULL) {
-                        getExpressionVarType(functionTable, forStatement->increment, duplTable, NULL, duplResultTable);
+                        getExpressionVarType(functionTable, forStatement->increment, duplTable2, NULL, duplResultTable2);
                     }
+                    orVariableTables(duplTable, duplTable2);
+                    orResultTables(duplResultTable, duplResultTable2);
+                    table_free(duplTable2);
+                    table_statement_free(duplResultTable2);
+                    duplTable2 = duplicateVarTypeTable(duplTable);
+                    duplResultTable2 = duplicateTableStatement(resultTable);
                     // get variable type of condition
                     if(forStatement->condition != NULL) {
-                        getExpressionVarType(functionTable, forStatement->condition, duplTable, NULL, duplResultTable);
+                        getExpressionVarType(functionTable, forStatement->condition, duplTable2, NULL, duplResultTable2);
                     }
-                    changed |= orVariableTables(duplTable, duplTable2);
+                    orVariableTables(duplTable, duplTable2);
                     orResultTables(duplResultTable, duplResultTable2);
                     table_free(duplTable2);
                     table_statement_free(duplResultTable2);
