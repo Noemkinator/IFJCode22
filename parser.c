@@ -218,10 +218,6 @@ bool parse_terminal_expression(Expression ** expression) {
         if(!parse_function_call(expression)) return false;
         return true;
     }
-    if(! is_first_terminal_expression(nextToken.type)) {
-        printParserError(nextToken, "Expected expression");
-        return false;
-    }
     if(nextToken.type == TOKEN_VARIABLE) {
         Expression__Variable * variable = Expression__Variable__init();
         *expression = (Expression*)variable;
