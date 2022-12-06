@@ -1546,6 +1546,21 @@ Symb generateBinaryOperator(Expression__BinaryOperator * expression, Context ctx
             return outSymb;
             break;
         }
+        case TOKEN_NULL_COALESCING: {
+            //UnionType uTypeL = expression->lSide->getType(expression->lSide, ctx.functionTable, ctx.program, ctx.currentFunction, ctx.resultTable); 
+            //UnionType uTypeR = expression->rSide->getType(expression->rSide, ctx.functionTable, ctx.program, ctx.currentFunction, ctx.resultTable);
+            //Type typeL = unionTypeToType(uTypeL);
+            //Type typeR = unionTypeToType(uTypeR);
+            size_t operatorNullCoalescingId = getNextCodeGenUID();
+            char* null_coalescing_done = create_label("null_coalescing_done&", operatorNullCoalescingId);
+            emit_MOVE(outVar, right);
+            emit_JUMPIFEQ(null_coalescing_done, left, (Symb){.type=Type_null});
+            emit_MOVE(outVar, left);
+            emit_LABEL(null_coalescing_done);
+            free(null_coalescing_done);
+            return outSymb;
+            break;
+        }
         default:
             fprintf(stderr, "Unknown operator found while generating output code\n");
             exit(99);
