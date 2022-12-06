@@ -1948,6 +1948,12 @@ Function* Function__init() {
  * @param type 
  */
 Function* Function__addParameter(Function *this, Type type, char *name) {
+    for(int i = 0; i < this->arity; i++) {
+        if(strcmp(this->parameterNames[i], name) == 0) {
+            printf("Error: Duplicity of parameter name '%s' in function '%s'.\n", name, this->name);
+            exit(8);
+        }
+    }
     this->arity++;
     this->parameterTypes = realloc(this->parameterTypes, this->arity * sizeof(Type));
     this->parameterTypes[this->arity - 1] = type;
