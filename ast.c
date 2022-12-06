@@ -475,6 +475,122 @@ void orResultTables(PointerTable * resultTable, PointerTable * duplResultTable) 
     }
 }
 
+typedef struct {
+    int breakLevelsCount;
+    int * breakLevels;
+    bool * isGuaranteedBreak;
+    int continueLevelsCount;
+    int * continueLevels;
+    bool * isGuaranteedContinue;
+    bool returnedPartially;
+    bool returnedEveryhere;
+} ControlFlowInfo;
+
+void mergeControlFlowInfos(ControlFlowInfo * flow1, ControlFlowInfo flow2) {
+    flow1->breakLevels = realloc(flow1->breakLevels, (flow1->breakLevelsCount + flow2.breakLevelsCount) * sizeof(int));
+    flow1->isGuaranteedBreak = realloc(flow1->isGuaranteedBreak, (flow1->breakLevelsCount + flow2.breakLevelsCount) * sizeof(bool));
+    for(int i=0; i<flow2.breakLevelsCount; i++) {
+        flow1->breakLevels[flow1->breakLevelsCount] = flow2.breakLevels[i];
+        flow1->isGuaranteedBreak[flow1->breakLevelsCount] = flow2.isGuaranteedBreak[i];
+        flow1->breakLevelsCount++;
+    }
+    // remove duplicities
+    for(int i=0; i<flow1->breakLevelsCount; i++) {
+        for(int j=i+1; j<flow1->breakLevelsCount; j++) {
+            if(flow1->breakLevels[i] == flow1->breakLevels[j]) {
+                flow1->isGuaranteedBreak[i] = flow1->isGuaranteedBreak[i] && flow1->isGuaranteedBreak[j];
+                flow1->continueLevels[j] = flow1->continueLevels[flow1->continueLevelsCount-1];
+                flow1->breakLevelsCount--;
+                j--;
+            }
+        }
+    }
+    flow1->continueLevels = realloc(flow1->continueLevels, (flow1->continueLevelsCount + flow2.continueLevelsCount) * sizeof(int));
+    flow1->isGuaranteedContinue = realloc(flow1->isGuaranteedContinue, (flow1->continueLevelsCount + flow2.continueLevelsCount) * sizeof(bool));
+    for(int i=0; i<flow2.continueLevelsCount; i++) {
+        flow1->continueLevels[flow1->continueLevelsCount] = flow2.continueLevels[i];
+        flow1->isGuaranteedContinue[flow1->continueLevelsCount] = flow2.isGuaranteedContinue[i];
+        flow1->continueLevelsCount++;
+    }
+    // remove duplicities
+    for(int i=0; i<flow1->continueLevelsCount; i++) {
+        for(int j=i+1; j<flow1->continueLevelsCount; j++) {
+            if(flow1->continueLevels[i] == flow1->continueLevels[j]) {
+                flow1->isGuaranteedContinue[i] = flow1->isGuaranteedContinue[i] && flow1->isGuaranteedContinue[j];
+                flow1->continueLevels[j] = flow1->continueLevels[flow1->continueLevelsCount-1];
+                flow1->continueLevelsCount--;
+                j--;
+            }
+        }
+    }
+    flow1->returnedPartially = flow1->returnedPartially || flow2.returnedPartially || (flow1->returnedEveryhere != flow2.returnedEveryhere);
+    flow1->returnedEveryhere = flow1->returnedEveryhere && flow2.returnedEveryhere;
+}
+
+void reduceLevelOfControlFlowInfo(ControlFlowInfo * flow) {
+    for(int i=0; i<flow->breakLevelsCount; i++) {
+        flow->breakLevels[i]--;
+    }
+    for(int i=0; i<flow->continueLevelsCount; i++) {
+        flow->continueLevels[i]--;
+    }
+    // remove all levels that are now 0
+    for(int i=0; i<flow->breakLevelsCount;) {
+        if(flow->breakLevels[i] <= 0) {
+            flow->breakLevelsCount--;
+            flow->breakLevels[i] = flow->breakLevels[flow->breakLevelsCount];
+        } else {
+            i++;
+        }
+    }
+    for(int i=0; i<flow->continueLevelsCount;) {
+        if(flow->continueLevels[i] <= 0) {
+            flow->continueLevelsCount--;
+            flow->continueLevels[i] = flow->continueLevels[flow->continueLevelsCount];
+        } else {
+            i++;
+        }
+    }
+}
+
+void addBreakLevelToControlFlowInfo(ControlFlowInfo * flow, int level) {
+    if(level <= 0) return;
+    for(int i=0; i<flow->breakLevelsCount; i++) {
+        if(flow->breakLevels[i] == level) {
+            flow->isGuaranteedBreak[i] = true;
+            return;
+        }
+    }
+    flow->breakLevelsCount++;
+    flow->breakLevels = realloc(flow->breakLevels, sizeof(int) * flow->breakLevelsCount);
+    flow->isGuaranteedBreak = realloc(flow->isGuaranteedBreak, sizeof(bool) * flow->breakLevelsCount);
+    flow->breakLevels[flow->breakLevelsCount-1] = level;
+    flow->isGuaranteedBreak[flow->breakLevelsCount-1] = true;
+}
+
+void addContinueLevelToControlFlowInfo(ControlFlowInfo * flow, int level) {
+    if(level <= 0) return;
+    for(int i=0; i<flow->continueLevelsCount; i++) {
+        if(flow->continueLevels[i] == level) {
+            flow->isGuaranteedContinue[i] = true;
+            return;
+        }
+    }
+    flow->continueLevelsCount++;
+    flow->continueLevels = realloc(flow->continueLevels, sizeof(int) * flow->continueLevelsCount);
+    flow->isGuaranteedContinue = realloc(flow->isGuaranteedContinue, sizeof(bool) * flow->continueLevelsCount);
+    flow->continueLevels[flow->continueLevelsCount-1] = level;
+    flow->isGuaranteedContinue[flow->continueLevelsCount-1] = true;
+}
+
+void freeControlFlowInfo(ControlFlowInfo flow) {
+    free(flow.breakLevels);
+    free(flow.isGuaranteedBreak);
+    free(flow.continueLevels);
+    free(flow.isGuaranteedContinue);
+}
+
+
 void getExpressionVarType(Table * functionTable, Expression * expression, Table * variableTable, UnionType * exprTypeRet, PointerTable * resultTable) {
     switch (expression->expressionType) {
         case EXPRESSION_CONSTANT:
@@ -593,50 +709,68 @@ void getExpressionVarType(Table * functionTable, Expression * expression, Table 
     }
 }
 
-void getStatementListVarType(Table * functionTable, StatementList * statementList, Table * variableTable, PointerTable * resultTable);
+ControlFlowInfo getStatementListVarType(Table * functionTable, StatementList * statementList, Table * variableTable, PointerTable * resultTable);
 
-void getStatementVarType(Table * functionTable, Statement * statement, Table * variableTable, PointerTable * resultTable) {
+ControlFlowInfo getStatementVarType(Table * functionTable, Statement * statement, Table * variableTable, PointerTable * resultTable) {
     switch(statement->statementType) {
         case STATEMENT_EXPRESSION:
             getExpressionVarType(functionTable, (Expression*)statement, variableTable, NULL, resultTable);
-            break;
+            return (ControlFlowInfo){0};
         case STATEMENT_RETURN:
             if(((StatementReturn*)statement)->expression != NULL) {
                 getExpressionVarType(functionTable, ((StatementReturn*)statement)->expression, variableTable, NULL, resultTable);
             }
-            break;
+            ControlFlowInfo info = (ControlFlowInfo){0};
+            info.returnedEveryhere = true;
+            return info;
         case STATEMENT_IF: {
             StatementIf* ifStatement = (StatementIf*)statement;
             getExpressionVarType(functionTable, ifStatement->condition, variableTable, NULL, resultTable);
             // duplicate result table
             Table * duplTable = duplicateVarTypeTable(variableTable);
             PointerTable * duplResultTable = duplicateTableStatement(resultTable);
-            getStatementVarType(functionTable, ifStatement->ifBody, variableTable, resultTable);
-            getStatementVarType(functionTable, ifStatement->elseBody, duplTable, duplResultTable);
+            ControlFlowInfo flow1 = getStatementVarType(functionTable, ifStatement->ifBody, variableTable, resultTable);
+            ControlFlowInfo flow2 = getStatementVarType(functionTable, ifStatement->elseBody, duplTable, duplResultTable);
             orVariableTables(variableTable, duplTable);
             orResultTables(resultTable, duplResultTable);
+            mergeControlFlowInfos(&flow1, flow2);
             // TODO: free also content
             table_free(duplTable);
             //table_statement_free(duplResultTable);
-            break;
+            freeControlFlowInfo(flow2);
+            return flow1;
         }
         case STATEMENT_WHILE: {
             StatementWhile* whileStatement = (StatementWhile*)statement;
             Table * duplTable = duplicateVarTypeTable(variableTable);
             getExpressionVarType(functionTable, whileStatement->condition, variableTable, NULL, resultTable);
             PointerTable * duplResultTable = duplicateTableStatement(resultTable);
+            ControlFlowInfo flow = (ControlFlowInfo){0};
             bool changed = true;
             while(changed) {
                 changed = false;
-                getStatementVarType(functionTable, whileStatement->body, duplTable, duplResultTable);
-                getExpressionVarType(functionTable, whileStatement->condition, duplTable, NULL, duplResultTable);
+                ControlFlowInfo partialFlow = getStatementVarType(functionTable, whileStatement->body, duplTable, duplResultTable);
+                if(partialFlow.returnedEveryhere || partialFlow.returnedPartially || partialFlow.breakLevels > 0) {
+                    Table * duplTable2 = duplicateVarTypeTable(duplTable);
+                    PointerTable * duplResultTable2 = duplicateTableStatement(resultTable);
+                    getExpressionVarType(functionTable, whileStatement->condition, duplTable, NULL, duplResultTable);
+                    changed |= orVariableTables(duplTable, duplTable2);
+                    orResultTables(duplResultTable, duplResultTable2);
+                    table_free(duplTable2);
+                    //table_statement_free(duplResultTable2);
+                } else {
+                    getExpressionVarType(functionTable, whileStatement->condition, duplTable, NULL, duplResultTable);
+                }
+                reduceLevelOfControlFlowInfo(&partialFlow);
+                mergeControlFlowInfos(&flow, partialFlow);
+                freeControlFlowInfo(partialFlow);
                 changed |= orVariableTables(variableTable, duplTable);
                 orResultTables(resultTable, duplResultTable);
             }
             // TODO: free also content
             table_free(duplTable);
             //table_statement_free(duplResultTable);
-            break;
+            return flow; // TODO
         }
         case STATEMENT_FOR: {
             StatementFor* forStatement = (StatementFor*)statement; // initialize for statement
@@ -650,47 +784,79 @@ void getStatementVarType(Table * functionTable, Statement * statement, Table * v
             }
             Table * duplTable = duplicateVarTypeTable(variableTable); // duplicate variable table
             PointerTable * duplResultTable = duplicateTableStatement(resultTable);
+            ControlFlowInfo flow = (ControlFlowInfo){0};
             bool changed = true;
             while(changed) {
                 changed = false;
                 // get variable type of body
-                getStatementVarType(functionTable, forStatement->body, duplTable, duplResultTable);
-                // get variable type of increment
-                if(forStatement->increment != NULL) {
-                    getExpressionVarType(functionTable, forStatement->increment, duplTable, NULL, duplResultTable);
+                ControlFlowInfo partialFlow = getStatementVarType(functionTable, forStatement->body, duplTable, duplResultTable);
+                if(partialFlow.returnedEveryhere || partialFlow.returnedPartially || partialFlow.breakLevels > 0) {
+                    Table * duplTable2 = duplicateVarTypeTable(duplTable);
+                    PointerTable * duplResultTable2 = duplicateTableStatement(resultTable);
+                    // get variable type of increment
+                    if(forStatement->increment != NULL) {
+                        getExpressionVarType(functionTable, forStatement->increment, duplTable, NULL, duplResultTable);
+                    }
+                    // get variable type of condition
+                    if(forStatement->condition != NULL) {
+                        getExpressionVarType(functionTable, forStatement->condition, duplTable, NULL, duplResultTable);
+                    }
+                    changed |= orVariableTables(duplTable, duplTable2);
+                    orResultTables(duplResultTable, duplResultTable2);
+                    table_free(duplTable2);
+                    //table_statement_free(duplResultTable2);
+                } else {
+                    // get variable type of increment
+                    if(forStatement->increment != NULL) {
+                        getExpressionVarType(functionTable, forStatement->increment, duplTable, NULL, duplResultTable);
+                    }
+                    // get variable type of condition
+                    if(forStatement->condition != NULL) {
+                        getExpressionVarType(functionTable, forStatement->condition, duplTable, NULL, duplResultTable);
+                    }
                 }
-                // get variable type of condition
-                if(forStatement->condition != NULL) {
-                    getExpressionVarType(functionTable, forStatement->condition, duplTable, NULL, duplResultTable);
-                }
+                reduceLevelOfControlFlowInfo(&partialFlow);
+                mergeControlFlowInfos(&flow, partialFlow);
+                freeControlFlowInfo(partialFlow);
                 changed |= orVariableTables(variableTable, duplTable);
                 orResultTables(resultTable, duplResultTable);
             }
             // TODO: free also content
             table_free(duplTable);
             //table_statement_free(duplResultTable);
-            break;
+            return (ControlFlowInfo){0}; // TODO
         }
         case STATEMENT_BREAK: {
-            // TODO
-            break;
+            StatementBreak* breakStatement = (StatementBreak*)statement;
+            ControlFlowInfo info = (ControlFlowInfo){0};
+            addBreakLevelToControlFlowInfo(&info, breakStatement->depth);
+            return info;
         }
         case STATEMENT_CONTINUE: {
-            // TODO
-            break;
+            StatementContinue* continueStatement = (StatementContinue*)statement;
+            ControlFlowInfo info = (ControlFlowInfo){0};
+            addContinueLevelToControlFlowInfo(&info, continueStatement->depth);
+            return info;
         }
         case STATEMENT_LIST:
-            getStatementListVarType(functionTable, (StatementList*)statement, variableTable, resultTable);
-            break;
-        default:
-            break;
+            return getStatementListVarType(functionTable, (StatementList*)statement, variableTable, resultTable);
+        case STATEMENT_EXIT:
+            return (ControlFlowInfo){.returnedEveryhere = true};
+        case STATEMENT_FUNCTION: {
+            fprintf(stderr, "Error, type analyzing function inside of general statement\n");
+            exit(99);
+        }
     }
+    fprintf(stderr, "Error, end of getStatementVarType shouldnt be reached\n");
+    exit(99);
 }
 
-void getStatementListVarType(Table * functionTable, StatementList * statementList, Table * variableTable, PointerTable * resultTable) {
+ControlFlowInfo getStatementListVarType(Table * functionTable, StatementList * statementList, Table * variableTable, PointerTable * resultTable) {
+    ControlFlowInfo info = (ControlFlowInfo){0};
     for(int i=0; i<statementList->listSize; i++) {
         getStatementVarType(functionTable, statementList->statements[i], variableTable, resultTable);
     }
+    return info;
 }
 
 void generateResultsTypeForFunction(Table * functionTable, StatementList * program, Function * currentFunction, PointerTable * resultTable) {

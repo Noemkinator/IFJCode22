@@ -1724,6 +1724,7 @@ void generateFor(StatementFor * statement, Context ctx) {
     size_t forUID = getNextCodeGenUID();
     char* forStart = create_label("forStart&", forUID);
     char* forEnd = create_label("forEnd&", forUID);
+    char* forContinue = create_label("forContinue&", forUID);
 
     if (statement->init != NULL) generateExpression(statement->init, ctx, true, NULL);
 
@@ -1736,10 +1737,11 @@ void generateFor(StatementFor * statement, Context ctx) {
     }
 
     stringArrayAdd(ctx.breakLabels, forEnd);
-    stringArrayAdd(ctx.continueLabels, forStart);
+    stringArrayAdd(ctx.continueLabels, forContinue);
 
     generateStatement(statement->body, ctx);
 
+    emit_LABEL(forContinue);
     if (statement->increment != NULL) generateExpression(statement->increment, ctx, false, NULL);
 
     emit_JUMP(forStart);
@@ -1750,6 +1752,7 @@ void generateFor(StatementFor * statement, Context ctx) {
 
     free(forStart);
     free(forEnd);
+    free(forContinue);
 }
 
 /**
