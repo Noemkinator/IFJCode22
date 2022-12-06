@@ -117,7 +117,7 @@ void lexerError(Token token) {
  * @brief Gets the next unprocessed token object and identifies it
  */
 Token getNextUnprocessedToken() {
-    Token token = {};
+    Token token = {0};
     token.line = currentLine;
     token.column = currentColumn;
     token.sourcePosition = currentPosition;

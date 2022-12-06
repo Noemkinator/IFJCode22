@@ -1896,7 +1896,7 @@ void generateFunction(Function* function, Table * functionTable, PointerTable * 
     emit_DEFVAR_start();
     emit_instruction_start();
     if(function->returnType.type != TYPE_VOID) {
-        emit_DEFVAR((Var){frameType: TF, name: "returnValue"});
+        emit_DEFVAR((Var){.frameType = TF, .name = "returnValue"});
     }
     size_t statementCount;
     Statement *** allStatements = getAllStatements(function->body, &statementCount);
