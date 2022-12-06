@@ -486,13 +486,16 @@ typedef struct {
     bool returnedEveryhere;
 } ControlFlowInfo;
 
-void mergeControlFlowInfos(ControlFlowInfo * flow1, ControlFlowInfo flow2) {
+// returns if the flow1 changed
+bool mergeControlFlowInfos(ControlFlowInfo * flow1, ControlFlowInfo flow2) {
+    bool changed = false;
     flow1->breakLevels = realloc(flow1->breakLevels, (flow1->breakLevelsCount + flow2.breakLevelsCount) * sizeof(int));
     flow1->isGuaranteedBreak = realloc(flow1->isGuaranteedBreak, (flow1->breakLevelsCount + flow2.breakLevelsCount) * sizeof(bool));
     for(int i=0; i<flow2.breakLevelsCount; i++) {
         flow1->breakLevels[flow1->breakLevelsCount] = flow2.breakLevels[i];
         flow1->isGuaranteedBreak[flow1->breakLevelsCount] = flow2.isGuaranteedBreak[i];
         flow1->breakLevelsCount++;
+        changed = true;
     }
     // remove duplicities
     for(int i=0; i<flow1->breakLevelsCount; i++) {
@@ -511,6 +514,7 @@ void mergeControlFlowInfos(ControlFlowInfo * flow1, ControlFlowInfo flow2) {
         flow1->continueLevels[flow1->continueLevelsCount] = flow2.continueLevels[i];
         flow1->isGuaranteedContinue[flow1->continueLevelsCount] = flow2.isGuaranteedContinue[i];
         flow1->continueLevelsCount++;
+        changed = true;
     }
     // remove duplicities
     for(int i=0; i<flow1->continueLevelsCount; i++) {
@@ -523,8 +527,11 @@ void mergeControlFlowInfos(ControlFlowInfo * flow1, ControlFlowInfo flow2) {
             }
         }
     }
+    changed |= flow1->returnedPartially != (flow1->returnedPartially || flow2.returnedPartially || (flow1->returnedEveryhere != flow2.returnedEveryhere));
     flow1->returnedPartially = flow1->returnedPartially || flow2.returnedPartially || (flow1->returnedEveryhere != flow2.returnedEveryhere);
+    changed |= flow1->returnedEveryhere != (flow1->returnedEveryhere && flow2.returnedEveryhere);
     flow1->returnedEveryhere = flow1->returnedEveryhere && flow2.returnedEveryhere;
+    return changed;
 }
 
 void reduceLevelOfControlFlowInfo(ControlFlowInfo * flow) {
@@ -742,20 +749,24 @@ ControlFlowInfo getStatementVarType(Table * functionTable, Statement * statement
             Expression * rSide = NULL;
             UnionType lType = {0};
             UnionType rType = {0};
-            if(ifStatement->condition->expressionType == EXPRESSION_BINARY_OPERATOR && ((Expression__BinaryOperator*)ifStatement->condition)->operator == TOKEN_EQUALS) {
+            TokenType operator = 0;
+            if(ifStatement->condition->expressionType == EXPRESSION_BINARY_OPERATOR && (((Expression__BinaryOperator*)ifStatement->condition)->operator == TOKEN_EQUALS || ((Expression__BinaryOperator*)ifStatement->condition)->operator == TOKEN_NOT_EQUALS)) {
                 Expression__BinaryOperator * binOp = ((Expression__BinaryOperator*)ifStatement->condition);
                 lSide = binOp->lSide;
                 rSide = binOp->rSide;
+                operator = binOp->operator;
                 getExpressionVarType(functionTable, binOp->lSide, variableTable, &lType, resultTable);
                 getExpressionVarType(functionTable, binOp->rSide, variableTable, &rType, resultTable);
                 performTypeComparison = true;
             } else {
                 getExpressionVarType(functionTable, ifStatement->condition, variableTable, NULL, resultTable);
             }
+
             // duplicate result table
             Table * duplTable = duplicateVarTypeTable(variableTable);
             PointerTable * duplResultTable = duplicateTableStatement(resultTable);
-            if(performTypeComparison) {
+            
+            if(performTypeComparison && operator == TOKEN_EQUALS) {
                 if(lSide->expressionType == EXPRESSION_VARIABLE) {
                     Expression__Variable* var = (Expression__Variable*)lSide;
                     UnionType * type = (UnionType*)table_find(variableTable, var->name)->data;
@@ -767,6 +778,20 @@ ControlFlowInfo getStatementVarType(Table * functionTable, Statement * statement
                     andUnionType(type, &lType);
                 }
             }
+            
+            if(performTypeComparison && operator == TOKEN_NOT_EQUALS) {
+                if(lSide->expressionType == EXPRESSION_VARIABLE) {
+                    Expression__Variable* var = (Expression__Variable*)lSide;
+                    UnionType * type = (UnionType*)table_find(duplTable, var->name)->data;
+                    andUnionType(type, &rType);
+                }
+                if(rSide->expressionType == EXPRESSION_VARIABLE) {
+                    Expression__Variable* var = (Expression__Variable*)rSide;
+                    UnionType * type = (UnionType*)table_find(duplTable, var->name)->data;
+                    andUnionType(type, &lType);
+                }
+            }
+
             ControlFlowInfo flow1 = getStatementVarType(functionTable, ifStatement->ifBody, variableTable, resultTable);
             ControlFlowInfo flow2 = getStatementVarType(functionTable, ifStatement->elseBody, duplTable, duplResultTable);
             orVariableTables(variableTable, duplTable);
@@ -774,15 +799,46 @@ ControlFlowInfo getStatementVarType(Table * functionTable, Statement * statement
             mergeControlFlowInfos(&flow1, flow2);
             // TODO: free also content
             table_free(duplTable);
-            //table_statement_free(duplResultTable);
+            table_statement_free(duplResultTable);
             freeControlFlowInfo(flow2);
             return flow1;
         }
         case STATEMENT_WHILE: {
             StatementWhile* whileStatement = (StatementWhile*)statement;
+            bool performTypeComparison = false;
+            Expression * lSide = NULL;
+            Expression * rSide = NULL;
+            UnionType lType = {0};
+            UnionType rType = {0};
+            TokenType operator = 0;
+            if(whileStatement->condition->expressionType == EXPRESSION_BINARY_OPERATOR && (((Expression__BinaryOperator*)whileStatement->condition)->operator == TOKEN_EQUALS || ((Expression__BinaryOperator*)whileStatement->condition)->operator == TOKEN_NOT_EQUALS)) {
+                Expression__BinaryOperator * binOp = ((Expression__BinaryOperator*)whileStatement->condition);
+                lSide = binOp->lSide;
+                rSide = binOp->rSide;
+                operator = binOp->operator;
+                getExpressionVarType(functionTable, binOp->lSide, variableTable, &lType, resultTable);
+                getExpressionVarType(functionTable, binOp->rSide, variableTable, &rType, resultTable);
+                performTypeComparison = true;
+            } else {
+                getExpressionVarType(functionTable, whileStatement->condition, variableTable, NULL, resultTable);
+            }
+            
             Table * duplTable = duplicateVarTypeTable(variableTable);
-            getExpressionVarType(functionTable, whileStatement->condition, variableTable, NULL, resultTable);
             PointerTable * duplResultTable = duplicateTableStatement(resultTable);
+
+            if(performTypeComparison && operator == TOKEN_EQUALS) {
+                if(lSide->expressionType == EXPRESSION_VARIABLE) {
+                    Expression__Variable* var = (Expression__Variable*)lSide;
+                    UnionType * type = (UnionType*)table_find(duplTable, var->name)->data;
+                    andUnionType(type, &rType);
+                }
+                if(rSide->expressionType == EXPRESSION_VARIABLE) {
+                    Expression__Variable* var = (Expression__Variable*)rSide;
+                    UnionType * type = (UnionType*)table_find(duplTable, var->name)->data;
+                    andUnionType(type, &lType);
+                }
+            }
+
             ControlFlowInfo flow = (ControlFlowInfo){0};
             bool changed = true;
             while(changed) {
@@ -795,9 +851,38 @@ ControlFlowInfo getStatementVarType(Table * functionTable, Statement * statement
                     changed |= orVariableTables(duplTable, duplTable2);
                     orResultTables(duplResultTable, duplResultTable2);
                     table_free(duplTable2);
-                    //table_statement_free(duplResultTable2);
+                    table_statement_free(duplResultTable2);
                 } else {
-                    getExpressionVarType(functionTable, whileStatement->condition, duplTable, NULL, duplResultTable);
+                    bool performTypeComparison = false;
+                    Expression * lSide = NULL;
+                    Expression * rSide = NULL;
+                    UnionType lType = {0};
+                    UnionType rType = {0};
+                    TokenType operator = 0;
+                    if(whileStatement->condition->expressionType == EXPRESSION_BINARY_OPERATOR && (((Expression__BinaryOperator*)whileStatement->condition)->operator == TOKEN_EQUALS || ((Expression__BinaryOperator*)whileStatement->condition)->operator == TOKEN_NOT_EQUALS)) {
+                        Expression__BinaryOperator * binOp = ((Expression__BinaryOperator*)whileStatement->condition);
+                        lSide = binOp->lSide;
+                        rSide = binOp->rSide;
+                        operator = binOp->operator;
+                        getExpressionVarType(functionTable, binOp->lSide, duplTable, &lType, duplResultTable);
+                        getExpressionVarType(functionTable, binOp->rSide, duplTable, &rType, duplResultTable);
+                        performTypeComparison = true;
+                    } else {
+                        getExpressionVarType(functionTable, whileStatement->condition, duplTable, NULL, duplResultTable);
+                    }
+
+                    if(performTypeComparison && operator == TOKEN_EQUALS) {
+                        if(lSide->expressionType == EXPRESSION_VARIABLE) {
+                            Expression__Variable* var = (Expression__Variable*)lSide;
+                            UnionType * type = (UnionType*)table_find(duplTable, var->name)->data;
+                            andUnionType(type, &rType);
+                        }
+                        if(rSide->expressionType == EXPRESSION_VARIABLE) {
+                            Expression__Variable* var = (Expression__Variable*)rSide;
+                            UnionType * type = (UnionType*)table_find(duplTable, var->name)->data;
+                            andUnionType(type, &lType);
+                        }
+                    }
                 }
                 reduceLevelOfControlFlowInfo(&partialFlow);
                 mergeControlFlowInfos(&flow, partialFlow);
@@ -807,7 +892,7 @@ ControlFlowInfo getStatementVarType(Table * functionTable, Statement * statement
             }
             // TODO: free also content
             table_free(duplTable);
-            //table_statement_free(duplResultTable);
+            table_statement_free(duplResultTable);
             return flow; // TODO
         }
         case STATEMENT_FOR: {
@@ -842,8 +927,9 @@ ControlFlowInfo getStatementVarType(Table * functionTable, Statement * statement
                     changed |= orVariableTables(duplTable, duplTable2);
                     orResultTables(duplResultTable, duplResultTable2);
                     table_free(duplTable2);
-                    //table_statement_free(duplResultTable2);
+                    table_statement_free(duplResultTable2);
                 } else {
+                    // there should be some optimization copy&pasta here, but it is not necessary
                     // get variable type of increment
                     if(forStatement->increment != NULL) {
                         getExpressionVarType(functionTable, forStatement->increment, duplTable, NULL, duplResultTable);
@@ -861,7 +947,7 @@ ControlFlowInfo getStatementVarType(Table * functionTable, Statement * statement
             }
             // TODO: free also content
             table_free(duplTable);
-            //table_statement_free(duplResultTable);
+            table_statement_free(duplResultTable);
             return (ControlFlowInfo){0}; // TODO
         }
         case STATEMENT_BREAK: {
@@ -891,8 +977,27 @@ ControlFlowInfo getStatementVarType(Table * functionTable, Statement * statement
 
 ControlFlowInfo getStatementListVarType(Table * functionTable, StatementList * statementList, Table * variableTable, PointerTable * resultTable) {
     ControlFlowInfo info = (ControlFlowInfo){0};
+    Table * liveVariableTable = variableTable;
+    PointerTable * liveResultTable = resultTable;
+    bool firstDivergence = true;
     for(int i=0; i<statementList->listSize; i++) {
-        getStatementVarType(functionTable, statementList->statements[i], variableTable, resultTable);
+        bool changed = mergeControlFlowInfos(&info, getStatementVarType(functionTable, statementList->statements[i], liveVariableTable, liveResultTable));
+        if(changed) {
+            if(firstDivergence) {
+                firstDivergence = false;
+                liveVariableTable = duplicateVarTypeTable(variableTable);
+                liveResultTable = duplicateTableStatement(resultTable);
+            } else {
+                orVariableTables(variableTable, liveVariableTable);
+                orResultTables(resultTable, liveResultTable);
+            }
+        }
+    }
+    if(!firstDivergence) { // the tables have diverged, so we have to merge and cleanup
+        orVariableTables(variableTable, liveVariableTable);
+        orResultTables(resultTable, liveResultTable);
+        table_free(liveVariableTable);
+        table_statement_free(liveResultTable);
     }
     return info;
 }
