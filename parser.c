@@ -268,6 +268,17 @@ bool parse_terminal_expression(Expression ** expression) {
     return true;
 }
 
+bool parse_terminal_expression_with_post_op(Expression ** expression) {
+    parse_terminal_expression(expression);
+    while(nextToken.type == TOKEN_INCREMENT || nextToken.type == TOKEN_DECREMENT) {
+        /*Expression__PostfixOperator * postfixOperator = Expression__PostfixOperator__init();
+        postfixOperator->operator = nextToken.type;
+        postfixOperator->operand = *expression;
+        *expression = (Expression*)postfixOperator;
+        nextToken = getNextToken();*/
+    }
+}
+
 bool is_first_expression(TokenType tokenType) {
     return 
         is_unary_operator(tokenType) ||
