@@ -709,6 +709,18 @@ void getExpressionVarType(Table * functionTable, Expression * expression, Table 
     }
 }
 
+void andUnionType(UnionType * target, UnionType * src) {
+    target->isBool &= src->isBool;
+    target->isFloat &= src->isFloat;
+    target->isInt &= src->isInt;
+    target->isNull &= src->isNull;
+    target->isString &= src->isString;
+    // we can say that the target is constant if we require that both types are same type and source is constant
+    if(src->constant != NULL && src->constant->expressionType == EXPRESSION_CONSTANT) {
+        target->constant = src->constant;
+    }
+}
+
 ControlFlowInfo getStatementListVarType(Table * functionTable, StatementList * statementList, Table * variableTable, PointerTable * resultTable);
 
 ControlFlowInfo getStatementVarType(Table * functionTable, Statement * statement, Table * variableTable, PointerTable * resultTable) {
@@ -747,20 +759,12 @@ ControlFlowInfo getStatementVarType(Table * functionTable, Statement * statement
                 if(lSide->expressionType == EXPRESSION_VARIABLE) {
                     Expression__Variable* var = (Expression__Variable*)lSide;
                     UnionType * type = (UnionType*)table_find(variableTable, var->name)->data;
-                    type->isBool &= rType.isBool;
-                    type->isFloat &= rType.isFloat;
-                    type->isInt &= rType.isInt;
-                    type->isNull &= rType.isNull;
-                    type->isString &= rType.isString;
+                    andUnionType(type, &rType);
                 }
                 if(rSide->expressionType == EXPRESSION_VARIABLE) {
                     Expression__Variable* var = (Expression__Variable*)rSide;
                     UnionType * type = (UnionType*)table_find(variableTable, var->name)->data;
-                    type->isBool &= lType.isBool;
-                    type->isFloat &= lType.isFloat;
-                    type->isInt &= lType.isInt;
-                    type->isNull &= lType.isNull;
-                    type->isString &= lType.isString;
+                    andUnionType(type, &lType);
                 }
             }
             ControlFlowInfo flow1 = getStatementVarType(functionTable, ifStatement->ifBody, variableTable, resultTable);
