@@ -417,6 +417,9 @@ bool is_first_statement(TokenType tokenType) {
         tokenType == TOKEN_IF ||
         tokenType == TOKEN_WHILE ||
         tokenType == TOKEN_RETURN ||
+        tokenType == TOKEN_FOR ||
+        tokenType == TOKEN_BREAK ||
+        tokenType == TOKEN_CONTINUE ||
         tokenType == TOKEN_OPEN_BRACKET ||
         is_first_expression(tokenType);
 }
@@ -443,7 +446,9 @@ bool parse_statement_list(StatementList ** statementListRet) {
 }
 
 bool is_first_if(TokenType tokenType) {
-    return tokenType == TOKEN_IF;     
+    return 
+        tokenType == TOKEN_IF ||
+        tokenType == TOKEN_ELSEIF;     
 }
 
 bool parse_if(StatementIf ** statementIfRet) {
