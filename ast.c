@@ -725,10 +725,44 @@ ControlFlowInfo getStatementVarType(Table * functionTable, Statement * statement
             return info;
         case STATEMENT_IF: {
             StatementIf* ifStatement = (StatementIf*)statement;
-            getExpressionVarType(functionTable, ifStatement->condition, variableTable, NULL, resultTable);
+            bool performTypeComparison = false;
+            Expression * lSide = NULL;
+            Expression * rSide = NULL;
+            UnionType lType = {0};
+            UnionType rType = {0};
+            if(ifStatement->condition->expressionType == EXPRESSION_BINARY_OPERATOR && ((Expression__BinaryOperator*)ifStatement->condition)->operator == TOKEN_EQUALS) {
+                Expression__BinaryOperator * binOp = ((Expression__BinaryOperator*)ifStatement->condition);
+                lSide = binOp->lSide;
+                rSide = binOp->rSide;
+                getExpressionVarType(functionTable, binOp->lSide, variableTable, &lType, resultTable);
+                getExpressionVarType(functionTable, binOp->rSide, variableTable, &rType, resultTable);
+                performTypeComparison = true;
+            } else {
+                getExpressionVarType(functionTable, ifStatement->condition, variableTable, NULL, resultTable);
+            }
             // duplicate result table
             Table * duplTable = duplicateVarTypeTable(variableTable);
             PointerTable * duplResultTable = duplicateTableStatement(resultTable);
+            if(performTypeComparison) {
+                if(lSide->expressionType == EXPRESSION_VARIABLE) {
+                    Expression__Variable* var = (Expression__Variable*)lSide;
+                    UnionType * type = (UnionType*)table_find(variableTable, var->name)->data;
+                    type->isBool &= rType.isBool;
+                    type->isFloat &= rType.isFloat;
+                    type->isInt &= rType.isInt;
+                    type->isNull &= rType.isNull;
+                    type->isString &= rType.isString;
+                }
+                if(rSide->expressionType == EXPRESSION_VARIABLE) {
+                    Expression__Variable* var = (Expression__Variable*)rSide;
+                    UnionType * type = (UnionType*)table_find(variableTable, var->name)->data;
+                    type->isBool &= lType.isBool;
+                    type->isFloat &= lType.isFloat;
+                    type->isInt &= lType.isInt;
+                    type->isNull &= lType.isNull;
+                    type->isString &= lType.isString;
+                }
+            }
             ControlFlowInfo flow1 = getStatementVarType(functionTable, ifStatement->ifBody, variableTable, resultTable);
             ControlFlowInfo flow2 = getStatementVarType(functionTable, ifStatement->elseBody, duplTable, duplResultTable);
             orVariableTables(variableTable, duplTable);
