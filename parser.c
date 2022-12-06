@@ -541,7 +541,16 @@ bool parse_while(StatementWhile ** statementWhileRet) {
     nextToken = getNextToken();
     return true;
 }
+
+bool is_first_for(TokenType tokenType) {
+    return tokenType == TOKEN_FOR;     
+}
+
 bool parse_for(StatementFor ** statementForRet) {
+    if(! is_first_for(nextToken.type)) {
+        printParserError(nextToken, "Expected for");
+        return false;
+    }
     StatementFor * statementFor = StatementFor__init();
     *statementForRet = statementFor;
     nextToken = getNextToken();
