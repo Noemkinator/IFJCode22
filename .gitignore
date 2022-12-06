@@ -14,3 +14,4 @@ ic22int
 .git*
 *.sh
 /tests
+/analysis.txt
