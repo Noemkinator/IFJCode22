@@ -1768,7 +1768,7 @@ void generateContinue(StatementContinue * statement, Context ctx) {
         fprintf(stderr, "Continue statement outside of loop\n");
         exit(8);
     }
-    if (statement->depth > ctx.continueLabels->size) {
+    if (statement->depth > (int)ctx.continueLabels->size) {
         fprintf(stderr, "Trying to continue %d loops, but there are only %ld loops\n", statement->depth, ctx.continueLabels->size);
         exit(8);
     }
@@ -1792,7 +1792,7 @@ void generateBreak(StatementBreak * statement, Context ctx) {
         fprintf(stderr, "Break statement outside of loop\n");
         exit(8);
     }
-    if (statement->depth > ctx.breakLabels->size) {
+    if (statement->depth > (int)ctx.breakLabels->size) {
         fprintf(stderr, "Trying to break %d loops, but there are only %ld loops\n", statement->depth, ctx.breakLabels->size);
         exit(8);
     }
@@ -1900,7 +1900,7 @@ void generateFunction(Function* function, Table * functionTable, PointerTable * 
     }
     size_t statementCount;
     Statement *** allStatements = getAllStatements(function->body, &statementCount);
-    for(int i=0; i<statementCount; i++) {
+    for(size_t i=0; i<statementCount; i++) {
         Statement * statement = *allStatements[i];
         if(statement == NULL) continue;
         if(statement->statementType == STATEMENT_EXPRESSION && ((Expression*)statement)->expressionType == EXPRESSION_VARIABLE) {
@@ -1979,7 +1979,7 @@ void performPreoptimizationChecksOnStatement(Statement * statement, Table * func
 void performPreoptimizationChecks(StatementList * program, Table * functionTable) {
     size_t statementCount = 0;
     Statement *** statements = getAllStatements((Statement*)program, &statementCount);
-    for(int i=0; i<statementCount; i++) {
+    for(size_t i=0; i<statementCount; i++) {
         if(*statements[i] == NULL) continue;
         performPreoptimizationChecksOnStatement(*statements[i], functionTable);
     }
@@ -1989,7 +1989,7 @@ void performPreoptimizationChecks(StatementList * program, Table * functionTable
             Function* function = (Function*) item->data;
             size_t statementCount = 0;
             Statement *** statements = getAllStatements(function->body, &statementCount);
-            for(int j=0; j < statementCount; j++) {
+            for(size_t j=0; j < statementCount; j++) {
                 if(statements[j] == NULL || *statements[j] == NULL) continue;
                 Statement* statement = *statements[j];
                 if(statement == NULL) continue;
@@ -2033,7 +2033,7 @@ void generateCode(StatementList * program, Table * functionTable) {
     Table * globalTable = table_init();
     size_t statementCount;
     Statement *** allStatements = getAllStatements((Statement*)program, &statementCount);
-    for(int i=0; i<statementCount; i++) {
+    for(size_t i=0; i<statementCount; i++) {
         Statement * statement = *allStatements[i];
         if(statement == NULL) continue;
         if(statement->statementType == STATEMENT_EXPRESSION && ((Expression*)statement)->expressionType == EXPRESSION_VARIABLE) {

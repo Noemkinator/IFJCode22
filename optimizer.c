@@ -39,7 +39,7 @@ Expression__Constant * performConstantCast(Expression__Constant * in, Type targe
                             fprintf(stderr, "Invalid string operand type");
                             exit(7);
                         } else {
-                            for(int i = 0; i < strlen(in->value.string); ++i) {
+                            for(size_t i = 0; i < strlen(in->value.string); ++i) {
                                 if(in->value.string[i] == (int)' ') continue;
                                 if(isdigit(in->value.string[i]) == 0) {
                                     // Change this
@@ -76,7 +76,7 @@ Expression__Constant * performConstantCast(Expression__Constant * in, Type targe
                             fprintf(stderr, "Invalid string operand type");
                             exit(7);
                         } else {
-                            for(int i = 0; i < strlen(in->value.string); ++i) {
+                            for(size_t i = 0; i < strlen(in->value.string); ++i) {
                                 if(in->value.string[i] == (int)' ') continue;
                                 if(isdigit(in->value.string[i]) == 0) {
                                     // Change this
@@ -617,7 +617,7 @@ Expression__Constant * performBuiltinFolding(Expression__FunctionCall * in, Func
             Expression__Constant * strC = (Expression__Constant *) str;
             Expression__Constant * startC = (Expression__Constant *) start;
             if(strC->type.type == TYPE_STRING && startC->type.type == TYPE_INT) {
-                if(startC->value.integer >= strlen(strC->value.string)) {
+                if((size_t)startC->value.integer >= strlen(strC->value.string)) {
                     Expression__Constant * result = Expression__Constant__init();
                     result->type.type = TYPE_NULL;
                     result->type.isRequired = false;
@@ -629,7 +629,7 @@ Expression__Constant * performBuiltinFolding(Expression__FunctionCall * in, Func
             Expression__Constant * strC = (Expression__Constant *) str;
             Expression__Constant * endC = (Expression__Constant *) end;
             if(strC->type.type == TYPE_STRING && endC->type.type == TYPE_INT) {
-                if(endC->value.integer > strlen(strC->value.string)) {
+                if((size_t)endC->value.integer > strlen(strC->value.string)) {
                     Expression__Constant * result = Expression__Constant__init();
                     result->type.type = TYPE_NULL;
                     result->type.isRequired = false;

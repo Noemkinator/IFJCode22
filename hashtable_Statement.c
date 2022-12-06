@@ -19,7 +19,7 @@ int hashPtr(void* str) {
     unsigned long hash = 5381;
     int c;
 
-    for(int i=0; i<sizeof(str); i++) {
+    for(size_t i=0; i<sizeof(str); i++) {
         c = ((char*)&str)[i];
         hash = ((hash << 5) + hash) + c;
     }

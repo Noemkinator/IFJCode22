@@ -560,17 +560,11 @@ void getExpressionVarType(Table * functionTable, Expression * expression, Table 
                     *exprTypeRet = rType;
                     break;
                 case TOKEN_NEGATE:
-                    exprTypeRet->isBool = true;
                 case TOKEN_EQUALS:
-                    exprTypeRet->isBool = true;
                 case TOKEN_NOT_EQUALS:
-                    exprTypeRet->isBool = true;
                 case TOKEN_LESS:
-                    exprTypeRet->isBool = true;
                 case TOKEN_GREATER:
-                    exprTypeRet->isBool = true;
                 case TOKEN_LESS_OR_EQUALS:
-                    exprTypeRet->isBool = true;
                 case TOKEN_GREATER_OR_EQUALS:
                     exprTypeRet->isBool = true;
                     break;
@@ -730,7 +724,7 @@ void generateResultsTypeForProgram(Table * functionTable, StatementList * progra
     Table * variableTable = table_init();
     size_t statementCount;
     Statement *** allStatements = getAllStatements((Statement*)program, &statementCount);
-    for(int i=0; i<statementCount; i++) {
+    for(size_t i=0; i<statementCount; i++) {
         Statement * statement = *allStatements[i];
         if(statement == NULL) continue;
         if(statement->statementType == STATEMENT_EXPRESSION && ((Expression*)statement)->expressionType == EXPRESSION_VARIABLE) {
