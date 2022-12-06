@@ -1,5 +1,10 @@
-// Implementace překladače imperativního jazyka IFJ22
-// Authors: Jiří Gallo (xgallo04), Jakub Kratochvíl (xkrato67)
+/**
+ * Implementace překladače imperativního jazyka IFJ22
+ * @file code_generator.c
+ * @authors Jiří Gallo (xgallo04), Jan Zajíček (xzajic22)
+ * @brief Code generator for IFJcode22
+ * @date 2022-10-25
+ */
 
 #include "code_generator.h"
 #include "emitter.h"
@@ -54,6 +59,18 @@ typedef struct {
     bool isTemporary;
 } VariableInfo;
 
+/**
+ * @brief struct for string array
+
+ * 
+ */
+typedef struct {
+    char ** strings;
+    size_t size;
+    size_t capacity;
+} StringArray;
+
+
 typedef struct {
     Table * varTable;
     Table * functionTable;
@@ -61,7 +78,57 @@ typedef struct {
     Function * currentFunction;
     StatementList * program;
     PointerTable * resultTable;
+    StringArray * breakLabels;
+    StringArray * continueLabels;
 } Context;
+
+/**
+ * @brief Create new string array
+ * 
+ * @return StringArray* 
+ */
+StringArray * string_init() {
+    StringArray * array = malloc(sizeof(StringArray));
+    array->strings = malloc(sizeof(char *) * 16);
+    array->size = 0;
+    array->capacity = 16;
+    return array;
+}
+
+/**
+ * @brief Add string to array
+ * 
+ * @param array 
+ * @param str 
+ */
+void stringArrayAdd(StringArray * array, char * str) {
+    if(array->size == array->capacity) {
+        array->capacity *= 2;
+        array->strings = realloc(array->strings, sizeof(char *) * array->capacity);
+    }
+    array->strings[array->size] = str;
+    array->size++;
+}
+
+/**
+ * @brief Get string from array
+ * 
+ * @param array 
+ * @param index 
+ * @return char* 
+ */
+char * stringArrayGet(StringArray * array, size_t index) {
+    return array->strings[index];
+}
+
+/**
+ * @brief String array remove string
+ * 
+ * @param array 
+ */
+void stringArrayRemove(StringArray * array) {
+    array->size--;
+}
 
 void generateStatement(Statement * statement, Context ctx);
 
@@ -284,7 +351,7 @@ Symb generateCastToBool(Expression * expression, Symb symb, Context ctx, bool is
     }
     if(expression->expressionType == EXPRESSION_CONSTANT) {
         if(!isCondtion) {
-            Expression__Constant * constant = performConstantCast((Expression__Constant*)expression, (Type){.type=TYPE_BOOL, .isRequired=true});
+            Expression__Constant * constant = performConstantCast((Expression__Constant*)expression, (Type){.type=TYPE_BOOL, .isRequired=true}, false);
             if(constant != NULL) {
                 return generateConstant(constant);
             } else {
@@ -371,13 +438,10 @@ Symb generateCastToInt(Symb symb, Expression * expression, Context * ctx, Symb *
         return symb;
     }
     if(expression->expressionType == EXPRESSION_CONSTANT) {
-        Expression__Constant * constant = performConstantCast((Expression__Constant*)expression, (Type){.type=TYPE_INT, .isRequired=true});
+        Expression__Constant * constant = performConstantCast((Expression__Constant*)expression, (Type){.type=TYPE_INT, .isRequired=true}, isBuiltin);
         if(constant != NULL) {
             return generateConstant(constant);
-        } else {
-            fprintf(stderr, "ERR: Failed constant cast to int, but this should always succeed\n");
-            exit(99);
-        }
+        } 
     }
     Symb symbType;
     if(typeSymb == NULL) {
@@ -433,8 +497,10 @@ Symb generateCastToInt(Symb symb, Expression * expression, Context * ctx, Symb *
         Var is_builtin = generateTemporaryVariable(*ctx);
         char* notString = create_label("not_string&", castUID);
         char* intval_loop = create_label("intval_loop&", castUID);
+        char* empty_loop = create_label("empty_loop&", castUID);
         char* throw_error = create_label("throw_error&", castUID);
         char* skip_throw_error = create_label("skip_throw_error&", castUID);
+        char* skip_beginning = create_label("skip_beginning&", castUID);
         emit_JUMPIFNEQ(notString, symbType, (Symb){.type = Type_string, .value.s = "string"});
         emit_MOVE(index, (Symb){.type = Type_int, .value.i = 0});
         emit_MOVE(result, (Symb){.type = Type_int, .value.i = 0});
@@ -444,14 +510,20 @@ Symb generateCastToInt(Symb symb, Expression * expression, Context * ctx, Symb *
             emit_MOVE(is_builtin, (Symb){.type = Type_bool, .value.b = false});
         }
         emit_STRLEN(length, symb);
-        emit_JUMPIFNEQ(intval_loop, (Symb){.type = Type_variable, .value.v = length}, (Symb){.type = Type_int, .value.i = 0});
-        emit_JUMPIFEQ(intval_loop, (Symb){.type = Type_variable, .value.v = is_builtin}, (Symb){.type = Type_bool, .value.b = true});
+        emit_JUMPIFNEQ(empty_loop, (Symb){.type = Type_variable, .value.v = length}, (Symb){.type = Type_int, .value.i = 0});
+        emit_JUMPIFEQ(empty_loop, (Symb){.type = Type_variable, .value.v = is_builtin}, (Symb){.type = Type_bool, .value.b = true});
         emit_EXIT((Symb){.type = Type_int, .value.i = 7});
-        emit_LABEL(intval_loop);
-        // temp_value = symb[i]
+        // loop for going through empty chars
+        emit_LABEL(empty_loop);
         emit_STRI2INT(temp_value, symb, (Symb){.type = Type_variable, .value.v = index});
         emit_ADD(index, (Symb){.type = Type_variable, .value.v = index}, (Symb){.type = Type_int, .value.i = 1});
-        emit_JUMPIFEQ(intval_loop, (Symb){.type = Type_variable, .value.v = temp_value}, (Symb){.type = Type_int, .value.i = 32});
+        emit_JUMPIFEQ(empty_loop, (Symb){.type = Type_variable, .value.v = temp_value}, (Symb){.type = Type_int, .value.i = 32});
+        emit_JUMP(skip_beginning);
+        // loop for calculating int value
+        emit_LABEL(intval_loop);
+        emit_STRI2INT(temp_value, symb, (Symb){.type = Type_variable, .value.v = index});
+        emit_ADD(index, (Symb){.type = Type_variable, .value.v = index}, (Symb){.type = Type_int, .value.i = 1});
+        emit_LABEL(skip_beginning);
         // check if char < '0'
         emit_PUSHS((Symb){.type = Type_variable, .value.v = temp_value});
         emit_PUSHS((Symb){.type = Type_int, .value.i = 48});
@@ -481,8 +553,10 @@ Symb generateCastToInt(Symb symb, Expression * expression, Context * ctx, Symb *
         emit_LABEL(notString);
         free(notString);
         free(intval_loop);
+        free(empty_loop);
         free(throw_error);
         free(skip_throw_error);
+        free(skip_beginning);
     }
     emit_LABEL(castEnd);
     free(castEnd);
@@ -497,13 +571,10 @@ Symb generateCastToFloat(Symb symb, Expression * expression, Context * ctx, Symb
         return symb;
     }
     if(expression->expressionType == EXPRESSION_CONSTANT) {
-        Expression__Constant * constant = performConstantCast((Expression__Constant*)expression, (Type){.type=TYPE_FLOAT, .isRequired=true});
+        Expression__Constant * constant = performConstantCast((Expression__Constant*)expression, (Type){.type=TYPE_FLOAT, .isRequired=true}, isBuiltin);
         if(constant != NULL) {
             return generateConstant(constant);
-        } else {
-            fprintf(stderr, "ERR: Failed constant cast to float, but this should always succeed\n");
-            exit(99);
-        }
+        } 
     }
     Symb symbType;
     if(typeSymb == NULL) {
@@ -567,6 +638,7 @@ Symb generateCastToFloat(Symb symb, Expression * expression, Context * ctx, Symb
         Var is_builtin = generateTemporaryVariable(*ctx);
         char* not_string = create_label("not_string&", castUID);
         char* floatval_loop = create_label("floatval_loop&", castUID);
+        char* empty_loop = create_label("empty_loop&", castUID);
         char* floatval_loop_end = create_label("floatval_loop_end&", castUID);
         char* skip_decimal_check = create_label("skip_decimal_check&", castUID);
         char* skip_decimal_counter = create_label("skip_decimal_counter&", castUID);
@@ -581,6 +653,7 @@ Symb generateCastToFloat(Symb symb, Expression * expression, Context * ctx, Symb
         char* operator_is_plus = create_label("operator_is_plus&", castUID);
         char* skip_fix_no_operator = create_label("skip_fix_no_operator&", castUID);
         char* skip_throw_error = create_label("skip_throw_error&", castUID);
+        char* skip_beginning = create_label("skip_beginning&", castUID);
         emit_JUMPIFNEQ(not_string, symbType, (Symb){.type = Type_string, .value.s = "string"});
         if(isBuiltin) {
             emit_MOVE(is_builtin, (Symb){.type = Type_bool, .value.b = true});
@@ -600,14 +673,20 @@ Symb generateCastToFloat(Symb symb, Expression * expression, Context * ctx, Symb
         emit_MOVE(result, (Symb){.type = Type_int, .value.i = 0});
         // get length of string
         emit_STRLEN(length, symb);
-        emit_JUMPIFNEQ(floatval_loop, (Symb){.type = Type_variable, .value.v = length}, (Symb){.type = Type_int, .value.i = 0});
-        emit_JUMPIFEQ(floatval_loop, (Symb){.type = Type_variable, .value.v = is_builtin}, (Symb){.type = Type_bool, .value.b = true});
+        emit_JUMPIFNEQ(empty_loop, (Symb){.type = Type_variable, .value.v = length}, (Symb){.type = Type_int, .value.i = 0});
+        emit_JUMPIFEQ(empty_loop, (Symb){.type = Type_variable, .value.v = is_builtin}, (Symb){.type = Type_bool, .value.b = true});
         emit_EXIT((Symb){.type = Type_int, .value.i = 7});
+        // loop for going through empty chars
+        emit_LABEL(empty_loop);
+        emit_STRI2INT(temp_value, symb, (Symb){.type = Type_variable, .value.v = index});
+        emit_ADD(index, (Symb){.type = Type_variable, .value.v = index}, (Symb){.type = Type_int, .value.i = 1});
+        emit_JUMPIFEQ(empty_loop, (Symb){.type = Type_variable, .value.v = temp_value}, (Symb){.type = Type_int, .value.i = 32});
+        emit_JUMP(skip_beginning);
         // floatval loop
         emit_LABEL(floatval_loop);
         emit_STRI2INT(temp_value, symb, (Symb){.type = Type_variable, .value.v = index});                                                   
         emit_ADD(index, (Symb){.type = Type_variable, .value.v = index}, (Symb){.type = Type_int, .value.i = 1});                           
-        emit_JUMPIFEQ(floatval_loop, (Symb){.type = Type_variable, .value.v = temp_value}, (Symb){.type = Type_int, .value.i = 32});
+        emit_LABEL(skip_beginning);
         // check if temp_val is decimal dot
         emit_JUMPIFEQ(skip_decimal_check, (Symb){.type = Type_variable, .value.v = has_decimal}, (Symb){.type = Type_bool, .value.b = true});
         emit_EQ(has_decimal, (Symb){.type = Type_variable, .value.v = temp_value}, (Symb){.type = Type_int, .value.i = 46});
@@ -735,11 +814,13 @@ Symb generateCastToFloat(Symb symb, Expression * expression, Context * ctx, Symb
         free(skip_exponent_operator_check);
         free(skip_exponent_parameter);
         free(exponent_loop);
+        free(empty_loop);
         free(skip_exponent_loop);
         free(operator_is_minus);
         free(operator_is_plus);
         free(skip_fix_no_operator);
         free(skip_throw_error);
+        free(skip_beginning);
     }
     emit_LABEL(castEnd);
     free(castEnd);
@@ -755,7 +836,7 @@ Symb generateCastToString(Symb symb, Expression * expression, Context * ctx, Sym
         return symb;
     }
     if(expression->expressionType == EXPRESSION_CONSTANT) {
-        Expression__Constant * constant = performConstantCast((Expression__Constant*)expression, (Type){.type=TYPE_STRING, .isRequired=true});
+        Expression__Constant * constant = performConstantCast((Expression__Constant*)expression, (Type){.type=TYPE_STRING, .isRequired=true}, false);
         if(constant != NULL) {
             return generateConstant(constant);
         } else {
@@ -1621,13 +1702,107 @@ void generateWhile(StatementWhile * statement, Context ctx) {
 
     emit_LABEL(whileStart);
     generateConditionJump(statement->condition, ctx, whileEnd, false);
+    stringArrayAdd(ctx.breakLabels, whileEnd);
+    stringArrayAdd(ctx.continueLabels, whileStart);
     generateStatement(statement->body, ctx);
     emit_JUMP(whileStart);
     emit_LABEL(whileEnd);
+    stringArrayRemove(ctx.breakLabels);
+    stringArrayRemove(ctx.continueLabels);
 
     free(whileStart);
     free(whileEnd);
 }
+
+/**
+ * @brief Generates code for for statement
+ * 
+ * @param statement 
+ * @param ctx 
+ */
+void generateFor(StatementFor * statement, Context ctx) {   
+    size_t forUID = getNextCodeGenUID();
+    char* forStart = create_label("forStart&", forUID);
+    char* forEnd = create_label("forEnd&", forUID);
+    char* forContinue = create_label("forContinue&", forUID);
+
+    if (statement->init != NULL) generateExpression(statement->init, ctx, true, NULL);
+
+    emit_LABEL(forStart);
+
+    if (statement->condition != NULL) {
+        generateConditionJump(statement->condition, ctx, forEnd, false);
+    }else {
+        emit_COMMENT("No condition for for statement");
+    }
+
+    stringArrayAdd(ctx.breakLabels, forEnd);
+    stringArrayAdd(ctx.continueLabels, forContinue);
+
+    generateStatement(statement->body, ctx);
+
+    emit_LABEL(forContinue);
+    if (statement->increment != NULL) generateExpression(statement->increment, ctx, false, NULL);
+
+    emit_JUMP(forStart);
+    emit_LABEL(forEnd);
+
+    stringArrayRemove (ctx.breakLabels);
+    stringArrayRemove (ctx.continueLabels);
+
+    free(forStart);
+    free(forEnd);
+    free(forContinue);
+}
+
+/**
+ * @brief Generates code for continue statement
+ * 
+ * @param statement 
+ * @param ctx 
+ */
+void generateContinue(StatementContinue * statement, Context ctx) {
+    if(statement->depth < 1) {
+        fprintf(stderr, "Continue statement depth must be at least 1\n");
+        exit(8);
+    }
+    emit_COMMENT("Continue statement");
+    if (ctx.continueLabels->size == 0) {
+        fprintf(stderr, "Continue statement outside of loop\n");
+        exit(8);
+    }
+    if (statement->depth > (int)ctx.continueLabels->size) {
+        fprintf(stderr, "Trying to continue %d loops, but there are only %ld loops\n", statement->depth, ctx.continueLabels->size);
+        exit(8);
+    }
+    emit_JUMP(stringArrayGet(ctx.continueLabels,ctx.continueLabels->size - (size_t)statement->depth));
+}
+
+/**
+ * @brief Generates interpreter code for break statement that breaks out of the for and while loop with the given depth (0 is the innermost loop)
+  if the depth is -1, it breaks out of all loops
+    *
+    * @param statement
+    * @param ctx
+    */
+void generateBreak(StatementBreak * statement, Context ctx) {
+    if(statement->depth < 1) {
+        fprintf(stderr, "Break statement depth must be at least 1\n");
+        exit(8);
+    }
+    emit_COMMENT("Break statement");
+    if(ctx.breakLabels->size == 0) {
+        fprintf(stderr, "Break statement outside of loop\n");
+        exit(8);
+    }
+    if (statement->depth > (int)ctx.breakLabels->size) {
+        fprintf(stderr, "Trying to break %d loops, but there are only %ld loops\n", statement->depth, ctx.breakLabels->size);
+        exit(8);
+    }
+    emit_JUMP(stringArrayGet(ctx.breakLabels, ctx.breakLabels->size - (size_t)statement->depth));
+}
+
+
 
 /**
  * @brief Generates code for return statement
@@ -1686,6 +1861,15 @@ void generateStatement(Statement * statement, Context ctx) {
         case STATEMENT_WHILE:
             generateWhile((StatementWhile*)statement, ctx);
             break;
+        case STATEMENT_FOR:
+            generateFor((StatementFor*)statement, ctx);
+            break;
+        case STATEMENT_CONTINUE:
+            generateContinue((StatementContinue*)statement, ctx);
+            break;
+        case STATEMENT_BREAK:
+            generateBreak((StatementBreak*)statement, ctx);
+            break;
         case STATEMENT_RETURN:
             generateReturn((StatementReturn*)statement, ctx);
             break;
@@ -1715,11 +1899,11 @@ void generateFunction(Function* function, Table * functionTable, PointerTable * 
     emit_DEFVAR_start();
     emit_instruction_start();
     if(function->returnType.type != TYPE_VOID) {
-        emit_DEFVAR((Var){frameType: TF, name: "returnValue"});
+        emit_DEFVAR((Var){.frameType = TF, .name = "returnValue"});
     }
     size_t statementCount;
     Statement *** allStatements = getAllStatements(function->body, &statementCount);
-    for(int i=0; i<statementCount; i++) {
+    for(size_t i=0; i<statementCount; i++) {
         Statement * statement = *allStatements[i];
         if(statement == NULL) continue;
         if(statement->statementType == STATEMENT_EXPRESSION && ((Expression*)statement)->expressionType == EXPRESSION_VARIABLE) {
@@ -1757,6 +1941,8 @@ void generateFunction(Function* function, Table * functionTable, PointerTable * 
     ctx.currentFunction = function;
     ctx.program = NULL;
     ctx.resultTable = resultTable;
+    ctx.breakLabels = string_init();
+    ctx.continueLabels = string_init();
     generateStatement(function->body, ctx);
     if(function->body->statementType != STATEMENT_LIST || ((StatementList*)function->body)->listSize == 0 || ((StatementList*)function->body)->statements[((StatementList*)function->body)->listSize-1]->statementType != STATEMENT_RETURN) {
         if(function->returnType.type != TYPE_VOID) {
@@ -1796,7 +1982,7 @@ void performPreoptimizationChecksOnStatement(Statement * statement, Table * func
 void performPreoptimizationChecks(StatementList * program, Table * functionTable) {
     size_t statementCount = 0;
     Statement *** statements = getAllStatements((Statement*)program, &statementCount);
-    for(int i=0; i<statementCount; i++) {
+    for(size_t i=0; i<statementCount; i++) {
         if(*statements[i] == NULL) continue;
         performPreoptimizationChecksOnStatement(*statements[i], functionTable);
     }
@@ -1806,7 +1992,7 @@ void performPreoptimizationChecks(StatementList * program, Table * functionTable
             Function* function = (Function*) item->data;
             size_t statementCount = 0;
             Statement *** statements = getAllStatements(function->body, &statementCount);
-            for(int j=0; j < statementCount; j++) {
+            for(size_t j=0; j < statementCount; j++) {
                 if(statements[j] == NULL || *statements[j] == NULL) continue;
                 Statement* statement = *statements[j];
                 if(statement == NULL) continue;
@@ -1850,7 +2036,7 @@ void generateCode(StatementList * program, Table * functionTable) {
     Table * globalTable = table_init();
     size_t statementCount;
     Statement *** allStatements = getAllStatements((Statement*)program, &statementCount);
-    for(int i=0; i<statementCount; i++) {
+    for(size_t i=0; i<statementCount; i++) {
         Statement * statement = *allStatements[i];
         if(statement == NULL) continue;
         if(statement->statementType == STATEMENT_EXPRESSION && ((Expression*)statement)->expressionType == EXPRESSION_VARIABLE) {
@@ -1875,6 +2061,8 @@ void generateCode(StatementList * program, Table * functionTable) {
     ctx.currentFunction = NULL;
     ctx.program = program;
     ctx.resultTable = resultTable;
+    ctx.breakLabels = string_init();
+    ctx.continueLabels = string_init();
     generateStatementList(program, ctx);
     emit_DEFVAR_end();
     emit_instruction_end();

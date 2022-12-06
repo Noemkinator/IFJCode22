@@ -1,4 +1,5 @@
 /**
+ * Implementace překladače imperativního jazyka IFJ22
  * @file symtable.c
  * @author Jakub Kratochvíl (xkrato67)
  * @author Jiří Gallo (xgallo04)
@@ -18,7 +19,7 @@ int hashPtr(void* str) {
     unsigned long hash = 5381;
     int c;
 
-    for(int i=0; i<sizeof(str); i++) {
+    for(size_t i=0; i<sizeof(str); i++) {
         c = ((char*)&str)[i];
         hash = ((hash << 5) + hash) + c;
     }

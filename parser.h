@@ -1,5 +1,10 @@
-// Implementace překladače imperativního jazyka IFJ22
-// Authors: Jiří Gallo (xgallo04), Jakub Kratochvíl (xkrato67)
+/**
+ * Implementace překladače imperativního jazyka IFJ22
+ * @file parser.h
+ * @author Jiří Gallo (xgallo04), Jakub Kratochvíl (xkrato67)
+ * @brief Parser library
+ * @date 2022-09-25
+ */
 
 #ifndef PARSER_H
 #define PARSER_H

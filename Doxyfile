@@ -1,4 +1,8 @@
+# Implementace překladače imperativního jazyka IFJ22
 # Doxyfile 1.9.5
+# Author: Jan Zajíček (xzajic22)
+# Date: 2022-11-14
+# Description: Doxyfile for project IFJ22
 
 # This file describes the settings to be used by the documentation system
 # doxygen (www.doxygen.org) for a project.

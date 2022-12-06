@@ -1,4 +1,5 @@
 /**
+ * Implementace překladače imperativního jazyka IFJ22
  * @file lexer.c
  * @author Jiří Gallo (xgallo04)
  * @brief Lexical analyzer
@@ -116,7 +117,7 @@ void lexerError(Token token) {
  * @brief Gets the next unprocessed token object and identifies it
  */
 Token getNextUnprocessedToken() {
-    Token token = {};
+    Token token = {0};
     token.line = currentLine;
     token.column = currentColumn;
     token.sourcePosition = currentPosition;
