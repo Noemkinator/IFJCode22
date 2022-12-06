@@ -486,13 +486,16 @@ typedef struct {
     bool returnedEveryhere;
 } ControlFlowInfo;
 
-void mergeControlFlowInfos(ControlFlowInfo * flow1, ControlFlowInfo flow2) {
+// returns if the flow1 changed
+bool mergeControlFlowInfos(ControlFlowInfo * flow1, ControlFlowInfo flow2) {
+    bool changed = false;
     flow1->breakLevels = realloc(flow1->breakLevels, (flow1->breakLevelsCount + flow2.breakLevelsCount) * sizeof(int));
     flow1->isGuaranteedBreak = realloc(flow1->isGuaranteedBreak, (flow1->breakLevelsCount + flow2.breakLevelsCount) * sizeof(bool));
     for(int i=0; i<flow2.breakLevelsCount; i++) {
         flow1->breakLevels[flow1->breakLevelsCount] = flow2.breakLevels[i];
         flow1->isGuaranteedBreak[flow1->breakLevelsCount] = flow2.isGuaranteedBreak[i];
         flow1->breakLevelsCount++;
+        changed = true;
     }
     // remove duplicities
     for(int i=0; i<flow1->breakLevelsCount; i++) {
@@ -511,6 +514,7 @@ void mergeControlFlowInfos(ControlFlowInfo * flow1, ControlFlowInfo flow2) {
         flow1->continueLevels[flow1->continueLevelsCount] = flow2.continueLevels[i];
         flow1->isGuaranteedContinue[flow1->continueLevelsCount] = flow2.isGuaranteedContinue[i];
         flow1->continueLevelsCount++;
+        changed = true;
     }
     // remove duplicities
     for(int i=0; i<flow1->continueLevelsCount; i++) {
@@ -523,8 +527,11 @@ void mergeControlFlowInfos(ControlFlowInfo * flow1, ControlFlowInfo flow2) {
             }
         }
     }
+    changed |= flow1->returnedPartially != (flow1->returnedPartially || flow2.returnedPartially || (flow1->returnedEveryhere != flow2.returnedEveryhere));
     flow1->returnedPartially = flow1->returnedPartially || flow2.returnedPartially || (flow1->returnedEveryhere != flow2.returnedEveryhere);
+    changed |= flow1->returnedEveryhere != (flow1->returnedEveryhere && flow2.returnedEveryhere);
     flow1->returnedEveryhere = flow1->returnedEveryhere && flow2.returnedEveryhere;
+    return changed;
 }
 
 void reduceLevelOfControlFlowInfo(ControlFlowInfo * flow) {
@@ -970,8 +977,27 @@ ControlFlowInfo getStatementVarType(Table * functionTable, Statement * statement
 
 ControlFlowInfo getStatementListVarType(Table * functionTable, StatementList * statementList, Table * variableTable, PointerTable * resultTable) {
     ControlFlowInfo info = (ControlFlowInfo){0};
+    Table * liveVariableTable = variableTable;
+    PointerTable * liveResultTable = resultTable;
+    bool firstDivergence = true;
     for(int i=0; i<statementList->listSize; i++) {
-        getStatementVarType(functionTable, statementList->statements[i], variableTable, resultTable);
+        bool changed = mergeControlFlowInfos(&info, getStatementVarType(functionTable, statementList->statements[i], liveVariableTable, liveResultTable));
+        if(changed) {
+            if(firstDivergence) {
+                firstDivergence = false;
+                liveVariableTable = duplicateVarTypeTable(variableTable);
+                liveResultTable = duplicateTableStatement(resultTable);
+            } else {
+                orVariableTables(variableTable, liveVariableTable);
+                orResultTables(resultTable, liveResultTable);
+            }
+        }
+    }
+    if(!firstDivergence) { // the tables have diverged, so we have to merge and cleanup
+        orVariableTables(variableTable, liveVariableTable);
+        orResultTables(resultTable, liveResultTable);
+        table_free(liveVariableTable);
+        //table_statement_free(liveResultTable);
     }
     return info;
 }
