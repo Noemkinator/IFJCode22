@@ -799,7 +799,7 @@ ControlFlowInfo getStatementVarType(Table * functionTable, Statement * statement
             mergeControlFlowInfos(&flow1, flow2);
             // TODO: free also content
             table_free(duplTable);
-            //table_statement_free(duplResultTable);
+            table_statement_free(duplResultTable);
             freeControlFlowInfo(flow2);
             return flow1;
         }
@@ -851,7 +851,7 @@ ControlFlowInfo getStatementVarType(Table * functionTable, Statement * statement
                     changed |= orVariableTables(duplTable, duplTable2);
                     orResultTables(duplResultTable, duplResultTable2);
                     table_free(duplTable2);
-                    //table_statement_free(duplResultTable2);
+                    table_statement_free(duplResultTable2);
                 } else {
                     bool performTypeComparison = false;
                     Expression * lSide = NULL;
@@ -892,7 +892,7 @@ ControlFlowInfo getStatementVarType(Table * functionTable, Statement * statement
             }
             // TODO: free also content
             table_free(duplTable);
-            //table_statement_free(duplResultTable);
+            table_statement_free(duplResultTable);
             return flow; // TODO
         }
         case STATEMENT_FOR: {
@@ -927,7 +927,7 @@ ControlFlowInfo getStatementVarType(Table * functionTable, Statement * statement
                     changed |= orVariableTables(duplTable, duplTable2);
                     orResultTables(duplResultTable, duplResultTable2);
                     table_free(duplTable2);
-                    //table_statement_free(duplResultTable2);
+                    table_statement_free(duplResultTable2);
                 } else {
                     // there should be some optimization copy&pasta here, but it is not necessary
                     // get variable type of increment
@@ -947,7 +947,7 @@ ControlFlowInfo getStatementVarType(Table * functionTable, Statement * statement
             }
             // TODO: free also content
             table_free(duplTable);
-            //table_statement_free(duplResultTable);
+            table_statement_free(duplResultTable);
             return (ControlFlowInfo){0}; // TODO
         }
         case STATEMENT_BREAK: {
@@ -997,7 +997,7 @@ ControlFlowInfo getStatementListVarType(Table * functionTable, StatementList * s
         orVariableTables(variableTable, liveVariableTable);
         orResultTables(resultTable, liveResultTable);
         table_free(liveVariableTable);
-        //table_statement_free(liveResultTable);
+        table_statement_free(liveResultTable);
     }
     return info;
 }
