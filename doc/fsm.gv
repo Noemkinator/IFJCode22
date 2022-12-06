@@ -14,6 +14,8 @@ digraph {
     START -> OPEN_CURLY_BRACKET [label="{"]
     START -> CLOSE_CURLY_BRACKET [label="}"]
     START -> PLUS [label="+"]
+    START -> CONCATENATE [label="."]
+    CONCATENATE -> CONCATENATE_ASIGN [label="="]
     PLUS -> INCREMENT [label="+"]
     PLUS -> PLUS_ASIGN [label="="]
     START -> MINUS [label="-"]
