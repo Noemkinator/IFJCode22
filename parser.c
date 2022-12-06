@@ -33,26 +33,30 @@ void printParserError(Token token, char * message) {
 int getPrecedence(TokenType type) {
     switch (type) {
     case TOKEN_NEGATE:
-        return 8;
+        return 10;
     case TOKEN_MULTIPLY:
     case TOKEN_DIVIDE:
-        return 7;
+        return 9;
     case TOKEN_PLUS:
     case TOKEN_MINUS:
     case TOKEN_CONCATENATE:
-        return 6;
+        return 8;
     case TOKEN_LESS:
     case TOKEN_LESS_OR_EQUALS:
     case TOKEN_GREATER:
     case TOKEN_GREATER_OR_EQUALS:
-        return 5;
+        return 7;
     case TOKEN_EQUALS:
     case TOKEN_NOT_EQUALS:
-        return 4;
+        return 6;
     case TOKEN_AND:
-        return 3;
+        return 5;
     case TOKEN_OR:
-        return 2;
+        return 4;
+    case TOKEN_NULL_COALESCING:
+        return 3;
+    //case TOKEN_QUESTIONMARK: Figure out how to get precedence of ternary operator
+    //    return 2;
     case TOKEN_ASSIGN:
     case TOKEN_PLUS_ASSIGN:
     case TOKEN_MINUS_ASSIGN:
@@ -66,7 +70,7 @@ int getPrecedence(TokenType type) {
 }
 
 bool is_binary_operator(Token token) {
-    return token.type == TOKEN_PLUS || token.type == TOKEN_MINUS || token.type == TOKEN_MULTIPLY || token.type == TOKEN_DIVIDE || token.type == TOKEN_CONCATENATE || token.type == TOKEN_LESS || token.type == TOKEN_LESS_OR_EQUALS || token.type == TOKEN_GREATER || token.type == TOKEN_GREATER_OR_EQUALS || token.type == TOKEN_EQUALS || token.type == TOKEN_NOT_EQUALS || token.type == TOKEN_ASSIGN || token.type == TOKEN_PLUS_ASSIGN || token.type == TOKEN_MINUS_ASSIGN || token.type == TOKEN_CONCATENATE_ASSIGN || token.type == TOKEN_MULTIPLY_ASSIGN || token.type == TOKEN_DIVIDE_ASSIGN || token.type == TOKEN_AND || token.type == TOKEN_OR;
+    return token.type == TOKEN_PLUS || token.type == TOKEN_MINUS || token.type == TOKEN_MULTIPLY || token.type == TOKEN_DIVIDE || token.type == TOKEN_CONCATENATE || token.type == TOKEN_LESS || token.type == TOKEN_LESS_OR_EQUALS || token.type == TOKEN_GREATER || token.type == TOKEN_GREATER_OR_EQUALS || token.type == TOKEN_EQUALS || token.type == TOKEN_NOT_EQUALS || token.type == TOKEN_ASSIGN || token.type == TOKEN_PLUS_ASSIGN || token.type == TOKEN_MINUS_ASSIGN || token.type == TOKEN_CONCATENATE_ASSIGN || token.type == TOKEN_MULTIPLY_ASSIGN || token.type == TOKEN_DIVIDE_ASSIGN || token.type == TOKEN_AND || token.type == TOKEN_OR || token.type == TOKEN_NULL_COALESCING;;
 }
 
 bool is_unary_operator(Token token) {
@@ -251,11 +255,10 @@ bool parse_expression(Expression ** expression, int previousPrecedence) {
             binaryOperator->rSide = (Expression*)binaryOperator2;
             binaryOperator2->lSide = (Expression*)binaryOperator->lSide->super.duplicate(&binaryOperator->lSide->super);
             Expression__Constant * constant = Expression__Constant__init();
-            binaryOperator->lSide = (Expression*)constant;
             constant->type.type = TYPE_INT;
             constant->type.isRequired = true;
             constant->value.integer = 1;
-            binaryOperator2->rSide = (Expression*)constant->super.super.duplicate(&constant->super.super);
+            binaryOperator2->rSide = (Expression*)constant;
             binaryOperator2->operator = TOKEN_PLUS;
             return true;
         } else if(nextToken.type == TOKEN_DECREMENT) {
@@ -272,11 +275,10 @@ bool parse_expression(Expression ** expression, int previousPrecedence) {
             binaryOperator->rSide = (Expression*)binaryOperator2;
             binaryOperator2->lSide = (Expression*)binaryOperator->lSide->super.duplicate(&binaryOperator->lSide->super);
             Expression__Constant * constant = Expression__Constant__init();
-            binaryOperator->lSide = (Expression*)constant;
             constant->type.type = TYPE_INT;
             constant->type.isRequired = true;
             constant->value.integer = 1;
-            binaryOperator2->rSide = (Expression*)constant->super.super.duplicate(&constant->super.super);
+            binaryOperator2->rSide = (Expression*)constant;
             binaryOperator2->operator = TOKEN_MINUS;
             return true;
         } else {
