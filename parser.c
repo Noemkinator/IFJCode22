@@ -417,8 +417,7 @@ bool is_first_statement(TokenType tokenType) {
         tokenType == TOKEN_WHILE ||
         tokenType == TOKEN_RETURN ||
         tokenType == TOKEN_OPEN_BRACKET ||
-        is_unary_operator(tokenType) ||
-        is_first_terminal_expression(tokenType);
+        is_first_expression(tokenType);
 }
 
 bool is_first_statement_list(TokenType tokenType) {
@@ -618,7 +617,7 @@ bool parse_return(StatementReturn ** statementReturnRet) {
 
 bool parse_statement(Statement ** retStatement) {
     if(! is_first_statement(nextToken.type)) {
-        printParserError(nextToken, "Expected return");
+        printParserError(nextToken, "Expected statement");
         return false;
     }
 
