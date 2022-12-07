@@ -764,7 +764,6 @@ ControlFlowInfo getStatementVarType(Table * functionTable, Statement * statement
 
             // duplicate result table
             Table * duplTable = duplicateVarTypeTable(variableTable);
-            PointerTable * duplResultTable = duplicateTableStatement(resultTable);
             
             if(performTypeComparison && operator == TOKEN_EQUALS) {
                 if(lSide->expressionType == EXPRESSION_VARIABLE) {
@@ -793,13 +792,11 @@ ControlFlowInfo getStatementVarType(Table * functionTable, Statement * statement
             }
 
             ControlFlowInfo flow1 = getStatementVarType(functionTable, ifStatement->ifBody, variableTable, resultTable);
-            ControlFlowInfo flow2 = getStatementVarType(functionTable, ifStatement->elseBody, duplTable, duplResultTable);
+            ControlFlowInfo flow2 = getStatementVarType(functionTable, ifStatement->elseBody, duplTable, resultTable);
             orVariableTables(variableTable, duplTable);
-            orResultTables(resultTable, duplResultTable);
             mergeControlFlowInfos(&flow1, flow2);
             // TODO: free also content
             table_free(duplTable);
-            table_statement_free(duplResultTable);
             freeControlFlowInfo(flow2);
             return flow1;
         }
