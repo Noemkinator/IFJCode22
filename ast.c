@@ -736,7 +736,7 @@ void getExpressionVarType(Table * functionTable, Expression * expression, Table 
             break;
         }
         case EXPRESSION_UNARY_OPERATOR: {
-            Expression__UnaryOperator* unOp = (Expression__UnaryOperator*)expression;
+            Expression__PrefixOperator* unOp = (Expression__PrefixOperator*)expression;
             UnionType rType;
             getExpressionVarType(functionTable, unOp->rSide, variableTable, &rType, resultTable);
              if(exprTypeRet == NULL) {
@@ -1499,7 +1499,7 @@ Expression__BinaryOperator* Expression__BinaryOperator__init() {
  * 
  * @param type 
  */
-void Expression__UnaryOperator__serialize(Expression__UnaryOperator *this, StringBuilder * stringBuilder) {
+void Expression__UnaryOperator__serialize(Expression__PrefixOperator *this, StringBuilder * stringBuilder) {
     StringBuilder__appendString(stringBuilder, "{\"expressionType\": \"EXPRESSION_UNARY_OPERATION\", \"operator\": \"");
     switch (this->operator) {
         case TOKEN_NEGATE:
@@ -1523,7 +1523,7 @@ void Expression__UnaryOperator__serialize(Expression__UnaryOperator *this, Strin
  * @param type 
  * @return Statement*** 
  */
-Statement *** Expression__UnaryOperator__getChildren(Expression__UnaryOperator *this, int * childrenCount) {
+Statement *** Expression__UnaryOperator__getChildren(Expression__PrefixOperator *this, int * childrenCount) {
     *childrenCount = 1;
     Statement *** children = malloc(*childrenCount * sizeof(Statement**));
     children[0] = (Statement**) &this->rSide;
@@ -1536,7 +1536,7 @@ Statement *** Expression__UnaryOperator__getChildren(Expression__UnaryOperator *
  * @param this 
  * @return Type 
  */
-UnionType Expression__UnaryOperation__getType(Expression__UnaryOperator *this, Table * functionTable, StatementList * program, Function * currentFunction, PointerTable * resultTable) {
+UnionType Expression__UnaryOperation__getType(Expression__PrefixOperator *this, Table * functionTable, StatementList * program, Function * currentFunction, PointerTable * resultTable) {
     UnionType type = {0};
     switch (this->operator) {
         case TOKEN_NEGATE:
@@ -1551,19 +1551,19 @@ UnionType Expression__UnaryOperation__getType(Expression__UnaryOperator *this, T
 }
 
 /**
- * @brief Duplicates Expression__UnaryOperator
+ * @brief Duplicates Expression__PrefixOperator
  * 
  * @param this 
- * @return Expression__UnaryOperator* 
+ * @return Expression__PrefixOperator* 
  */
-Expression__UnaryOperator* Expression__UnaryOperator__duplicate(Expression__UnaryOperator* this) {
-    Expression__UnaryOperator* duplicate = Expression__UnaryOperator__init();
+Expression__PrefixOperator* Expression__UnaryOperator__duplicate(Expression__PrefixOperator* this) {
+    Expression__PrefixOperator* duplicate = Expression__UnaryOperator__init();
     duplicate->operator = this->operator;
     duplicate->rSide = (this->rSide != NULL ? (Expression*)this->rSide->super.duplicate((Statement*)this->rSide) : NULL);
     return duplicate;
 }
 
-void Expression__UnaryOperator__free(Expression__UnaryOperator* this) {
+void Expression__UnaryOperator__free(Expression__PrefixOperator* this) {
     if(this == NULL) return;
     this->rSide->super.free((Statement*)this->rSide);
     free(this);
@@ -1573,10 +1573,10 @@ void Expression__UnaryOperator__free(Expression__UnaryOperator* this) {
  * @brief Unary operator expression constructor
  * 
  * @param type 
- * @return Expression__UnaryOperator* 
+ * @return Expression__PrefixOperator* 
  */
-Expression__UnaryOperator* Expression__UnaryOperator__init() {
-    Expression__UnaryOperator *this = malloc(sizeof(Expression__UnaryOperator));
+Expression__PrefixOperator* Expression__UnaryOperator__init() {
+    Expression__PrefixOperator *this = malloc(sizeof(Expression__PrefixOperator));
     this->super.expressionType = EXPRESSION_UNARY_OPERATOR;
     this->super.isLValue = false;
     this->super.super.statementType = STATEMENT_EXPRESSION;

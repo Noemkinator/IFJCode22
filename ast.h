@@ -160,9 +160,9 @@ typedef struct {
 
     Expression * rSide; /*<Right side of the expression>*/
     TokenType operator; /*<Operator>*/
-} Expression__UnaryOperator;
+} Expression__PrefixOperator;
 
-Expression__UnaryOperator* Expression__UnaryOperator__init();
+Expression__PrefixOperator* Expression__UnaryOperator__init();
 
 typedef struct {
     Expression super; /*<Superclass>*/
