@@ -535,21 +535,14 @@ bool mergeControlFlowInfos(ControlFlowInfo * flow1, ControlFlowInfo flow2) {
         changed = true;
     }
     for(int i=0; i<flow1->breakLevelsCount; i++) {
-        for(int j=i+1; j<flow1->breakLevelsCount-1; j++) {
+        for(int j=i+1; j<flow1->breakLevelsCount; j++) {
             if(flow1->breakLevels[i] == flow1->breakLevels[j]) {
                 flow1->isGuaranteedBreak[i] = flow1->isGuaranteedBreak[i] && flow1->isGuaranteedBreak[j];
-            // Remove the duplicate element from flow1->breakLevels
-            for (int k = j; k < flow1->breakLevelsCount-1; k++) {
-                flow1->breakLevels[k] = flow1->breakLevels[k+1];
-            }
-            flow1->breakLevelsCount--;
-            // Remove the corresponding element from flow1->continueLevels
-            for (int k = j; k < flow1->continueLevelsCount-1; k++) {
-                flow1->continueLevels[k] = flow1->continueLevels[k+1];
-            }
-            flow1->continueLevelsCount--;
-            // Decrement j to stay at the same index after removing an element
-            j--;
+                // Remove the duplicate element from flow1->breakLevels
+                flow1->breakLevels[j] = flow1->breakLevels[flow1->breakLevelsCount-1];
+                flow1->breakLevelsCount--;
+                // Decrement j to stay at the same index after removing an element
+                j--;
             }
         }
     }
