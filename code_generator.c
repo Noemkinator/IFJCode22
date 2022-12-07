@@ -1577,7 +1577,7 @@ Symb generateBinaryOperator(Expression__BinaryOperator * expression, Context ctx
  * @param ctx Context
  * @return Symb
  */
-Symb generateUnaryOperator(Expression__UnaryOperator * expression, Context ctx, bool throwaway, Var * outVarAlt) {
+Symb generateUnaryOperator(Expression__PrefixOperator * expression, Context ctx, bool throwaway, Var * outVarAlt) {
     Symb right = generateExpression(expression->rSide, ctx, false, NULL);
     Var outVar;
     if(outVarAlt == NULL) {
@@ -1661,7 +1661,7 @@ Symb generateExpression(Expression * expression, Context ctx, bool throwaway, Va
             return generateBinaryOperator((Expression__BinaryOperator*)expression, ctx, throwaway, outVar);
             break;
         case EXPRESSION_UNARY_OPERATOR:
-            return generateUnaryOperator((Expression__UnaryOperator*)expression, ctx, throwaway, outVar);
+            return generateUnaryOperator((Expression__PrefixOperator*)expression, ctx, throwaway, outVar);
             break;
         case EXPRESSION_POSTFIX_OPERATOR:
             return generatePostfixOperator((Expression__PostfixOperator*)expression, ctx, throwaway, outVar);
