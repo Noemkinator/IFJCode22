@@ -961,8 +961,9 @@ bool optimizeStatement(Statement ** statement, Table * functionTable, StatementL
         } else if(expression->expressionType == EXPRESSION_VARIABLE) {
             UnionType type = expression->getType(expression, functionTable, program, currentFunction, resultTable);
             if(type.constant != NULL) {
-                // TODO free
-                *statement = type.constant->super.duplicate((Statement *) type.constant);
+                Statement * constant = type.constant->super.duplicate((Statement *) type.constant);
+                // (*statement)->free(*statement); // TODO: doesnt work yes
+                *statement = constant;
                 return true;
             }
         } else if(expression->expressionType == EXPRESSION_FUNCTION_CALL) {
@@ -1146,8 +1147,13 @@ void optimize(StatementList * program, Table * functionTable) {
             PointerTable * resultTable = table_statement_init();
             Table * optimizerVarInfo = table_init();
             buildNestedStatementVarUsages((Statement*)program, optimizerVarInfo);
-            continueOptimizing |= optimizeNestedStatements((Statement**)&program, functionTable, program, NULL, optimizerVarInfo, resultTable);
-            continueOptimizing |= replaceErrorsWithExit((Statement**)&program, functionTable, program, NULL, resultTable);
+            bool continueSameTableOptimizing = true;
+            while(continueSameTableOptimizing) {
+                continueSameTableOptimizing = false;
+                continueSameTableOptimizing |= optimizeNestedStatements((Statement**)&program, functionTable, program, NULL, optimizerVarInfo, resultTable);
+                continueSameTableOptimizing |= replaceErrorsWithExit((Statement**)&program, functionTable, program, NULL, resultTable);
+                continueOptimizing |= continueSameTableOptimizing;
+            }
             table_free(optimizerVarInfo);
             table_statement_free(resultTable);
             for(int i = 0; i < TB_SIZE; i++) {
@@ -1156,8 +1162,13 @@ void optimize(StatementList * program, Table * functionTable) {
                     resultTable = table_statement_init();
                     optimizerVarInfo = table_init();
                     buildNestedStatementVarUsages((Statement*)item->data, optimizerVarInfo);
-                    continueOptimizing |= optimizeNestedStatements((Statement**)&item->data, functionTable, program, (Function*)item->data, optimizerVarInfo, resultTable);
-                    continueOptimizing |= replaceErrorsWithExit((Statement**)&item->data, functionTable, program, (Function*)item->data, resultTable);
+                    bool continueSameTableOptimizing = true;
+                    while(continueSameTableOptimizing) {
+                        continueSameTableOptimizing = false;
+                        continueSameTableOptimizing |= optimizeNestedStatements((Statement**)&item->data, functionTable, program, (Function*)item->data, optimizerVarInfo, resultTable);
+                        continueSameTableOptimizing |= replaceErrorsWithExit((Statement**)&item->data, functionTable, program, (Function*)item->data, resultTable);
+                        continueOptimizing |= continueSameTableOptimizing;
+                    }
                     table_free(optimizerVarInfo);
                     table_statement_free(resultTable);
                     item = item->next;
