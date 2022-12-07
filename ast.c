@@ -2138,9 +2138,8 @@ void StatementExit__serialize(StatementExit *this, StringBuilder * stringBuilder
  * @return Statement*** 
  */
 Statement *** StatementExit__getChildren(StatementExit *this, int * childrenCount) {
-    if(childrenCount == NULL || *childrenCount == 0) return NULL;
-    Statement *** children = malloc(*childrenCount * sizeof(Statement**));
-    return children;
+    *childrenCount = 0;
+    return NULL;
 }
 
 /**
