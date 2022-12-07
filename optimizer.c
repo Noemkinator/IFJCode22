@@ -824,6 +824,18 @@ typedef struct {
     Expression__BinaryOperator ** latestUnaccessedAssignment;
 } OptimizerVarInfo;
 
+void clearTable(Table * table) {
+    for(int i=0; i<TB_SIZE; i++) {
+        TableItem * item = table->tb[i];
+        while(item != NULL) {
+            TableItem * next = item->next;
+            free(item);
+            item = next;
+        }
+        table->tb[i] = NULL;
+    }
+}
+
 bool optimizeStatement(Statement ** statement, Table * functionTable, StatementList * program, Function * currentFunction, Table * optimizerVarInfo, PointerTable * resultTable) {
     if(statement == NULL) return false;
     if(*statement == NULL) return false;
@@ -833,6 +845,7 @@ bool optimizeStatement(Statement ** statement, Table * functionTable, StatementL
         return true;
     }
     if((*statement)->statementType == STATEMENT_LIST) {
+        // code for unwrapping statement lists, so there arent many nested lists after some optimizations
         if(removeCodeAfterReturn((StatementList *) *statement)) return true;
         for(int i=0; i<((StatementList *) *statement)->listSize; i++) {
             Statement * statementItem = ((StatementList *) *statement)->statements[i];
@@ -859,6 +872,54 @@ bool optimizeStatement(Statement ** statement, Table * functionTable, StatementL
                 return true;
             }
         }
+        // code for removing useless assignments, actually speedups optimization by around 13%
+        int destIndex = 0;
+        bool ret = false;
+        bool isTableEmpty = true;
+        Table * assignments = table_init();
+        for(int i=0; i<((StatementList *) *statement)->listSize; i++) {
+            Statement * statementItem = ((StatementList *) *statement)->statements[i];
+            if(statementItem->statementType == STATEMENT_EXPRESSION && ((Expression*)statementItem)->expressionType == EXPRESSION_BINARY_OPERATOR) {
+                Expression__BinaryOperator * binaryOperator = (Expression__BinaryOperator *) statementItem;
+                if(binaryOperator->operator == TOKEN_ASSIGN && binaryOperator->lSide->expressionType == EXPRESSION_VARIABLE && binaryOperator->rSide->expressionType == EXPRESSION_CONSTANT) {
+                    Expression__Variable * variable = (Expression__Variable *) binaryOperator->lSide;
+                    TableItem * item = table_find(assignments, variable->name);
+                    if(item != NULL) {
+                        Expression__BinaryOperator * previousAssignment = (Expression__BinaryOperator *) item->data;
+                        previousAssignment->rSide = binaryOperator->rSide;
+                        ret = true;
+                        continue;
+                    } else {
+                        table_insert(assignments, variable->name, binaryOperator);
+                        destIndex++;
+                    }
+                    isTableEmpty = false;
+                } else {
+                    if(!isTableEmpty) clearTable(assignments);
+                    isTableEmpty = true;
+                    destIndex++;
+                }
+            } else if(statementItem->statementType == STATEMENT_EXPRESSION && ((Expression*)statementItem)->expressionType == EXPRESSION_FUNCTION_CALL) {
+                // ignore write calls
+                Expression__FunctionCall * functionCall = (Expression__FunctionCall *) statementItem;
+                if(strcmp(functionCall->name, "write") == 0 && functionCall->arity == 1 && functionCall->arguments[0]->expressionType == EXPRESSION_CONSTANT) {
+                    // is ok, can be ignored
+                } else {
+                    if(!isTableEmpty) clearTable(assignments);
+                    isTableEmpty = true;
+                }
+                destIndex++;
+            } else {
+                if(!isTableEmpty) clearTable(assignments);
+                isTableEmpty = true;
+                destIndex++;
+            }
+            ((StatementList *) *statement)->statements[destIndex-1] = statementItem;
+        }
+        ((StatementList *) *statement)->listSize = destIndex;
+        table_free(assignments);
+        if(ret) return true;
+        // code for merging multiple writes into one
         bool isPrevStatementWrite = false;
         Expression__FunctionCall * prevFunctionCall = NULL;
         bool mergedWrites = false;
@@ -907,6 +968,7 @@ bool optimizeStatement(Statement ** statement, Table * functionTable, StatementL
             }
         }
         if(mergedWrites) return true;
+        // code for removing useless statements such as empty lists or constants
         bool containsUselessStatements = false;
         for(int i=0; i<((StatementList *) *statement)->listSize; i++) {
             Statement * statementItem = ((StatementList *) *statement)->statements[i];
