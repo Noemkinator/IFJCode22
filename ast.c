@@ -1639,7 +1639,11 @@ UnionType Expression__PostfixOperation__getType(Expression__PostfixOperator *thi
     switch (this->operator) {
         case TOKEN_INCREMENT:
         case TOKEN_DECREMENT:
-            type.isInt = true;
+            if(type.isFloat) {
+                type.isFloat = true;
+            } else if(type.isInt) {
+                type.isInt = true;
+            }
             break;
         default:
             fprintf(stderr, "Unknown postfix operator, unable to generate type\n");
