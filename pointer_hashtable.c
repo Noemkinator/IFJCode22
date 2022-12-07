@@ -6,7 +6,7 @@
  * @brief Hash table implementation
  */
  
-#include "hashtable_Statement.h"
+#include "pointer_hashtable.h"
 
 /**
  * @brief Generates hash from given pointer
