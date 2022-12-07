@@ -747,6 +747,15 @@ void getExpressionVarType(Table * functionTable, Expression * expression, Table 
                 case TOKEN_NEGATE:
                     exprTypeRet->isBool = true;
                     break;
+                case TOKEN_INCREMENT:
+                case TOKEN_DECREMENT:
+                    exprTypeRet->isInt = true;
+                    exprTypeRet->isFloat = true;
+                    if(unOp->rSide->expressionType == EXPRESSION_VARIABLE) {
+                        UnionType * type = (UnionType*)table_find(variableTable, ((Expression__Variable*)unOp->rSide)->name)->data;
+                        type->constant = NULL;
+                    }
+                    break;
                 default:
                     break;
             }
@@ -754,16 +763,23 @@ void getExpressionVarType(Table * functionTable, Expression * expression, Table 
         }
         case EXPRESSION_POSTFIX_OPERATOR: {
             Expression__PostfixOperator* postOp = (Expression__PostfixOperator*)expression;
-            UnionType operand;
-            getExpressionVarType(functionTable, postOp->operand, variableTable, &operand, resultTable);
-            if(exprTypeRet == NULL) {
-                return;
-            }
-            *exprTypeRet = (UnionType){0};
             switch (postOp->operator) {
                 case TOKEN_INCREMENT:
                 case TOKEN_DECREMENT:
-                    exprTypeRet->isInt = true;
+                    if(postOp->operand->expressionType == EXPRESSION_VARIABLE) {
+                        UnionType * type = (UnionType*)table_find(variableTable, ((Expression__Variable*)postOp->operand)->name)->data;
+                        if(exprTypeRet) *exprTypeRet = *type;
+                        type->constant = NULL;
+                        type->isBool = false;
+                        type->isInt = true;
+                        type->isFloat = true;
+                        type->isString = false;
+                        type->isNull = false;
+                        type->isUndefined = false;
+                        UnionType * emptyType = malloc(sizeof(UnionType));
+                        *emptyType = (UnionType){0};
+                        pointer_table_insert(resultTable, postOp->operand, emptyType);
+                    }
                     break;
                 default:
                     break;
