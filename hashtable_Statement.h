@@ -31,39 +31,39 @@ typedef struct PointerTable {
 /**
  * @brief Initialize symbol table
  */
-PointerTable* table_statement_init();
+PointerTable* pointer_table_init();
 
 /**
  * @brief Insert item to symbol table
  * 
  * @param table 
- * @param name 
+ * @param ptr 
  * @param value
  * @return PointerTableItem* 
  */
-PointerTableItem* table_statement_insert(PointerTable* b, void * name, void * value);
+PointerTableItem* pointer_table_insert(PointerTable* b, void * ptr, void * value);
 /**
  * @brief Find item in symbol table
  * 
  * @param table 
- * @param name 
+ * @param ptr 
  * @return PointerTableItem* 
  */
-PointerTableItem* table_statement_find(PointerTable* b, void* str);
+PointerTableItem* pointer_table_find(PointerTable* b, void* ptr);
 /**
  * @brief Delete item from symbol table
  * 
  * @param table 
- * @param name 
+ * @param ptr 
  * @return PointerTableItem* 
  */
-PointerTableItem* table_statement_remove(PointerTable* b, void* str);
+PointerTableItem* pointer_table_remove(PointerTable* b, void* ptr);
 /**
  * @brief Free symbol table
  * 
  * @param table
  */
-void table_statement_free(PointerTable* b);
+void pointer_table_free(PointerTable* b);
 
 #endif /* __HASHTABLE_STATEMENT_H */
 

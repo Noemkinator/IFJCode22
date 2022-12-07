@@ -9,18 +9,18 @@
 #include "hashtable_Statement.h"
 
 /**
- * @brief Generates hash from given string
- * @param str
+ * @brief Generates hash from given pointer
+ * @param ptr
  * @return hash
  * 
  * http://www.cse.yorku.ca/~oz/hash.html
  */
-int hashPtr(void* str) {
+int hashPtr(void* ptr) {
     unsigned long hash = 5381;
     int c;
 
-    for(size_t i=0; i<sizeof(str); i++) {
-        c = ((char*)&str)[i];
+    for(size_t i=0; i<sizeof(ptr); i++) {
+        c = ((char*)&ptr)[i];
         hash = ((hash << 5) + hash) + c;
     }
     return hash % TB_SIZE;
@@ -30,7 +30,7 @@ int hashPtr(void* str) {
  * @brief Initializes new hash table
  * @return pointer to hash table
  */
-PointerTable* table_statement_init() {
+PointerTable* pointer_table_init() {
     PointerTable* b = malloc(sizeof(PointerTable));
     for(int i=0; i < TB_SIZE; ++i) {
         b->tb[i] = NULL;
@@ -46,8 +46,8 @@ PointerTable* table_statement_init() {
  * @return pointer to inserted item
  * @warning returns NULL if memory couldn't be allocated
  */
-PointerTableItem* table_statement_insert(PointerTable* b, void * name, void * value) {
-    if(table_statement_find(b, name) != NULL) table_statement_remove(b, name);
+PointerTableItem* pointer_table_insert(PointerTable* b, void * name, void * value) {
+    if(pointer_table_find(b, name) != NULL) pointer_table_remove(b, name);
     PointerTableItem* tb_item = malloc(sizeof(PointerTableItem));
     if(tb_item == NULL) return tb_item;
     tb_item->name = name;
@@ -61,15 +61,15 @@ PointerTableItem* table_statement_insert(PointerTable* b, void * name, void * va
 /**
  * @brief Looks for item in hash table
  * @param b hash table
- * @param str 
+ * @param ptr 
  * @return pointer to item
  * @warning if item wasn't found returns NULL
  */
-PointerTableItem* table_statement_find(PointerTable* b, void* str) {
-    int h_id = hashPtr(str);
+PointerTableItem* pointer_table_find(PointerTable* b, void* ptr) {
+    int h_id = hashPtr(ptr);
     PointerTableItem* temp = b->tb[h_id];
 
-    while(temp != NULL && temp->name != str) {
+    while(temp != NULL && temp->name != ptr) {
         temp = temp->next;
     }
     return temp;
@@ -78,17 +78,17 @@ PointerTableItem* table_statement_find(PointerTable* b, void* str) {
 /**
  * @brief Removes item from hash table
  * @param b hash table
- * @param str 
+ * @param ptr 
  * @return pointer to item
  * @warning if item wasn't found returns NULL
  */
-PointerTableItem* table_statement_remove(PointerTable* b, void* str) {
-    int h_id = hashPtr(str);
+PointerTableItem* pointer_table_remove(PointerTable* b, void* ptr) {
+    int h_id = hashPtr(ptr);
     PointerTableItem* temp = b->tb[h_id];
     PointerTableItem* prev = NULL;
     
     
-    while(temp != NULL && temp->name != str) {
+    while(temp != NULL && temp->name != ptr) {
         prev = temp;
         temp = temp->next;
     }
@@ -107,7 +107,7 @@ PointerTableItem* table_statement_remove(PointerTable* b, void* str) {
  * @brief Frees the hash table and all it's items
  * @param b hash table
  */
-void table_statement_free(PointerTable* b) {
+void pointer_table_free(PointerTable* b) {
     if(b == NULL) return;
     PointerTableItem* temp = NULL;
 

@@ -1206,7 +1206,7 @@ void optimize(StatementList * program, Table * functionTable) {
         continueUpdatingTypes = false;
         while(continueOptimizing) {
             continueOptimizing = false;
-            PointerTable * resultTable = table_statement_init();
+            PointerTable * resultTable = pointer_table_init();
             Table * optimizerVarInfo = table_init();
             buildNestedStatementVarUsages((Statement*)program, optimizerVarInfo);
             bool continueSameTableOptimizing = true;
@@ -1217,11 +1217,11 @@ void optimize(StatementList * program, Table * functionTable) {
                 continueOptimizing |= continueSameTableOptimizing;
             }
             table_free(optimizerVarInfo);
-            table_statement_free(resultTable);
+            pointer_table_free(resultTable);
             for(int i = 0; i < TB_SIZE; i++) {
                 TableItem* item = functionTable->tb[i];
                 while(item != NULL) {
-                    resultTable = table_statement_init();
+                    resultTable = pointer_table_init();
                     optimizerVarInfo = table_init();
                     buildNestedStatementVarUsages((Statement*)item->data, optimizerVarInfo);
                     bool continueSameTableOptimizing = true;
@@ -1232,7 +1232,7 @@ void optimize(StatementList * program, Table * functionTable) {
                         continueOptimizing |= continueSameTableOptimizing;
                     }
                     table_free(optimizerVarInfo);
-                    table_statement_free(resultTable);
+                    pointer_table_free(resultTable);
                     item = item->next;
                 }
             }

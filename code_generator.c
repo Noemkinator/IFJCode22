@@ -2086,7 +2086,7 @@ void generateCode(StatementList * program, Table * functionTable) {
     optimize(program, functionTable);
     emit_header();
     emit_DEFVAR_start();
-    PointerTable * resultTable = table_statement_init();
+    PointerTable * resultTable = pointer_table_init();
     Table * globalTable = table_init();
     size_t statementCount;
     Statement *** allStatements = getAllStatements((Statement*)program, &statementCount);

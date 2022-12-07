@@ -392,7 +392,7 @@ void freeVarTypeTable(Table * table) {
 }
 
 PointerTable * duplicateTableStatement(PointerTable * table) {
-    PointerTable * new_table = table_statement_init();
+    PointerTable * new_table = pointer_table_init();
     for (int i = 0; i < TB_SIZE; i++) {
         PointerTableItem * item = table->tb[i];
         PointerTableItem ** new_item = &new_table->tb[i];
@@ -489,7 +489,7 @@ void orResultTables(PointerTable * resultTable, PointerTable * duplResultTable) 
         PointerTableItem * itemB = duplResultTable->tb[j];
         while(itemB != NULL) {
             // following code is optimization of:
-            // PointerTableItem * itemA = table_statement_find(resultTable, itemB->name);
+            // PointerTableItem * itemA = pointer_table_find(resultTable, itemB->name);
             // the speed gain is about 15%
             PointerTableItem* itemA = resultTable->tb[j];
             while(itemA != NULL && itemA->name != itemB->name) {
@@ -501,7 +501,7 @@ void orResultTables(PointerTable * resultTable, PointerTable * duplResultTable) 
                 UnionType * typeB = (UnionType*)itemB->data;
                 UnionType * new_type = malloc(sizeof(UnionType));
                 *new_type = *typeB;
-                table_statement_insert(resultTable, itemB->name, new_type);
+                pointer_table_insert(resultTable, itemB->name, new_type);
             } else {
                 UnionType * typeA = (UnionType*)itemA->data;
                 UnionType * typeB = (UnionType*)itemB->data;
@@ -655,7 +655,7 @@ void getExpressionVarType(Table * functionTable, Expression * expression, Table 
             }
             UnionType * typePtr = malloc(sizeof(UnionType));
             *typePtr = *type;
-            table_statement_insert(resultTable, (Statement*)var, typePtr);
+            pointer_table_insert(resultTable, (Statement*)var, typePtr);
             // access to undefined variable causes crash, this means that after first access we can say that variable is defined
             type->isUndefined = false;
             break;
@@ -693,7 +693,7 @@ void getExpressionVarType(Table * functionTable, Expression * expression, Table 
                 }
                 UnionType * emptyType = malloc(sizeof(UnionType));
                 *emptyType = (UnionType){0};
-                table_statement_insert(resultTable, binOp->lSide, emptyType);
+                pointer_table_insert(resultTable, binOp->lSide, emptyType);
                 return;
             }
             UnionType lType;
@@ -1119,31 +1119,31 @@ void generateResultsTypeForProgram(Table * functionTable, StatementList * progra
  */
 UnionType Expression__Variable__getType(Expression__Variable *this, Table * functionTable, StatementList * program, Function * currentFunction, PointerTable * resultTable) {
     if(currentFunction != NULL) {
-        PointerTableItem * tableStatItem = table_statement_find(resultTable, (Statement*)currentFunction);
+        PointerTableItem * tableStatItem = pointer_table_find(resultTable, (Statement*)currentFunction);
         PointerTable * tableStat = tableStatItem != NULL ? (PointerTable*)tableStatItem->data : NULL;
         if(tableStat == NULL) {
-            tableStat = table_statement_init();
-            table_statement_insert(resultTable, (Statement*)currentFunction, tableStat);
+            tableStat = pointer_table_init();
+            pointer_table_insert(resultTable, (Statement*)currentFunction, tableStat);
             generateResultsTypeForFunction(functionTable, program, currentFunction, tableStat);
         }
-        PointerTableItem * typeItem = table_statement_find(tableStat, (Statement*)this);
+        PointerTableItem * typeItem = pointer_table_find(tableStat, (Statement*)this);
         if(typeItem == NULL) {
-            table_statement_remove(resultTable, (Statement*)currentFunction);
+            pointer_table_remove(resultTable, (Statement*)currentFunction);
             return Expression__Variable__getType(this, functionTable, program, currentFunction, resultTable);
         }
         UnionType * type = typeItem->data;
         return *type;
     } else {
-        PointerTableItem * tableStatItem = table_statement_find(resultTable, (Statement*)program);
+        PointerTableItem * tableStatItem = pointer_table_find(resultTable, (Statement*)program);
         PointerTable * tableStat = tableStatItem != NULL ? (PointerTable*)tableStatItem->data : NULL;
         if(tableStat == NULL) {
-            tableStat = table_statement_init();
-            table_statement_insert(resultTable, (Statement*)program, tableStat);
+            tableStat = pointer_table_init();
+            pointer_table_insert(resultTable, (Statement*)program, tableStat);
             generateResultsTypeForProgram(functionTable, program, currentFunction, tableStat);
         }
-        PointerTableItem * typeItem = table_statement_find(tableStat, (Statement*)this);
+        PointerTableItem * typeItem = pointer_table_find(tableStat, (Statement*)this);
         if(typeItem == NULL) {
-            table_statement_remove(resultTable, (Statement*)program);
+            pointer_table_remove(resultTable, (Statement*)program);
             return Expression__Variable__getType(this, functionTable, program, currentFunction, resultTable);
         }
         UnionType * type = typeItem->data;
