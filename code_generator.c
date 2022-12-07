@@ -1,7 +1,7 @@
 /**
  * Implementace překladače imperativního jazyka IFJ22
  * @file code_generator.c
- * @authors Jiří Gallo (xgallo04), Jan Zajíček (xzajic22)
+ * @authors Jiří Gallo (xgallo04), Jan Zajíček (xzajic22), Jakub Kratochvíl (xkrato67)
  * @brief Code generator for IFJcode22
  * @date 2022-10-25
  */
