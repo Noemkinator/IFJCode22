@@ -378,6 +378,19 @@ Table * duplicateVarTypeTable(Table * table) {
     return new_table;
 }
 
+void freeVarTypeTable(Table * table) {
+    for (int i = 0; i < TB_SIZE; i++) {
+        TableItem * item = table->tb[i];
+        while (item != NULL) {
+            TableItem * next = item->next;
+            free(item->data);
+            free(item);
+            item = next;
+        }
+    }
+    free(table);
+}
+
 PointerTable * duplicateTableStatement(PointerTable * table) {
     PointerTable * new_table = table_statement_init();
     for (int i = 0; i < TB_SIZE; i++) {
@@ -396,6 +409,19 @@ PointerTable * duplicateTableStatement(PointerTable * table) {
         }
     }
     return new_table;
+}
+
+void freeTableStatement(PointerTable * table) {
+    for (int i = 0; i < TB_SIZE; i++) {
+        PointerTableItem * item = table->tb[i];
+        while (item != NULL) {
+            PointerTableItem * next = item->next;
+            free(item->data);
+            free(item);
+            item = next;
+        }
+    }
+    free(table);
 }
 
 UnionType orUnionType(UnionType type1, UnionType type2) {
@@ -464,7 +490,11 @@ void orResultTables(PointerTable * resultTable, PointerTable * duplResultTable) 
         while(itemB != NULL) {
             PointerTableItem * itemA = table_statement_find(resultTable, itemB->name);
             if(itemA == NULL) {
-                table_statement_insert(resultTable, itemB->name, itemB->data);
+                // create copy of itemB
+                UnionType * typeB = (UnionType*)itemB->data;
+                UnionType * new_type = malloc(sizeof(UnionType));
+                *new_type = *typeB;
+                table_statement_insert(resultTable, itemB->name, new_type);
             } else {
                 UnionType * typeA = (UnionType*)itemA->data;
                 UnionType * typeB = (UnionType*)itemB->data;
@@ -796,7 +826,7 @@ ControlFlowInfo getStatementVarType(Table * functionTable, Statement * statement
             orVariableTables(variableTable, duplTable);
             mergeControlFlowInfos(&flow1, flow2);
             // TODO: free also content
-            table_free(duplTable);
+            freeVarTypeTable(duplTable);
             freeControlFlowInfo(flow2);
             return flow1;
         }
@@ -847,8 +877,8 @@ ControlFlowInfo getStatementVarType(Table * functionTable, Statement * statement
                     getExpressionVarType(functionTable, whileStatement->condition, duplTable2, NULL, duplResultTable2);
                     orVariableTables(duplTable, duplTable2);
                     orResultTables(duplResultTable, duplResultTable2);
-                    table_free(duplTable2);
-                    table_statement_free(duplResultTable2);
+                    freeVarTypeTable(duplTable2);
+                    freeTableStatement(duplResultTable2);
                 } else {
                     bool performTypeComparison = false;
                     Expression * lSide = NULL;
@@ -889,9 +919,8 @@ ControlFlowInfo getStatementVarType(Table * functionTable, Statement * statement
                 changed |= orVariableTables(variableTable, duplTable);
                 orResultTables(resultTable, duplResultTable);
             }
-            // TODO: free also content
-            table_free(duplTable);
-            table_statement_free(duplResultTable);
+            freeVarTypeTable(duplTable);
+            freeTableStatement(duplResultTable);
             return flow; // TODO
         }
         case STATEMENT_FOR: {
@@ -921,8 +950,8 @@ ControlFlowInfo getStatementVarType(Table * functionTable, Statement * statement
                     }
                     orVariableTables(duplTable, duplTable2);
                     orResultTables(duplResultTable, duplResultTable2);
-                    table_free(duplTable2);
-                    table_statement_free(duplResultTable2);
+                    freeVarTypeTable(duplTable2);
+                    freeTableStatement(duplResultTable2);
                     duplTable2 = duplicateVarTypeTable(duplTable);
                     duplResultTable2 = duplicateTableStatement(resultTable);
                     // get variable type of condition
@@ -931,8 +960,8 @@ ControlFlowInfo getStatementVarType(Table * functionTable, Statement * statement
                     }
                     orVariableTables(duplTable, duplTable2);
                     orResultTables(duplResultTable, duplResultTable2);
-                    table_free(duplTable2);
-                    table_statement_free(duplResultTable2);
+                    freeVarTypeTable(duplTable2);
+                    freeTableStatement(duplResultTable2);
                 } else {
                     // there should be some optimization copy&pasta here, but it is not necessary
                     // get variable type of increment
@@ -950,9 +979,8 @@ ControlFlowInfo getStatementVarType(Table * functionTable, Statement * statement
                 changed |= orVariableTables(variableTable, duplTable);
                 orResultTables(resultTable, duplResultTable);
             }
-            // TODO: free also content
-            table_free(duplTable);
-            table_statement_free(duplResultTable);
+            freeVarTypeTable(duplTable);
+            freeTableStatement(duplResultTable);
             return (ControlFlowInfo){0}; // TODO
         }
         case STATEMENT_BREAK: {
@@ -1001,8 +1029,8 @@ ControlFlowInfo getStatementListVarType(Table * functionTable, StatementList * s
     if(!firstDivergence) { // the tables have diverged, so we have to merge and cleanup
         orVariableTables(variableTable, liveVariableTable);
         orResultTables(resultTable, liveResultTable);
-        table_free(liveVariableTable);
-        table_statement_free(liveResultTable);
+        freeVarTypeTable(liveVariableTable);
+        freeTableStatement(liveResultTable);
     }
     return info;
 }
@@ -1031,7 +1059,7 @@ void generateResultsTypeForFunction(Table * functionTable, StatementList * progr
         }
     }
     getStatementVarType(functionTable, currentFunction->body, variableTable, resultTable);
-    table_free(variableTable);
+    freeVarTypeTable(variableTable);
 }
 
 void generateResultsTypeForProgram(Table * functionTable, StatementList * program, Function * currentFunction, PointerTable * resultTable) {
@@ -1051,8 +1079,9 @@ void generateResultsTypeForProgram(Table * functionTable, StatementList * progra
             }
         }
     }
+    free(allStatements);
     getStatementListVarType(functionTable, program, variableTable, resultTable);
-    table_free(variableTable);
+    freeVarTypeTable(variableTable);
 }
 
 /**
