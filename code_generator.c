@@ -1610,23 +1610,37 @@ Symb generateUnaryOperator(Expression__PrefixOperator * expression, Context ctx,
  */
 Symb generatePostfixOperator(Expression__PostfixOperator * expression, Context ctx, bool throwaway, Var * outVarAlt) {
     Symb symb = generateExpression(expression->operand, ctx, false, NULL);
+    Symb symbType = generateSymbType(expression->operand, symb, ctx); 
     Var outVar;
+    //size_t castUID = getNextCodeGenUID();
     if(outVarAlt == NULL) {
         outVar = generateTemporaryVariable(ctx);
     } else {
         outVar = *outVarAlt;
     }
-    Symb outSymb = (Symb){.type=Type_variable, .value.v = outVar};
+    Symb outSymb = (Symb){.type = Type_variable, .value.v = outVar};
+    Symb one = (Symb){.type = Type_int, .value.i = 1};
+
+    UnionType unionTypeOp = expression->operand->getType(expression->operand, ctx.functionTable, ctx.program, ctx.currentFunction, ctx.resultTable);
+    if(unionTypeOp.isFloat) {
+        symb = generateCastToFloat(symb, expression->operand, &ctx, &symbType, false);             
+        one = (Symb){.type = Type_float, .value.f = 1};
+    } else if(unionTypeOp.isInt) {
+        symb = generateCastToInt(symb, expression->operand, &ctx, &symbType, false);             
+    }
     switch(expression->operator) {
         case TOKEN_INCREMENT: {
-            Symb one = (Symb){.type=Type_int, .value.i=1};
-            emit_ADD(outVar, symb, one);
-            emit_ADD(outVar, symb, one);
+            if(symb.type == Type_variable) {
+                emit_MOVE(outVar, symb);
+                emit_ADD(symb.value.v, symb, one);
+            }
             break;
         }
         case TOKEN_DECREMENT: {
-            Symb one = (Symb){.type=Type_int, .value.i=1};
-            emit_SUB(outVar, symb, one);
+            if(symb.type == Type_variable) {
+                emit_MOVE(outVar, symb);
+                emit_SUB(symb.value.v, symb, one);
+            }
             break;
         }
         default:
