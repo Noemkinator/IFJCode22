@@ -370,7 +370,7 @@ bool parse_expression(Expression ** expression, int previousPrecedence) {
             binaryOperator2->operator = TOKEN_MINUS;
             return true;
         } else {
-            Expression__PrefixOperator * operator = Expression__UnaryOperator__init();
+            Expression__PrefixOperator * operator = Expression__PrefixOperator__init();
             operator->operator = operatorToken.type;
             *expression = (Expression*)operator;
             nextToken = getNextToken();

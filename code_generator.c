@@ -1674,7 +1674,7 @@ Symb generateExpression(Expression * expression, Context ctx, bool throwaway, Va
         case EXPRESSION_BINARY_OPERATOR:
             return generateBinaryOperator((Expression__BinaryOperator*)expression, ctx, throwaway, outVar);
             break;
-        case EXPRESSION_UNARY_OPERATOR:
+        case EXPRESSION_PREFIX_OPERATOR:
             return generateUnaryOperator((Expression__PrefixOperator*)expression, ctx, throwaway, outVar);
             break;
         case EXPRESSION_POSTFIX_OPERATOR:

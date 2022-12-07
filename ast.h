@@ -95,7 +95,7 @@ typedef enum {
     EXPRESSION_VARIABLE,
     EXPRESSION_FUNCTION_CALL,
     EXPRESSION_BINARY_OPERATOR,
-    EXPRESSION_UNARY_OPERATOR,
+    EXPRESSION_PREFIX_OPERATOR,
     EXPRESSION_POSTFIX_OPERATOR
 } ExpressionType;
 
@@ -162,7 +162,7 @@ typedef struct {
     TokenType operator; /*<Operator>*/
 } Expression__PrefixOperator;
 
-Expression__PrefixOperator* Expression__UnaryOperator__init();
+Expression__PrefixOperator* Expression__PrefixOperator__init();
 
 typedef struct {
     Expression super; /*<Superclass>*/

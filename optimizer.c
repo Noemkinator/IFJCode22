@@ -734,7 +734,7 @@ int getExpressionError(Expression * expression, Table * functionTable, Statement
             }
             return -1;
         }
-        case EXPRESSION_UNARY_OPERATOR: {
+        case EXPRESSION_PREFIX_OPERATOR: {
             Expression__PrefixOperator * op = (Expression__PrefixOperator *) expression;
             return getExpressionError(op->rSide, functionTable, program, currentFunction, resultTable);
         }

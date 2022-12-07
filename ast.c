@@ -735,7 +735,7 @@ void getExpressionVarType(Table * functionTable, Expression * expression, Table 
             }
             break;
         }
-        case EXPRESSION_UNARY_OPERATOR: {
+        case EXPRESSION_PREFIX_OPERATOR: {
             Expression__PrefixOperator* unOp = (Expression__PrefixOperator*)expression;
             UnionType rType;
             getExpressionVarType(functionTable, unOp->rSide, variableTable, &rType, resultTable);
@@ -1325,7 +1325,7 @@ Expression__FunctionCall* Expression__FunctionCall__addArgument(Expression__Func
  * @param type 
  */
 void Expression__BinaryOperator__serialize(Expression__BinaryOperator *this, StringBuilder * stringBuilder) {
-    StringBuilder__appendString(stringBuilder, "{\"expressionType\": \"EXPRESSION_BINARY_OPERATION\", \"operator\": \"");
+    StringBuilder__appendString(stringBuilder, "{\"expressionType\": \"EXPRESSION_BINARY_OPERATOR\", \"operator\": \"");
     switch (this->operator) {
         case TOKEN_PLUS:
             StringBuilder__appendString(stringBuilder, "+");
@@ -1407,7 +1407,7 @@ Statement *** Expression__BinaryOperator__getChildren(Expression__BinaryOperator
  * @param this 
  * @return Type 
  */
-UnionType Expression__BinaryOperation__getType(Expression__BinaryOperator *this, Table * functionTable, StatementList * program, Function * currentFunction,  PointerTable * resultTable) {
+UnionType Expression__BinaryOperator__getType(Expression__BinaryOperator *this, Table * functionTable, StatementList * program, Function * currentFunction,  PointerTable * resultTable) {
     UnionType type = {0};
     UnionType lType = {0};
     UnionType rType = {0};
@@ -1504,7 +1504,7 @@ Expression__BinaryOperator* Expression__BinaryOperator__init() {
     this->super.super.getChildren = (struct Statement *** (*)(struct Statement *, int *))Expression__BinaryOperator__getChildren;
     this->super.super.duplicate = (struct Statement * (*)(struct Statement *))Expression__BinaryOperator__duplicate;
     this->super.super.free = (void (*)(struct Statement *))Expression__BinaryOperator__free;
-    this->super.getType = (UnionType (*)(struct Expression *, Table *, StatementList *, Function *, PointerTable *))Expression__BinaryOperation__getType;
+    this->super.getType = (UnionType (*)(struct Expression *, Table *, StatementList *, Function *, PointerTable *))Expression__BinaryOperator__getType;
     this->lSide = NULL;
     this->rSide = NULL;
     return this;
@@ -1515,8 +1515,8 @@ Expression__BinaryOperator* Expression__BinaryOperator__init() {
  * 
  * @param type 
  */
-void Expression__UnaryOperator__serialize(Expression__PrefixOperator *this, StringBuilder * stringBuilder) {
-    StringBuilder__appendString(stringBuilder, "{\"expressionType\": \"EXPRESSION_UNARY_OPERATION\", \"operator\": \"");
+void Expression__PrefixOperator__serialize(Expression__PrefixOperator *this, StringBuilder * stringBuilder) {
+    StringBuilder__appendString(stringBuilder, "{\"expressionType\": \"EXPRESSION_UNARY_OPERATOR\", \"operator\": \"");
     switch (this->operator) {
         case TOKEN_NEGATE:
             StringBuilder__appendString(stringBuilder, "!");
@@ -1539,7 +1539,7 @@ void Expression__UnaryOperator__serialize(Expression__PrefixOperator *this, Stri
  * @param type 
  * @return Statement*** 
  */
-Statement *** Expression__UnaryOperator__getChildren(Expression__PrefixOperator *this, int * childrenCount) {
+Statement *** Expression__PrefixOperator__getChildren(Expression__PrefixOperator *this, int * childrenCount) {
     *childrenCount = 1;
     Statement *** children = malloc(*childrenCount * sizeof(Statement**));
     children[0] = (Statement**) &this->rSide;
@@ -1552,7 +1552,7 @@ Statement *** Expression__UnaryOperator__getChildren(Expression__PrefixOperator 
  * @param this 
  * @return Type 
  */
-UnionType Expression__UnaryOperation__getType(Expression__PrefixOperator *this, Table * functionTable, StatementList * program, Function * currentFunction, PointerTable * resultTable) {
+UnionType Expression__UnaryOperator__getType(Expression__PrefixOperator *this, Table * functionTable, StatementList * program, Function * currentFunction, PointerTable * resultTable) {
     UnionType type = {0};
     switch (this->operator) {
         case TOKEN_NEGATE:
@@ -1577,35 +1577,35 @@ UnionType Expression__UnaryOperation__getType(Expression__PrefixOperator *this, 
  * @param this 
  * @return Expression__PrefixOperator* 
  */
-Expression__PrefixOperator* Expression__UnaryOperator__duplicate(Expression__PrefixOperator* this) {
-    Expression__PrefixOperator* duplicate = Expression__UnaryOperator__init();
+Expression__PrefixOperator* Expression__PrefixOperator__duplicate(Expression__PrefixOperator* this) {
+    Expression__PrefixOperator* duplicate = Expression__PrefixOperator__init();
     duplicate->operator = this->operator;
     duplicate->rSide = (this->rSide != NULL ? (Expression*)this->rSide->super.duplicate((Statement*)this->rSide) : NULL);
     return duplicate;
 }
 
-void Expression__UnaryOperator__free(Expression__PrefixOperator* this) {
+void Expression__PrefixOperator__free(Expression__PrefixOperator* this) {
     if(this == NULL) return;
     this->rSide->super.free((Statement*)this->rSide);
     free(this);
 }
 
 /**
- * @brief Unary operator expression constructor
+ * @brief Prefix operator expression constructor
  * 
  * @param type 
  * @return Expression__PrefixOperator* 
  */
-Expression__PrefixOperator* Expression__UnaryOperator__init() {
+Expression__PrefixOperator* Expression__PrefixOperator__init() {
     Expression__PrefixOperator *this = malloc(sizeof(Expression__PrefixOperator));
-    this->super.expressionType = EXPRESSION_UNARY_OPERATOR;
+    this->super.expressionType = EXPRESSION_PREFIX_OPERATOR;
     this->super.isLValue = false;
     this->super.super.statementType = STATEMENT_EXPRESSION;
-    this->super.super.serialize = (void (*)(struct Statement *, StringBuilder *))Expression__UnaryOperator__serialize;
-    this->super.super.getChildren = (struct Statement *** (*)(struct Statement *, int *))Expression__UnaryOperator__getChildren;
-    this->super.super.duplicate = (struct Statement * (*)(struct Statement *))Expression__UnaryOperator__duplicate;
-    this->super.super.free = (void (*)(struct Statement *))Expression__UnaryOperator__free;
-    this->super.getType = (UnionType (*)(struct Expression *, Table *, StatementList *, Function *, PointerTable *))Expression__UnaryOperation__getType;
+    this->super.super.serialize = (void (*)(struct Statement *, StringBuilder *))Expression__PrefixOperator__serialize;
+    this->super.super.getChildren = (struct Statement *** (*)(struct Statement *, int *))Expression__PrefixOperator__getChildren;
+    this->super.super.duplicate = (struct Statement * (*)(struct Statement *))Expression__PrefixOperator__duplicate;
+    this->super.super.free = (void (*)(struct Statement *))Expression__PrefixOperator__free;
+    this->super.getType = (UnionType (*)(struct Expression *, Table *, StatementList *, Function *, PointerTable *))Expression__UnaryOperator__getType;
     this->rSide = NULL;
     return this;
 }
@@ -1616,7 +1616,7 @@ Expression__PrefixOperator* Expression__UnaryOperator__init() {
  * @param type 
  */
 void Expression__PostfixOperator__serialize(Expression__PostfixOperator *this, StringBuilder * stringBuilder) {
-    StringBuilder__appendString(stringBuilder, "{\"expressionType\": \"EXPRESSION_POSTFIX_OPERATION\", \"operator\": \"");
+    StringBuilder__appendString(stringBuilder, "{\"expressionType\": \"EXPRESSION_POSTFIX_OPERATOR\", \"operator\": \"");
     switch (this->operator) {
         case TOKEN_INCREMENT:
             StringBuilder__appendString(stringBuilder, "++");
@@ -1655,7 +1655,7 @@ Statement *** Expression__PostfixOperator__getChildren(Expression__PostfixOperat
  * @param this 
  * @return Type 
  */
-UnionType Expression__PostfixOperation__getType(Expression__PostfixOperator *this, Table * functionTable, StatementList * program, Function * currentFunction, PointerTable * resultTable) {
+UnionType Expression__PostfixOperator__getType(Expression__PostfixOperator *this, Table * functionTable, StatementList * program, Function * currentFunction, PointerTable * resultTable) {
     switch (this->operator) {
         case TOKEN_INCREMENT:
         case TOKEN_DECREMENT:
@@ -1707,7 +1707,7 @@ Expression__PostfixOperator* Expression__PostfixOperator__init() {
     this->super.super.getChildren = (struct Statement *** (*)(struct Statement *, int *))Expression__PostfixOperator__getChildren;
     this->super.super.duplicate = (struct Statement * (*)(struct Statement *))Expression__PostfixOperator__duplicate;
     this->super.super.free = (void (*)(struct Statement *))Expression__PostfixOperator__free;
-    this->super.getType = (UnionType (*)(struct Expression *, Table *, StatementList *, Function *, PointerTable *))Expression__PostfixOperation__getType;
+    this->super.getType = (UnionType (*)(struct Expression *, Table *, StatementList *, Function *, PointerTable *))Expression__PostfixOperator__getType;
     this->operand = NULL;
     return this;
 }
