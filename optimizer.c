@@ -738,6 +738,10 @@ int getExpressionError(Expression * expression, Table * functionTable, Statement
             Expression__UnaryOperator * op = (Expression__UnaryOperator *) expression;
             return getExpressionError(op->rSide, functionTable, program, currentFunction, resultTable);
         }
+        case EXPRESSION_POSTFIX_OPERATOR: {
+            Expression__PostfixOperator * op = (Expression__PostfixOperator *) expression;
+            return getExpressionError(op->operand, functionTable, program, currentFunction, resultTable);
+        }
     }
     return -1;
 }

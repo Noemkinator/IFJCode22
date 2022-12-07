@@ -1602,6 +1602,42 @@ Symb generateUnaryOperator(Expression__UnaryOperator * expression, Context ctx, 
 }
 
 /**
+ * @brief Generates postfix operator code
+ * 
+ * @param expression Expression to generate
+ * @param ctx Context
+ * @return Symb
+ */
+Symb generatePostfixOperator(Expression__PostfixOperator * expression, Context ctx, bool throwaway, Var * outVarAlt) {
+    Symb symb = generateExpression(expression->operand, ctx, false, NULL);
+    Var outVar;
+    if(outVarAlt == NULL) {
+        outVar = generateTemporaryVariable(ctx);
+    } else {
+        outVar = *outVarAlt;
+    }
+    Symb outSymb = (Symb){.type=Type_variable, .value.v = outVar};
+    switch(expression->operator) {
+        case TOKEN_INCREMENT: {
+            Symb one = (Symb){.type=Type_int, .value.i=1};
+            emit_ADD(outVar, symb, one);
+            emit_ADD(outVar, symb, one);
+            break;
+        }
+        case TOKEN_DECREMENT: {
+            Symb one = (Symb){.type=Type_int, .value.i=1};
+            emit_SUB(outVar, symb, one);
+            break;
+        }
+        default:
+            fprintf(stderr, "Unknown operator found while generating output code\n");
+            exit(99);
+    }
+    freeTemporarySymbol(symb, ctx);
+    return outSymb;
+}
+
+/**
  * @brief Generates code for expression
  * 
  * @param expression 
@@ -1626,6 +1662,9 @@ Symb generateExpression(Expression * expression, Context ctx, bool throwaway, Va
             break;
         case EXPRESSION_UNARY_OPERATOR:
             return generateUnaryOperator((Expression__UnaryOperator*)expression, ctx, throwaway, outVar);
+            break;
+        case EXPRESSION_POSTFIX_OPERATOR:
+            return generatePostfixOperator((Expression__PostfixOperator*)expression, ctx, throwaway, outVar);
             break;
         default:
             fprintf(stderr, "Unknown expression type found while generating output code\n");

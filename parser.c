@@ -269,14 +269,15 @@ bool parse_terminal_expression(Expression ** expression) {
 }
 
 bool parse_terminal_expression_with_post_op(Expression ** expression) {
-    parse_terminal_expression(expression);
+    if(!parse_terminal_expression(expression)) return false;
     while(nextToken.type == TOKEN_INCREMENT || nextToken.type == TOKEN_DECREMENT) {
-        /*Expression__PostfixOperator * postfixOperator = Expression__PostfixOperator__init();
+        Expression__PostfixOperator * postfixOperator = Expression__PostfixOperator__init();
         postfixOperator->operator = nextToken.type;
         postfixOperator->operand = *expression;
         *expression = (Expression*)postfixOperator;
-        nextToken = getNextToken();*/
+        nextToken = getNextToken();
     }
+    return true;
 }
 
 bool is_first_expression(TokenType tokenType) {
@@ -366,7 +367,7 @@ bool parse_expression(Expression ** expression, int previousPrecedence) {
         }
         return true;
     }
-    if(!parse_terminal_expression(expression)) return false;
+    if(!parse_terminal_expression_with_post_op(expression)) return false;
     while(is_binary_operator(nextToken.type)) {
         Token operatorToken = nextToken;
         int nextPrecedence = getPrecedence(operatorToken.type);

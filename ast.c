@@ -750,6 +750,24 @@ void getExpressionVarType(Table * functionTable, Expression * expression, Table 
             }
             break;
         }
+        case EXPRESSION_POSTFIX_OPERATOR: {
+            Expression__PostfixOperator* postOp = (Expression__PostfixOperator*)expression;
+            UnionType operand;
+            getExpressionVarType(functionTable, postOp->operand, variableTable, &operand, resultTable);
+            if(exprTypeRet == NULL) {
+                return;
+            }
+            *exprTypeRet = (UnionType){0};
+            switch (postOp->operator) {
+                case TOKEN_INCREMENT:
+                case TOKEN_DECREMENT:
+                    exprTypeRet->isInt = true;
+                    break;
+                default:
+                    break;
+            }
+            break;
+        }
     }
 }
 
@@ -1570,6 +1588,109 @@ Expression__UnaryOperator* Expression__UnaryOperator__init() {
     return this;
 }
 
+/**
+ * @brief Postfix operator expression serializer
+ * 
+ * @param type 
+ */
+void Expression__PostfixOperator__serialize(Expression__PostfixOperator *this, StringBuilder * stringBuilder) {
+    StringBuilder__appendString(stringBuilder, "{\"expressionType\": \"EXPRESSION_POSTFIX_OPERATION\", \"operator\": \"");
+    switch (this->operator) {
+        case TOKEN_INCREMENT:
+            StringBuilder__appendString(stringBuilder, "++");
+            break;
+        case TOKEN_DECREMENT:
+            StringBuilder__appendString(stringBuilder, "--");
+            break;
+        default:
+            StringBuilder__appendString(stringBuilder, "TODO");
+    }
+    StringBuilder__appendString(stringBuilder, "\", \"operand\": ");
+    if(this->operand != NULL) {
+        this->operand->super.serialize((Statement*)this->operand, stringBuilder);
+    } else {
+        StringBuilder__appendString(stringBuilder, "null");
+    }
+    StringBuilder__appendString(stringBuilder, "}");
+}
+
+/**
+ * @brief Get postfix operator expression children
+ * 
+ * @param type 
+ * @return Statement*** 
+ */
+Statement *** Expression__PostfixOperator__getChildren(Expression__PostfixOperator *this, int * childrenCount) {
+    *childrenCount = 1;
+    Statement *** children = malloc(*childrenCount * sizeof(Statement**));
+    children[0] = (Statement**) &this->operand;
+    return children;
+}
+
+/**
+ * @brief Get postfix operator expression type
+ * 
+ * @param this 
+ * @return Type 
+ */
+UnionType Expression__PostfixOperation__getType(Expression__PostfixOperator *this, Table * functionTable, StatementList * program, Function * currentFunction, PointerTable * resultTable) {
+    UnionType type = {0};
+    switch (this->operator) {
+        case TOKEN_INCREMENT:
+        case TOKEN_DECREMENT:
+            type.isInt = true;
+            break;
+        default:
+            fprintf(stderr, "Unknown postfix operator, unable to generate type\n");
+            exit(99);
+            break;
+    }
+    return type;
+}
+
+/**
+ * @brief Duplicates Expression__PostfixOperator
+ * 
+ * @param this 
+ * @return Expression__PostfixOperator* 
+ */
+Expression__PostfixOperator* Expression__PostfixOperator__duplicate(Expression__PostfixOperator* this) {
+    Expression__PostfixOperator* duplicate = Expression__PostfixOperator__init();
+    duplicate->operator = this->operator;
+    duplicate->operand = (this->operand != NULL ? (Expression*)this->operand->super.duplicate((Statement*)this->operand) : NULL);
+    return duplicate;
+}
+
+/**
+ * @brief Frees Expression__PostfixOperator
+ * 
+ * @param this 
+ */
+void Expression__PostfixOperator__free(Expression__PostfixOperator* this) {
+    if(this == NULL) return;
+    this->operand->super.free((Statement*)this->operand);
+    free(this);
+}
+
+/**
+ * @brief Postfix operator expression constructor
+ * 
+ * @param type 
+ * @return Expression__PostfixOperator* 
+ */
+Expression__PostfixOperator* Expression__PostfixOperator__init() {
+    Expression__PostfixOperator *this = malloc(sizeof(Expression__PostfixOperator));
+    this->super.expressionType = EXPRESSION_POSTFIX_OPERATOR;
+    this->super.isLValue = false;
+    this->super.super.statementType = STATEMENT_EXPRESSION;
+    this->super.super.serialize = (void (*)(struct Statement *, StringBuilder *))Expression__PostfixOperator__serialize;
+    this->super.super.getChildren = (struct Statement *** (*)(struct Statement *, int *))Expression__PostfixOperator__getChildren;
+    this->super.super.duplicate = (struct Statement * (*)(struct Statement *))Expression__PostfixOperator__duplicate;
+    this->super.super.free = (void (*)(struct Statement *))Expression__PostfixOperator__free;
+    this->super.getType = (UnionType (*)(struct Expression *, Table *, StatementList *, Function *, PointerTable *))Expression__PostfixOperation__getType;
+    this->operand = NULL;
+    return this;
+}
 /**
  * @brief <if> statement serializer
  * 
