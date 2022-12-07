@@ -12,7 +12,7 @@
 #include "lexer.h"
 
 /**
- * @brief Shifts token to the next one
+ * @brief Gets next token for further processing
  */
 Token getNextToken();
 

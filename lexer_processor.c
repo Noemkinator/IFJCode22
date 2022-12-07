@@ -18,6 +18,10 @@ enum {
     LEXER_PROCESSOR_SOURCE_DONE
 } lexerProcessorState;
 
+/**
+ * @brief Gets next token from lexer that is not whitespace or comment
+ * @return token
+ */
 Token getNextNonEmptyToken() {
     Token token;
     do {
@@ -26,6 +30,13 @@ Token getNextNonEmptyToken() {
     return token;
 }
 
+/**
+ * @brief Checks if token is keyword
+ * @details Checks if token is keyword and if it is, it returns the value of the token.
+ *  At the start, it will check the if the input begins with "<?php" tag and with "declare(strict_types=1)".
+ *  If any requirements are not met, it prints lexer error and exits the execution of program.
+ * @return processed token
+ */
 Token getNextToken() {
     switch(lexerProcessorState) {
         case LEXER_PROCESSOR_BEGIN: {
