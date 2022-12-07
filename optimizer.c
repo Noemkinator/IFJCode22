@@ -7,6 +7,7 @@
  */
 
 #include "optimizer.h"
+#include <time.h>
 
 Expression__Constant * performConstantCast(Expression__Constant * in, Type targetType, bool isBuiltin) {
     if(in->type.type == targetType.type) {
@@ -519,7 +520,7 @@ Statement * performStatementFolding(Statement * in) {
             }
             break;
         }
-        case STATEMENT_WHILE: {
+        /*case STATEMENT_WHILE: {
             StatementWhile* whileStatement = (StatementWhile *) in;
             if(whileStatement->condition->expressionType == EXPRESSION_CONSTANT) {
                 Expression__Constant * condition = (Expression__Constant *) whileStatement->condition;
@@ -529,7 +530,7 @@ Statement * performStatementFolding(Statement * in) {
                 }
             }
             break;
-        }
+        }*/ // TODO: doesnt work with break, continue, but loop unrolling gets the job done anyways
         default:
             break;
     }
@@ -1086,33 +1087,82 @@ bool performNestedStatementsExpansion(Statement ** parent, Table * functionTable
 }
 
 void optimize(StatementList * program, Table * functionTable) {
+    bool canLoopsBeOptimized = true;
+    size_t count = 0;
+    Statement *** statements = getAllStatements((Statement*)program, &count);
+    for(int i=0; i<count; i++) {
+        if(statements[i] == NULL) continue;
+        if(*statements[i] == NULL) continue;
+        Statement * statement = *statements[i];
+        if(statement->statementType == STATEMENT_BREAK || statement->statementType == STATEMENT_CONTINUE) {
+            canLoopsBeOptimized = false;
+            break;
+        }
+    }
+    free(statements);
+    for(int i = 0; i < TB_SIZE; i++) {
+        TableItem* item = functionTable->tb[i];
+        while(item != NULL) {
+            Function * function = (Function *) item->data;
+            if(function->body == NULL) {
+                item = item->next;
+                continue;
+            }
+            size_t count = 0;
+            Statement *** statements = getAllStatements(function->body, &count);
+            for(int i=0; i<count; i++) {
+                if(statements[i] == NULL) continue;
+                if(*statements[i] == NULL) continue;
+                Statement * statement = *statements[i];
+                if(statement->statementType == STATEMENT_BREAK || statement->statementType == STATEMENT_CONTINUE) {
+                    canLoopsBeOptimized = false;
+                    break;
+                }
+            }
+            free(statements);
+            if(!canLoopsBeOptimized) break;
+            item = item->next;
+        }
+        if(!canLoopsBeOptimized) break;
+    }
+    if(canLoopsBeOptimized) {
+        fprintf(stderr, "Loops can be optimized\n");
+    } else {
+        fprintf(stderr, "Loops can not be optimized\n");
+    }
+    clock_t start = clock();
+    float optimizationTime = 0;
     bool continueOptimizing = true;
     bool continueUpdatingTypes = true;
     while(continueUpdatingTypes) {
-        //performNestedStatementsExpansion((Statement**)&program, functionTable, program, NULL);
-        PointerTable * resultTable = table_statement_init();
+        if(canLoopsBeOptimized) performNestedStatementsExpansion((Statement**)&program, functionTable, program, NULL);
         continueUpdatingTypes = false;
         while(continueOptimizing) {
             continueOptimizing = false;
+            PointerTable * resultTable = table_statement_init();
             Table * optimizerVarInfo = table_init();
             buildNestedStatementVarUsages((Statement*)program, optimizerVarInfo);
             continueOptimizing |= optimizeNestedStatements((Statement**)&program, functionTable, program, NULL, optimizerVarInfo, resultTable);
-            table_free(optimizerVarInfo);
             continueOptimizing |= replaceErrorsWithExit((Statement**)&program, functionTable, program, NULL, resultTable);
+            table_free(optimizerVarInfo);
+            table_statement_free(resultTable);
             for(int i = 0; i < TB_SIZE; i++) {
                 TableItem* item = functionTable->tb[i];
                 while(item != NULL) {
+                    resultTable = table_statement_init();
                     optimizerVarInfo = table_init();
                     buildNestedStatementVarUsages((Statement*)item->data, optimizerVarInfo);
                     continueOptimizing |= optimizeNestedStatements((Statement**)&item->data, functionTable, program, (Function*)item->data, optimizerVarInfo, resultTable);
-                    table_free(optimizerVarInfo);
                     continueOptimizing |= replaceErrorsWithExit((Statement**)&item->data, functionTable, program, (Function*)item->data, resultTable);
+                    table_free(optimizerVarInfo);
+                    table_statement_free(resultTable);
                     item = item->next;
                 }
             }
             if(continueOptimizing) continueUpdatingTypes = true;
+            optimizationTime = (float)(clock() - start) / CLOCKS_PER_SEC;
+            if(optimizationTime >= 0.2) break;
         }
-        table_statement_free(resultTable);
-        continueOptimizing = true;
+        if(optimizationTime >= 0.1) break;
     }
 }
