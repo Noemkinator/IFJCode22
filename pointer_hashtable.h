@@ -1,8 +1,8 @@
 /**
  * Implementace překladače imperativního jazyka IFJ22
- * @brief Hlavičkový soubor pro implementaci tabulky symbolů (symtable.c) 
- * @author Jakub Kratochvíl (xkrato67)
- * @author Jiří Gallo (xgallo04)
+ * @file pointer_hashtable.h
+ * @authors Jakub Kratochvíl (xkrato67), Jiří Gallo (xgallo04)
+ * @brief Header file for pointer_hashtable.c
  */
 
 #ifndef __HASHTABLE_STATEMENT_H

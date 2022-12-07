@@ -1,7 +1,7 @@
 /**
  * Implementace překladače imperativního jazyka IFJ22
  * @file optimizer.c
- * @author Jiří Gallo (xgallo04)
+ * @author Jiří Gallo (xgallo04), Jakub Kratochvíl (xkrato67)
  * @brief Optimizer of IFJcode22
  * @date 2022-10-26
  */
