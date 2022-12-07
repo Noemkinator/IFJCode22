@@ -1542,6 +1542,11 @@ UnionType Expression__UnaryOperation__getType(Expression__PrefixOperator *this, 
         case TOKEN_NEGATE:
             type.isBool = true;
             break;
+        case TOKEN_INCREMENT:
+        case TOKEN_DECREMENT:
+            type.isInt = true;
+            type.isFloat = true;
+            break;
         default:
             fprintf(stderr, "Unknown unary operator, unable to generate type\n");
             exit(99);
@@ -1635,22 +1640,16 @@ Statement *** Expression__PostfixOperator__getChildren(Expression__PostfixOperat
  * @return Type 
  */
 UnionType Expression__PostfixOperation__getType(Expression__PostfixOperator *this, Table * functionTable, StatementList * program, Function * currentFunction, PointerTable * resultTable) {
-    UnionType type = {0};
     switch (this->operator) {
         case TOKEN_INCREMENT:
         case TOKEN_DECREMENT:
-            if(type.isFloat) {
-                type.isFloat = true;
-            } else if(type.isInt) {
-                type.isInt = true;
-            }
+            return this->operand->getType(this->operand, functionTable, program, currentFunction, resultTable);
             break;
         default:
             fprintf(stderr, "Unknown postfix operator, unable to generate type\n");
             exit(99);
             break;
     }
-    return type;
 }
 
 /**
