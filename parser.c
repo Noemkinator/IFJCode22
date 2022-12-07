@@ -32,8 +32,6 @@ void printParserError(Token token, char * message) {
 
 int getPrecedence(TokenType type) {
     switch (type) {
-    case TOKEN_NEGATE:
-        return 10;
     case TOKEN_MULTIPLY:
     case TOKEN_DIVIDE:
         return 9;
@@ -64,6 +62,19 @@ int getPrecedence(TokenType type) {
     case TOKEN_MULTIPLY_ASSIGN:
     case TOKEN_DIVIDE_ASSIGN:
         return 1;
+    default:
+        return -1;
+    }
+}
+
+int getPrefixPrecedence(TokenType type) {
+    switch (type) {
+    case TOKEN_NEGATE:
+    case TOKEN_INCREMENT:
+    case TOKEN_DECREMENT:
+    case TOKEN_PLUS:
+    case TOKEN_MINUS:
+        return 10;
     default:
         return -1;
     }
@@ -299,7 +310,7 @@ bool parse_expression(Expression ** expression, int previousPrecedence) {
             *expression = (Expression*)binaryOperator;
             binaryOperator->operator = TOKEN_PLUS;
             nextToken = getNextToken();
-            if(!parse_expression(&binaryOperator->rSide, 8)) return false; // TODO handle priority correctly
+            if(!parse_expression(&binaryOperator->rSide, getPrefixPrecedence(operatorToken.type))) return false;
             Expression__Constant * constant = Expression__Constant__init();
             binaryOperator->lSide = (Expression*)constant;
             constant->type.type = TYPE_INT;
@@ -311,7 +322,7 @@ bool parse_expression(Expression ** expression, int previousPrecedence) {
             *expression = (Expression*)binaryOperator;
             binaryOperator->operator = TOKEN_MINUS;
             nextToken = getNextToken();
-            if(!parse_expression(&binaryOperator->rSide, 8)) return false; // TODO handle priority correctly
+            if(!parse_expression(&binaryOperator->rSide, getPrefixPrecedence(operatorToken.type))) return false;
             Expression__Constant * constant = Expression__Constant__init();
             binaryOperator->lSide = (Expression*)constant;
             constant->type.type = TYPE_INT;
@@ -323,7 +334,7 @@ bool parse_expression(Expression ** expression, int previousPrecedence) {
             *expression = (Expression*)binaryOperator;
             binaryOperator->operator = TOKEN_ASSIGN;
             nextToken = getNextToken();
-            if(!parse_expression(&binaryOperator->lSide, 8)) return false; // TODO handle priority correctly
+            if(!parse_expression(&binaryOperator->lSide, getPrefixPrecedence(operatorToken.type))) return false;
             if(!binaryOperator->lSide->isLValue) {
                 printParserError(operatorToken, "Expected l-value");
                 return false;
@@ -343,7 +354,7 @@ bool parse_expression(Expression ** expression, int previousPrecedence) {
             *expression = (Expression*)binaryOperator;
             binaryOperator->operator = TOKEN_ASSIGN;
             nextToken = getNextToken();
-            if(!parse_expression(&binaryOperator->lSide, 8)) return false; // TODO handle priority correctly
+            if(!parse_expression(&binaryOperator->lSide, getPrefixPrecedence(operatorToken.type))) return false;
             if(!binaryOperator->lSide->isLValue) {
                 printParserError(operatorToken, "Expected l-value");
                 return false;
@@ -363,7 +374,7 @@ bool parse_expression(Expression ** expression, int previousPrecedence) {
             operator->operator = operatorToken.type;
             *expression = (Expression*)operator;
             nextToken = getNextToken();
-            if(!parse_expression(&operator->rSide, getPrecedence(operatorToken.type))) return false;
+            if(!parse_expression(&operator->rSide, getPrefixPrecedence(operatorToken.type))) return false;
         }
         return true;
     }

@@ -852,7 +852,6 @@ ControlFlowInfo getStatementVarType(Table * functionTable, Statement * statement
             ControlFlowInfo flow2 = getStatementVarType(functionTable, ifStatement->elseBody, duplTable, resultTable);
             orVariableTables(variableTable, duplTable);
             mergeControlFlowInfos(&flow1, flow2);
-            // TODO: free also content
             freeVarTypeTable(duplTable);
             freeControlFlowInfo(flow2);
             return flow1;
@@ -948,7 +947,7 @@ ControlFlowInfo getStatementVarType(Table * functionTable, Statement * statement
             }
             freeVarTypeTable(duplTable);
             freeTableStatement(duplResultTable);
-            return flow; // TODO
+            return flow;
         }
         case STATEMENT_FOR: {
             StatementFor* forStatement = (StatementFor*)statement; // initialize for statement
@@ -1008,7 +1007,7 @@ ControlFlowInfo getStatementVarType(Table * functionTable, Statement * statement
             }
             freeVarTypeTable(duplTable);
             freeTableStatement(duplResultTable);
-            return (ControlFlowInfo){0}; // TODO
+            return flow;
         }
         case STATEMENT_BREAK: {
             StatementBreak* breakStatement = (StatementBreak*)statement;
