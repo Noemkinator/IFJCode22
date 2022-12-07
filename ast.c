@@ -983,21 +983,26 @@ ControlFlowInfo getStatementVarType(Table * functionTable, Statement * statement
 ControlFlowInfo getStatementListVarType(Table * functionTable, StatementList * statementList, Table * variableTable, PointerTable * resultTable) {
     ControlFlowInfo info = (ControlFlowInfo){0};
     Table * liveVariableTable = variableTable;
+    PointerTable * liveResultTable = resultTable;
     bool firstDivergence = true;
     for(int i=0; i<statementList->listSize; i++) {
-        bool changed = mergeControlFlowInfos(&info, getStatementVarType(functionTable, statementList->statements[i], liveVariableTable, resultTable));
+        bool changed = mergeControlFlowInfos(&info, getStatementVarType(functionTable, statementList->statements[i], liveVariableTable, liveResultTable));
         if(changed) {
             if(firstDivergence) {
                 firstDivergence = false;
                 liveVariableTable = duplicateVarTypeTable(variableTable);
+                liveResultTable = duplicateTableStatement(resultTable);
             } else {
                 orVariableTables(variableTable, liveVariableTable);
+                orResultTables(resultTable, liveResultTable);
             }
         }
     }
     if(!firstDivergence) { // the tables have diverged, so we have to merge and cleanup
         orVariableTables(variableTable, liveVariableTable);
+        orResultTables(resultTable, liveResultTable);
         table_free(liveVariableTable);
+        table_statement_free(liveResultTable);
     }
     return info;
 }
