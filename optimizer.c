@@ -1161,8 +1161,9 @@ void optimize(StatementList * program, Table * functionTable) {
             }
             if(continueOptimizing) continueUpdatingTypes = true;
             optimizationTime = (float)(clock() - start) / CLOCKS_PER_SEC;
-            if(optimizationTime >= 0.2) break;
+            if(optimizationTime >= 0.5) break;
         }
-        if(optimizationTime >= 0.1) break;
+        continueOptimizing = true;
+        if(optimizationTime >= 0.3) break;
     }
 }
