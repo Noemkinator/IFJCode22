@@ -938,11 +938,11 @@ Symb generateCastToString(Symb symb, Expression * expression, Context * ctx, Sym
         Var dot_counter = generateTemporaryVariable(*ctx);
         Var is_negative = generateTemporaryVariable(*ctx);
         char* notFloat = create_label("not_float&", castUID);
-        char* strval_push_loop = create_label("strval_push_loop&", castUID);
-        char* strval_pop_loop = create_label("strval_pop_loop&", castUID);
-        char* not_float_dot = create_label("not_float_dot&", castUID);
-        char* check_negative = create_label("check_negative&", castUID);
-        char* is_positive = create_label("is_positive&", castUID);
+        char* strval_push_loop = create_label("strval_push_loop2&", castUID);
+        char* strval_pop_loop = create_label("strval_pop_loop2&", castUID);
+        char* not_float_dot = create_label("not_float_dot2&", castUID);
+        char* check_negative = create_label("check_negative2&", castUID);
+        char* is_positive = create_label("is_positive2&", castUID);
         emit_JUMPIFNEQ(notFloat, symbType, (Symb){.type = Type_string, .value.s = "float"});
         emit_MOVE(result, (Symb){.type = Type_string, .value.s = ""});
         emit_MOVE(char_counter, (Symb){.type = Type_int, .value.i = 0});
